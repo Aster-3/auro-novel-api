@@ -1,0 +1,36 @@
+services:
+  api:
+    build: .
+    container_name: auro-novel-api
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      DB_HOST: db
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:18.3-alpine
+    container_name: auro-novel-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: auro_novel
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auro_novel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  db_data:
