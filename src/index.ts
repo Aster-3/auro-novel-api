@@ -3,7 +3,8 @@ import { AppDataSource } from "./database/data-source.js";
 import express from "express";
 import { User } from "./entities/User.js";
 import { Novel } from "./entities/index.js";
-import AuthRoutes from "./routers/AuthRoutes.js";
+import AuthRoutes from "./routers/auth.routes.js";
+import NovelRoutes from "./routers/novel.routes.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -22,6 +23,7 @@ app.get("/", async (req, res) => {
 });
 
 app.use("/auth", AuthRoutes);
+app.use("/novel", NovelRoutes);
 
 app.post("/", (req, res) => {
   const { username, nickname, email, password } = req.body;
