@@ -4,6 +4,8 @@ import { validateSchema } from "../middlewares/validate.schema.js";
 import { getAllNovelsSchema } from "../schemas/get.all.novels.schema.js";
 import { getOneWithUuid } from "../schemas/get.one.with.uuid.schema.js";
 import { createNovelSchema } from "../schemas/create.novel.schema.js";
+import { createCommentSchema } from "../schemas/create.comment.schema.js";
+import { createReplySchema } from "../schemas/create.reply.schema.js";
 const router = Router();
 const novelController = getNovelController();
 
@@ -23,6 +25,16 @@ router.get("/:id", validateSchema(getOneWithUuid), novelController.getOneNovel);
 
 router.get("/:id/comments", novelController.getNovelComments);
 
-router.post("/:id/comments", novelController.addNovelComment);
+router.post(
+  "/:id/comments",
+  validateSchema(createCommentSchema),
+  novelController.addNovelComment,
+);
+
+router.post(
+  "/:id/comments/replies",
+  validateSchema(createReplySchema),
+  novelController.addNovelComment,
+);
 
 export default router;

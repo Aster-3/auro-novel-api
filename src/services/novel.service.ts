@@ -37,7 +37,6 @@ export class NovelService implements INovelService {
 
   async findOneBy(criteria: Partial<Novel>) {
     const novel = await this.novelRepo.findOne(criteria);
-    if (!novel) throw new NotFoundError("Novel bulunamadı.");
     return novel;
   }
 }

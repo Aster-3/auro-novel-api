@@ -10,4 +10,5 @@ export interface ICommentService {
   }): Promise<FindAndCountType<Comment>>;
 
   createComment(dto: CreateCommentDto): Promise<Comment | null>;
+  deleteComment(id: number): Promise<void>;
 }

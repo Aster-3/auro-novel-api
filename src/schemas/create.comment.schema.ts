@@ -6,9 +6,9 @@ export const createCommentSchema = z.object({
     content: reqString("Yorum")
       .min(2, "Yorum en az 2 karakter olmalıdır")
       .max(1000, "Yorum en fazla 1000 karakter olmalıdır"),
-    novelId: reqUuid("Kitap id"),
-    isLiked: z.boolean("Önerilme durumu zorunludur").optional(),
-    userId: reqUuid("Kitap id"),
+    novelId: reqUuid("Novel id"),
+    isRecommend: z.boolean("Önerilme durumu zorunludur"),
+    userId: reqUuid("User id"),
   }),
 });
 

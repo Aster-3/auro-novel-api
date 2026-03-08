@@ -15,3 +15,11 @@ export const reqUuid = (label: string) =>
         ? `${label} alanı zorunludur.`
         : `${label} uuid olmalıdır.`,
   });
+
+export const reqNumber = (label: string) =>
+  z.number({
+    error: (i) =>
+      i.input === undefined
+        ? `${label} alanı zorunludur.`
+        : `${label} sayı olmalıdır.`,
+  });

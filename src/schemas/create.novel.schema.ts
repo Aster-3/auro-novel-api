@@ -7,7 +7,7 @@ export const createNovelSchema = z.object({
     name: reqString("Kitap adı")
       .min(6, "Kitap adı en az 6 karakter olmalıdır")
       .max(150, "Kitap adı en fazla 150 karakter olmalıdır"),
-    slug: reqString("Kitap slug")
+    slug: reqString("Slug")
       .min(5, "Slug en az 5 karakter olmalıdır")
       .max(50, "Slug en fazla 50 karakter olmalıdır"),
     synopsis: reqString("Kitap açıklaması")

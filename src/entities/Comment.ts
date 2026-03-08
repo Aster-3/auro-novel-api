@@ -16,10 +16,18 @@ export class Comment {
   @PrimaryGeneratedColumn("increment")
   id!: number;
 
+  @Column({ type: "uuid", nullable: false })
+  userId!: string;
+
   @ManyToOne(() => User, (user) => user.comments, { nullable: false })
+  @JoinColumn({ name: "userId" })
   user!: User;
 
-  @ManyToOne(() => Novel, (novel) => novel.id)
+  @Column({ type: "uuid", nullable: false })
+  novelId!: string;
+
+  @ManyToOne(() => Novel, (novel) => novel.id, { nullable: false })
+  @JoinColumn({ name: "novelId" })
   novel!: Novel;
 
   @Column({ type: "varchar", nullable: false, length: 1500 })
@@ -34,7 +42,11 @@ export class Comment {
   @OneToMany(() => CommentLike, (commentLike) => commentLike.comment)
   likes!: CommentLike[];
 
+  @Column({ type: "int", nullable: true })
+  parentCommentId?: number;
+
   @ManyToOne(() => Comment, (comment) => comment.replies, { nullable: true })
+  @JoinColumn({ name: "parentCommentId" })
   parentComment?: Comment;
 
   @OneToMany(() => Comment, (comment) => comment.parentComment)

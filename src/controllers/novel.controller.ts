@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 
 export class NovelController {
   constructor(
@@ -26,6 +27,7 @@ export class NovelController {
   getOneNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const novel = await this.novelService.findOneBy({ id });
+    if (!novel) throw new NotFoundError("Aradığınız novel bulunamadı.");
     res.status(200).json({ novel });
   };
 
@@ -40,6 +42,11 @@ export class NovelController {
   };
 
   addNovelComment = async (req: Request, res: Response) => {
+    const { novelId } = req.body;
+    const novelIsAvailable = await this.novelService.findOneBy({ id: novelId });
+    if (!novelIsAvailable)
+      throw new NotFoundError("Yorum yapmak istediğiniz roman bulunamadı.");
+
     const comment = await this.commentService.createComment(req.body);
     res.status(201).json({ comment });
   };
