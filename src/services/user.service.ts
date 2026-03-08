@@ -2,6 +2,7 @@ import { IUserRepository } from "../interfaces/user.repo.interface.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { IUserService } from "../interfaces/user.service.interface.js";
 import { ConflictError } from "../errors/conflict.error.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 
 export class UserService implements IUserService {
   constructor(private userRepo: IUserRepository) {}
@@ -25,6 +26,12 @@ export class UserService implements IUserService {
   };
 
   getOneUser = async (id: string) => {
-    return await this.userRepo.findOneById(id);
+    const user = await this.userRepo.findOneById(id);
+    if (!user) throw new NotFoundError("Kullanıcı bulunamadı.");
+    return user;
+  };
+
+  searchUsers = async (query: string, page: number = 1) => {
+    return await this.userRepo.searchUsers(query, page);
   };
 }

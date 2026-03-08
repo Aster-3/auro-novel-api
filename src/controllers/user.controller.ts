@@ -13,11 +13,15 @@ export class UserController {
   };
 
   getOneUser = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    if (!id) return res.status(400).json({ error: "Missing required fields" });
-    if (typeof id !== "string")
-      return res.status(400).json({ error: "Missing required fields" });
+    const { id } = req.params as any;
     const user = await this.userService.getOneUser(id);
     res.status(200).json({ user });
+  };
+
+  searchUsers = async (req: Request, res: Response) => {
+    const { query, page } = req.query as any;
+    console.log(query, page);
+    const users = await this.userService.searchUsers(query, page);
+    res.status(200).json({ users });
   };
 }

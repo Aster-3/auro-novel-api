@@ -10,6 +10,7 @@ export const validateSchema =
       query: req.query,
       params: req.params,
     });
+    console.log(result);
     if (!result.success) {
       const formattedErrors = result.error.issues.map((issue) => {
         const fieldName = issue.path.length > 1 ? issue.path[1] : issue.path[0];

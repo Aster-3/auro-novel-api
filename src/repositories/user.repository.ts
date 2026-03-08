@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Like, Repository } from "typeorm";
 import { User } from "../entities/User.js";
 import { IUserRepository } from "../interfaces/user.repo.interface.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
@@ -28,5 +28,30 @@ export class UserRepository implements IUserRepository {
 
   findOneById(id: string): Promise<User | null> {
     return this.userRepo.findOneBy({ id });
+  }
+
+  async searchUsers(query: string, page: number) {
+    if (!query || query.trim().length === 0) {
+      return {
+        data: [],
+        count: 0,
+        currentPage: page,
+        lastPage: 0,
+      };
+    }
+
+    const [result, total] = await this.userRepo.findAndCount({
+      where: { username: Like(`${query}%`) },
+      order: { username: "ASC" },
+      take: 10,
+      skip: (page - 1) * 10,
+    });
+
+    return {
+      data: result,
+      count: total,
+      currentPage: page,
+      lastPage: Math.ceil(total / 10),
+    };
   }
 }

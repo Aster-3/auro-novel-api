@@ -1,5 +1,6 @@
 import { User } from "../entities/User.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
+import { FindAndCountType } from "../constants/findAndCountType.js";
 
 export interface IUserRepository {
   findOneByEmail(email: string): Promise<User | null>;
@@ -7,4 +8,5 @@ export interface IUserRepository {
   findOneById(id: string): Promise<User | null>;
   create(user: CreateUserDto): Promise<User>;
   getAll(page: number, limit: number): Promise<User[]>;
+  searchUsers(query: string, page: number): Promise<FindAndCountType<User>>;
 }
