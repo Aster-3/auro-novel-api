@@ -1,13 +1,13 @@
+import { FindAndCountType } from "../constants/findAndCountType.js";
+import { Comment } from "../entities/Comment.js";
+import { CreateCommentDto } from "../schemas/create.comment.schema.js";
+
 export interface ICommentService {
-  getAllComments(page?: number, limit?: number): Promise<any[]>;
-  getCommentsByUserId(
-    userId: string,
-    page?: number,
-    limit?: number,
-  ): Promise<any[]>;
-  getCommentsByNovelId(
-    novelId: string,
-    page?: number,
-    limit?: number,
-  ): Promise<any[]>;
+  getCommentsByNovelId(query: {
+    novelId: string;
+    page?: number;
+    limit?: number;
+  }): Promise<FindAndCountType<Comment>>;
+
+  createComment(dto: CreateCommentDto): Promise<Comment | null>;
 }

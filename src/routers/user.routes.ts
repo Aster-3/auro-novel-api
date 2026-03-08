@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getUserController } from "../factories/user.factory.js";
 import { validateSchema } from "../middlewares/validate.schema.js";
-import { getOneUserSchema } from "../schemas/get.one.user.schema.js";
+import { getOneWithUuid } from "../schemas/get.one.with.uuid.schema.js";
 import { getAllUserSchema } from "../schemas/get.all.user.schema.js";
 import { userSearchShema } from "../schemas/search.user.schema.js";
 
@@ -15,5 +15,5 @@ router.get(
   validateSchema(userSearchShema),
   userController.searchUsers,
 );
-router.get("/:id", validateSchema(getOneUserSchema), userController.getOneUser);
+router.get("/:id", validateSchema(getOneWithUuid), userController.getOneUser);
 export default router;

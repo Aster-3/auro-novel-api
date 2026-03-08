@@ -1,9 +1,11 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -20,30 +22,39 @@ export class Novel {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  @Index()
   @Column({ type: "varchar", length: 150 })
   name!: string;
 
-  @Column({ type: "varchar", length: "700" })
-  synopsis!: string;
+  @Index()
+  @Column({ type: "varchar", length: 50, unique: true })
+  slug!: string;
 
-  @Column({ type: "enum", enum: SeriesStatus })
+  @Column({ type: "text", nullable: true })
+  coverImage?: string;
+
+  @Column({ type: "varchar", length: "700", nullable: true })
+  synopsis?: string;
+
+  @Index()
+  @Column({ type: "enum", enum: SeriesStatus, default: SeriesStatus.DRAFT })
   status!: SeriesStatus;
 
-  @OneToOne(() => User, (user) => user.id)
+  @ManyToOne(() => User, (user) => user.id)
   @JoinColumn({ name: "authorId" })
   author!: User;
 
   @OneToMany(() => Chapter, (chapter) => chapter.novel)
-  chapters!: Chapter[];
+  chapters?: Chapter[];
 
   @OneToMany(() => Comment, (comment) => comment.novel)
-  comments!: Comment[];
+  comments?: Comment[];
 
   @ManyToMany(() => Category, (category) => category.novel)
   @JoinTable({ name: "novel_categories" })
-  categories!: Category[];
+  categories?: Category[];
 
   @ManyToMany(() => Tags, (tags) => tags.novel)
   @JoinTable({ name: "novel_tags" })
-  tags!: Tags[];
+  tags?: Tags[];
 }

@@ -8,7 +8,7 @@ const rootRouter = Router();
 
 rootRouter.get("/", (req, res) => res.send("Hello from Main Routes"));
 rootRouter.use("/auth", AuthRoutes);
-rootRouter.use("/novel", NovelRoutes);
+rootRouter.use("/novels", NovelRoutes);
 rootRouter.use("/users", UserRoutes);
 rootRouter.use("/comments", CommentRoutes);
 

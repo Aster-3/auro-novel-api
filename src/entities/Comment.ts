@@ -22,6 +22,9 @@ export class Comment {
   @ManyToOne(() => Novel, (novel) => novel.id)
   novel!: Novel;
 
+  @Column({ type: "varchar", nullable: false, length: 1500 })
+  content!: string;
+
   @Column({ type: "boolean", nullable: true })
   isRecommend?: boolean;
 
