@@ -11,4 +11,13 @@ export interface ICommentRepository {
     page?: number;
     limit?: number;
   }): Promise<FindAndCountType<Comment>>;
+  searchComments(query: {
+    page: number;
+    limit: number;
+  }): Promise<FindAndCountType<Comment>>;
+  getCommentReplies(query: {
+    page: number;
+    limit: number;
+    commentId: number;
+  }): Promise<FindAndCountType<Comment>>;
 }

@@ -11,4 +11,13 @@ export interface ICommentService {
 
   createComment(dto: CreateCommentDto): Promise<Comment | null>;
   deleteComment(id: number): Promise<void>;
+  searchComments(query: {
+    page?: number;
+    limit?: number;
+  }): Promise<FindAndCountType<Comment>>;
+  getCommentReplies(query: {
+    page: number;
+    limit: number;
+    commentId: number;
+  }): Promise<FindAndCountType<Comment>>;
 }

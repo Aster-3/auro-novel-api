@@ -42,15 +42,27 @@ export class Comment {
   @OneToMany(() => CommentLike, (commentLike) => commentLike.comment)
   likes!: CommentLike[];
 
+  @Column({ type: "int", default: 0 })
+  likeCount!: number;
+
+  @Column({ type: "int", default: 0 })
+  replyCount!: number;
+
   @Column({ type: "int", nullable: true })
   parentCommentId?: number;
 
-  @ManyToOne(() => Comment, (comment) => comment.replies, { nullable: true })
+  @ManyToOne(() => Comment, (comment) => comment.replies, {
+    nullable: true,
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "parentCommentId" })
   parentComment?: Comment;
 
   @OneToMany(() => Comment, (comment) => comment.parentComment)
   replies?: Comment[];
+
+  @Column({ type: "int", nullable: true })
+  rootCommentId?: number;
 
   @ManyToOne(() => Comment, { nullable: true, onDelete: "CASCADE" })
   @JoinColumn({ name: "rootCommentId" })

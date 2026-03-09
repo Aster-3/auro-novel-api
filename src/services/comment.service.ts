@@ -1,3 +1,5 @@
+import { FindAndCountType } from "../constants/findAndCountType.js";
+import { getRepliesDto } from "../dtos/get.replies.dto.js";
 import { Comment } from "../entities/Comment.js";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
@@ -30,4 +32,38 @@ export class CommentService implements ICommentService {
       limit,
     });
   };
+
+  searchComments = async ({
+    page = 1,
+    limit = 20,
+  }: {
+    page: number;
+    limit: number;
+  }) => {
+    return await this.commentRepo.searchComments({ page, limit });
+  };
+
+  async getCommentReplies({
+    page = 1,
+    limit = 20,
+    commentId,
+  }: {
+    page: number;
+    limit: number;
+    commentId: number;
+  }) {
+    const result = await this.commentRepo.getCommentReplies({
+      page,
+      limit,
+      commentId,
+    });
+    const formattedData = result.data.map(
+      (reply) => new getRepliesDto(reply, commentId),
+    );
+
+    return {
+      ...result,
+      data: formattedData,
+    };
+  }
 }

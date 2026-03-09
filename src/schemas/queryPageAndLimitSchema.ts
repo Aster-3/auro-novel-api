@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-export const getAllUserSchema = z.object({
+export const queryPageAndLimitSchema = z.object({
   query: z.object({
     limit: z.coerce
       .number()
