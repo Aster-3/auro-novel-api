@@ -10,6 +10,7 @@ import { Comment } from "./Comment.js";
 import { CommentLike } from "./CommentLike.js";
 import { Novel } from "./Novel.js";
 import { Tags } from "./Tags.js";
+import { Library } from "./Library.js";
 
 @Entity()
 export class User {
@@ -48,4 +49,7 @@ export class User {
 
   @ManyToOne(() => Tags, (tags) => tags.createdBy)
   tags!: Tags[];
+
+  @OneToMany(() => Library, (library) => library.user)
+  library!: Library[];
 }

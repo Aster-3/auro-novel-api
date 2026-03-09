@@ -50,4 +50,11 @@ export class NovelController {
     const comment = await this.commentService.createComment(req.body);
     res.status(201).json({ comment });
   };
+
+  getRecommendationRate = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const recommendationRate =
+      await this.commentService.getRecommendationRate(id);
+    res.status(200).json({ recommendationRate });
+  };
 }

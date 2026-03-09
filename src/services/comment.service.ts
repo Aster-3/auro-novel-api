@@ -17,6 +17,10 @@ export class CommentService implements ICommentService {
     return await this.commentRepo.delete(id);
   };
 
+  getRecommendationRate(novelId: number) {
+    return this.commentRepo.getRecommendationRate(novelId);
+  }
+
   getCommentsByNovelId = async ({
     novelId,
     page = 1,

@@ -7,7 +7,6 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { SeriesStatus } from "../constants/series.constants.js";
@@ -16,6 +15,7 @@ import { User } from "./User.js";
 import { Chapter } from "./Chapter.js";
 import { Category } from "./Category.js";
 import { Tags } from "./Tags.js";
+import { Library } from "./Library.js";
 
 @Entity()
 export class Novel {
@@ -57,4 +57,11 @@ export class Novel {
   @ManyToMany(() => Tags, (tags) => tags.novel)
   @JoinTable({ name: "novel_tags" })
   tags?: Tags[];
+
+  @OneToMany(() => Library, (library) => library.novel)
+  library!: Library[];
+
+  @Index()
+  @Column({ type: "float", default: 0, select: false })
+  popularityScore: number = 0;
 }

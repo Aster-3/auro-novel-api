@@ -1,4 +1,5 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
+import { getRepliesDto } from "../dtos/get.replies.dto.js";
 import { Comment } from "../entities/Comment.js";
 import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 
@@ -19,5 +20,8 @@ export interface ICommentService {
     page: number;
     limit: number;
     commentId: number;
-  }): Promise<FindAndCountType<Comment>>;
+  }): Promise<FindAndCountType<getRepliesDto>>;
+  getRecommendationRate(
+    novelId: number,
+  ): Promise<{ rate: number; count: number } | null>;
 }

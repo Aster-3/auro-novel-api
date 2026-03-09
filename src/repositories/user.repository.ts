@@ -27,7 +27,31 @@ export class UserRepository implements IUserRepository {
   }
 
   findOneById(id: string): Promise<User | null> {
-    return this.userRepo.findOneBy({ id });
+    return this.userRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        email: true,
+        profileImageUrl: true,
+        profileBackgroundImageUrl: true,
+        description: true,
+        novel: {
+          id: true,
+          name: true,
+          coverImage: true,
+        },
+        library: {
+          novelId: true,
+          createdAt: true,
+        },
+      },
+      relations: {
+        library: true,
+        novel: true,
+      },
+    });
   }
 
   async searchUsers(query: string, page: number) {

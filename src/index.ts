@@ -3,7 +3,7 @@ import express from "express";
 import { AppDataSource } from "./database/data-source.js";
 import { GlobalErrorHandler } from "./middlewares/error.handler.js";
 import helmet from "helmet";
-import rootRouter from "./routers/main.routes.js";
+import rootRouter from "./routers/_main.routes.js";
 
 const PORT = process.env.PORT || 3000;
 

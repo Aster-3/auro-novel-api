@@ -25,6 +25,8 @@ router.get("/:id", validateSchema(getOneWithUuid), novelController.getOneNovel);
 
 router.get("/:id/comments", novelController.getNovelComments);
 
+router.get("/:id/recommendation-rate", novelController.getRecommendationRate);
+
 router.post(
   "/:id/comments",
   validateSchema(createCommentSchema),

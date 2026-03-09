@@ -6,3 +6,4 @@ export * from "./Comment.js";
 export * from "./CommentLike.js";
 export * from "./Category.js";
 export * from "./Tags.js";
+export * from "./Library.js";

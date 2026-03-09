@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import { IUserService } from "../interfaces/user.service.interface.js";
-import { getAllUserSchema } from "../schemas/queryPageAndLimitSchema.js";
-import { validateSchema } from "../middlewares/validate.schema.js";
 
 export class UserController {
   constructor(private userService: IUserService) {}

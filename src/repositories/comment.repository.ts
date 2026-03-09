@@ -15,6 +15,21 @@ export class CommentRepository implements ICommentRepository {
     await this.commentRepo.delete(id);
   }
 
+  async getRecommendationRate(novelId: number) {
+    const result = await this.commentRepo
+      .createQueryBuilder("comment")
+      .select("AVG(comment.isRecommend::int::float)", "avg")
+      .addSelect("COUNT(comment.id)", "count") // Kaç kişi oyladı?
+      .where("comment.novelId = :novelId", { novelId })
+      .andWhere("comment.isRecommend IS NOT NULL")
+      .getRawOne();
+
+    const count = parseInt(result.count) || 0;
+    const rate = count > 0 ? Math.round(parseFloat(result.avg) * 100) : 0;
+
+    return { rate, count };
+  }
+
   async searchComments(query: { page: number; limit: number }) {
     const [comments, total] = await this.commentRepo.findAndCount({
       skip: (query.page - 1) * query.limit,

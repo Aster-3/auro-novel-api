@@ -20,4 +20,7 @@ export interface ICommentRepository {
     limit: number;
     commentId: number;
   }): Promise<FindAndCountType<Comment>>;
+  getRecommendationRate(
+    novelId: number,
+  ): Promise<{ rate: number; count: number } | null>;
 }
