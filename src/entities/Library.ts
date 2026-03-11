@@ -1,4 +1,5 @@
 import {
+  Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
@@ -10,13 +11,15 @@ import { Novel } from "./Novel.js";
 import { User } from "./User.js";
 
 @Entity()
-@Unique(["userId", "novelId"])
 export class Library {
-  @PrimaryColumn({ type: "uuid", nullable: false })
+  @PrimaryColumn({ type: "uuid" })
   userId!: string;
 
-  @PrimaryColumn({ type: "uuid", nullable: false })
+  @PrimaryColumn({ type: "uuid" })
   novelId!: string;
+
+  @Column({ type: "float", default: 1 })
+  lastReadOrder!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

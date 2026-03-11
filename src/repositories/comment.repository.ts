@@ -1,68 +1,71 @@
-import { IsNull, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
 import { Comment } from "../entities/Comment.js";
 import { CreateCommentDto } from "../schemas/create.comment.schema.js";
-import { CreateReplyDto } from "../schemas/create.reply.schema.js";
+import { GetCommentsDto } from "../schemas/get.comments.schema.js";
+import { Novel } from "../entities/_index.js";
+import { ConflictError } from "../errors/conflict.error.js";
 
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
-  async create(comment: CreateCommentDto | CreateReplyDto) {
-    return this.commentRepo.save(comment);
+  async create(comment: CreateCommentDto) {
+    const hasCommentedBefore = await this.commentRepo.exists({
+      where: {
+        userId: comment.userId,
+        novelId: comment.novelId,
+      },
+    });
+
+    if (hasCommentedBefore)
+      throw new ConflictError(
+        "userId and novelId",
+        "Bu seriye zaten bir inceleme bırakmışsınız",
+      );
+
+    return await this.commentRepo.manager.transaction(async (manager) => {
+      await manager.increment(
+        Novel,
+        { id: comment.novelId },
+        "totalReviewsCount",
+        1,
+      );
+
+      if (comment.isRecommend) {
+        await manager.increment(
+          Novel,
+          { id: comment.novelId },
+          "positiveReviewsCount",
+          1,
+        );
+      }
+
+      return await manager.save(Comment, comment);
+    });
   }
 
   async delete(id: number) {
     await this.commentRepo.delete(id);
   }
 
-  async getRecommendationRate(novelId: number) {
-    const result = await this.commentRepo
+  async getTopCommentsOfLastWeek(): Promise<Comment[]> {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    return await this.commentRepo
       .createQueryBuilder("comment")
-      .select("AVG(comment.isRecommend::int::float)", "avg")
-      .addSelect("COUNT(comment.id)", "count") // Kaç kişi oyladı?
-      .where("comment.novelId = :novelId", { novelId })
-      .andWhere("comment.isRecommend IS NOT NULL")
-      .getRawOne();
-
-    const count = parseInt(result.count) || 0;
-    const rate = count > 0 ? Math.round(parseFloat(result.avg) * 100) : 0;
-
-    return { rate, count };
+      .where("comment.createdAt >= :oneWeekAgo", { oneWeekAgo })
+      .orderBy("comment.likeCount", "DESC")
+      .take(10)
+      .getMany();
   }
 
-  async searchComments(query: { page: number; limit: number }) {
-    const [comments, total] = await this.commentRepo.findAndCount({
-      skip: (query.page - 1) * query.limit,
-      select: {
-        id: true,
-        user: { nickname: true },
-        content: true,
-        isRecommend: true,
-        rootCommentId: true,
-        parentCommentId: true,
-        replyCount: true,
-        createdAt: true,
-      },
-      take: query.limit,
-      order: { createdAt: "DESC" },
-      relations: { user: true },
-    });
-    return {
-      data: comments,
-      count: total,
-      currentPage: Number(query.page),
-      lastPage: Math.ceil(total / query.limit),
-    };
-  }
+  async getCommentsByNovelId(dto: GetCommentsDto) {
+    const { id, page, limit } = dto;
 
-  async getCommentsByNovelId(query: {
-    novelId: string;
-    page: number;
-    limit: number;
-  }) {
     const [comments, total] = await this.commentRepo.findAndCount({
-      where: { novel: { id: query.novelId }, parentComment: IsNull() },
-      skip: (query.page - 1) * query.limit,
+      where: { novel: { id: id } },
+      skip: (page - 1) * limit,
       select: {
         id: true,
         user: { id: true, nickname: true, profileImageUrl: true },
@@ -76,49 +79,13 @@ export class CommentRepository implements ICommentRepository {
         user: true,
       },
       order: { createdAt: "DESC" },
-      take: query.limit,
+      take: limit,
     });
     return {
       data: comments,
       count: total,
-      currentPage: query.page,
-      lastPage: Math.ceil(total / query.limit),
+      currentPage: page,
+      lastPage: Math.ceil(total / limit),
     };
   }
-
-  getCommentReplies = async (query: {
-    page: number;
-    limit: number;
-    commentId: number;
-  }) => {
-    const [replies, total] = await this.commentRepo.findAndCount({
-      where: { rootComment: { id: query.commentId } },
-      relations: {
-        user: true,
-        parentComment: { user: true },
-      },
-      select: {
-        id: true,
-        content: true,
-        likeCount: true,
-        createdAt: true,
-        user: { id: true, nickname: true, profileImageUrl: true },
-        parentComment: {
-          id: true,
-          content: true,
-          user: { nickname: true },
-        },
-        rootComment: { id: true },
-      },
-      order: { createdAt: "ASC" },
-      skip: (query.page - 1) * query.limit,
-      take: query.limit,
-    });
-    return {
-      data: replies,
-      count: total,
-      currentPage: query.page,
-      lastPage: Math.ceil(total / query.limit),
-    };
-  };
 }

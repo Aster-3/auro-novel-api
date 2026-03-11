@@ -7,3 +7,6 @@ export * from "./CommentLike.js";
 export * from "./Category.js";
 export * from "./Tags.js";
 export * from "./Library.js";
+export * from "./Reply.js";
+export * from "./ReplyLike.js";
+export * from "./Volume.js";

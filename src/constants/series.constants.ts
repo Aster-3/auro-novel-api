@@ -5,3 +5,8 @@ export enum SeriesStatus {
   CANCELLED = "cancelled",
   DRAFT = "draft",
 }
+
+export enum LanguageType {
+  EN = "en",
+  TR = "tr",
+}

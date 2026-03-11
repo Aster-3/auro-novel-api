@@ -1,8 +1,8 @@
-import { FindOptionsWhere, Repository } from "typeorm";
+import { FindOptionsWhere, ILike, Repository } from "typeorm";
 import { Novel } from "../entities/Novel.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
-import { tr } from "zod/locales";
+import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -11,53 +11,71 @@ export class NovelRepository implements INovelRepository {
     return this.novelRepo.save(novel);
   }
 
-  async findAll(options: { where: any; page: number; limit: number }) {
+  async existControl(identifier: { id?: string; slug?: string }) {
+    const { id, slug } = identifier;
+    if (!id && !slug)
+      throw new Error(
+        "Sorgu hatası: 'id' veya 'slug' parametrelerinden en az biri tanımlı olmalıdır",
+      );
+
+    return await this.novelRepo.exists({
+      where: id ? { id } : { slug },
+    });
+  }
+
+  async getNovels(dto: GetNovelsDTo) {
+    const { name, status, limit, page } = dto;
+    const where: FindOptionsWhere<Novel> = {};
+    if (name) where.name = ILike(`%${name}%`);
+    if (status) where.status = status;
+
     const [novels, total] = await this.novelRepo.findAndCount({
-      where: options.where,
+      where: where,
       select: {
         id: true,
         name: true,
         coverImage: true,
-        synopsis: true,
-        status: true,
-        author: { id: true, nickname: true, profileImageUrl: true },
       },
-      skip: (options.page - 1) * options.limit,
-      take: options.limit,
-      relations: {
-        author: true,
-        tags: true,
-        categories: true,
-        comments: true,
-      },
+      skip: (page - 1) * limit,
+      take: limit,
     });
     return {
       data: novels,
       count: total,
-      currentPage: options.page,
-      lastPage: Math.ceil(total / options.limit),
+      currentPage: page,
+      lastPage: Math.ceil(total / limit),
     };
   }
 
-  async findOne(where: FindOptionsWhere<Novel>) {
+  async findOneById(id: string) {
     return this.novelRepo.findOne({
-      where,
+      where: { id },
       select: {
         id: true,
         name: true,
         coverImage: true,
         synopsis: true,
         status: true,
+        positiveReviewsCount: true,
+        totalReviewsCount: true,
         author: { id: true, nickname: true, profileImageUrl: true },
+        categories: { id: true, trName: true, enName: true },
       },
       relations: {
         author: true,
         tags: true,
         categories: true,
-        comments: true,
-        chapters: true,
       },
     });
+  }
+
+  async updateNovelCategories(novelId: string, categoryIds: number[]) {
+    const categories = categoryIds.map((id) => ({ id }));
+
+    await this.novelRepo.save({
+      id: novelId,
+      categories: categories,
+    } as any);
   }
 
   updateGlobalPopularityScores() {

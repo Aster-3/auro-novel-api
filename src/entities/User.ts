@@ -5,12 +5,17 @@ import {
   OneToMany,
   OneToOne,
   ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { Comment } from "./Comment.js";
 import { CommentLike } from "./CommentLike.js";
 import { Novel } from "./Novel.js";
 import { Tags } from "./Tags.js";
 import { Library } from "./Library.js";
+import { Reply } from "./Reply.js";
+import { ReplyLike } from "./ReplyLike.js";
+import { UserRoles, UserStatus } from "../constants/user.constants.js";
 
 @Entity()
 export class User {
@@ -26,7 +31,7 @@ export class User {
   @Column({ type: "varchar", length: 255, unique: true })
   email!: string;
 
-  @Column({ type: "varchar", length: 255 })
+  @Column({ type: "varchar", length: 255, select: false })
   password!: string;
 
   @Column({ type: "text", nullable: true })
@@ -38,17 +43,38 @@ export class User {
   @Column({ type: "varchar", length: 255, nullable: true })
   description?: string;
 
+  @Column({ type: "boolean", default: false })
+  isVerified!: boolean;
+
+  @Column({ type: "enum", enum: UserRoles, default: UserRoles.USER })
+  role!: UserRoles;
+
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
+  status!: UserStatus;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
+
   @OneToMany(() => Comment, (comment) => comment.user)
   comments!: Comment[];
 
+  @OneToMany(() => Reply, (reply) => reply.user)
+  replies!: Reply[];
+
   @OneToMany(() => CommentLike, (commentLike) => commentLike.user)
-  likes!: CommentLike[];
+  commentLikes!: CommentLike[];
 
-  @OneToOne(() => Novel, (novel) => novel.author)
-  novel!: Novel;
+  @OneToMany(() => ReplyLike, (replyLike) => replyLike.user)
+  replyLikes!: ReplyLike[];
 
-  @ManyToOne(() => Tags, (tags) => tags.createdBy)
-  tags!: Tags[];
+  @OneToMany(() => Novel, (novel) => novel.author)
+  novels!: Novel[];
+
+  @OneToMany(() => Tags, (tags) => tags.createdBy)
+  createdTags!: Tags[];
 
   @OneToMany(() => Library, (library) => library.user)
   library!: Library[];

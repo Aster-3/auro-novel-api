@@ -1,10 +1,10 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { User } from "../entities/User.js";
+import { GetUsersDto } from "../schemas/get.users.schema.js";
 
 export interface IUserService {
   create(dto: CreateUserDto): Promise<User | null>;
-  getAllUsers(page?: number, limit?: number): Promise<User[]>;
-  getOneUser(id: string): Promise<User | null>;
-  searchUsers(query: string, page: number): Promise<FindAndCountType<User>>;
+  getOneUser(id: string): Promise<User>;
+  searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
 }

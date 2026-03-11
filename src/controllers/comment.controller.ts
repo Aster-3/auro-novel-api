@@ -6,22 +6,22 @@ export class CommentController {
 
   deleteComment = async (req: Request, res: Response) => {
     const { id } = req.params;
-    await this.commentService.deleteComment(+id);
+    await this.commentService.deleteComment(Number(id));
     res.sendStatus(204);
   };
 
-  searchComments = async (req: Request, res: Response) => {
-    const { page, limit } = req.query as any;
-    const comments = await this.commentService.searchComments({ page, limit });
-    res.status(200).json({ comments });
+  getTopCommentsOfLastWeek = async (req: Request, res: Response) => {
+    const comments = await this.commentService.getTopCommentsOfLastWeek();
+    res.status(200).json(comments);
   };
 
   getCommentReplies = async (req: Request, res: Response) => {
-    const { page, limit, commentId } = req.query as any;
+    const { id } = req.params as any;
+    console.log("ID:", id);
+    console.log("Query:", res.locals.validatedData);
     const comments = await this.commentService.getCommentReplies({
-      page,
-      limit,
-      commentId,
+      id,
+      ...res.locals.validatedData,
     });
     res.status(200).json({ comments });
   };

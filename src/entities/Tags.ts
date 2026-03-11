@@ -2,33 +2,44 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToMany,
   ManyToOne,
-  OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Novel } from "./Novel.js";
 import { User } from "./User.js";
+import { LanguageType } from "../constants/series.constants.js";
 
 @Entity()
 export class Tags {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: "varchar", length: 30 })
+  @Column({ type: "varchar", length: 30, unique: true })
   name!: string;
+
+  @Index()
+  @Column({ type: "varchar", length: 50, unique: true })
+  slug!: string;
+
+  @Column({ type: "enum", enum: LanguageType, nullable: false })
+  language!: string;
 
   @CreateDateColumn()
   createdAt!: Date;
 
-  @ManyToOne(() => User, (user) => user.tags)
-  createdBy!: User;
+  @Column({ type: "uuid", nullable: true })
+  createdById!: string | null;
 
-  @ManyToMany(() => Novel, (novel) => novel.tags, {
-    nullable: false,
-    onDelete: "CASCADE",
+  @ManyToOne(() => User, (user) => user.createdTags, {
+    nullable: true,
+    onDelete: "SET NULL",
   })
-  novel!: Novel[];
+  @JoinColumn({ name: "createdById" })
+  createdBy!: User | null;
+
+  @ManyToMany(() => Novel, (novel) => novel.tags, { onDelete: "CASCADE" })
+  novels!: Novel[];
 }

@@ -6,13 +6,16 @@ import { NovelService } from "../services/novel.service.js";
 import { CommentService } from "../services/comment.service.js";
 import { CommentRepository } from "../repositories/comment.repository.js";
 import { Comment } from "../entities/Comment.js";
+import { Reply } from "../entities/Reply.js";
+import { ReplyRepository } from "../repositories/reply.repository.js";
 
 export const getNovelController = () => {
   const novelRepo = new NovelRepository(AppDataSource.getRepository(Novel));
   const commentRepo = new CommentRepository(
     AppDataSource.getRepository(Comment),
   );
-  const commentService = new CommentService(commentRepo);
+  const replyRepo = new ReplyRepository(AppDataSource.getRepository(Reply));
+  const commentService = new CommentService(commentRepo, replyRepo);
   const novelService = new NovelService(novelRepo);
   const novelController = new NovelController(novelService, commentService);
   return novelController;

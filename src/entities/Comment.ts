@@ -2,42 +2,57 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
 import { User } from "./User.js";
 import { Novel } from "./Novel.js";
 import { CommentLike } from "./CommentLike.js";
+import { Reply } from "./Reply.js";
 
 @Entity()
+@Index(["userId", "novelId"], { unique: true })
 export class Comment {
   @PrimaryGeneratedColumn("increment")
   id!: number;
 
-  @Column({ type: "uuid", nullable: false })
+  @Column({ type: "varchar", length: 1500 })
+  content!: string;
+
+  @Index()
+  @Column({ type: "boolean" })
+  isRecommend!: boolean;
+
+  @Column({ type: "uuid" })
   userId!: string;
 
-  @ManyToOne(() => User, (user) => user.comments, { nullable: false })
+  @ManyToOne(() => User, (user) => user.comments, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "userId" })
   user!: User;
 
-  @Column({ type: "uuid", nullable: false })
+  @Index()
+  @Column({ type: "uuid" })
   novelId!: string;
 
-  @ManyToOne(() => Novel, (novel) => novel.id, { nullable: false })
+  @ManyToOne(() => Novel, (novel) => novel.id, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "novelId" })
   novel!: Novel;
 
-  @Column({ type: "varchar", nullable: false, length: 1500 })
-  content!: string;
-
-  @Column({ type: "boolean", nullable: true })
-  isRecommend?: boolean;
-
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 
   @OneToMany(() => CommentLike, (commentLike) => commentLike.comment)
   likes!: CommentLike[];
@@ -48,23 +63,6 @@ export class Comment {
   @Column({ type: "int", default: 0 })
   replyCount!: number;
 
-  @Column({ type: "int", nullable: true })
-  parentCommentId?: number;
-
-  @ManyToOne(() => Comment, (comment) => comment.replies, {
-    nullable: true,
-    onDelete: "CASCADE",
-  })
-  @JoinColumn({ name: "parentCommentId" })
-  parentComment?: Comment;
-
-  @OneToMany(() => Comment, (comment) => comment.parentComment)
-  replies?: Comment[];
-
-  @Column({ type: "int", nullable: true })
-  rootCommentId?: number;
-
-  @ManyToOne(() => Comment, { nullable: true, onDelete: "CASCADE" })
-  @JoinColumn({ name: "rootCommentId" })
-  rootComment?: Comment;
+  @OneToMany(() => Reply, (reply) => reply.comment)
+  replies?: Reply[];
 }

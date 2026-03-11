@@ -1,42 +1,45 @@
 import { Router } from "express";
 import { getNovelController } from "../factories/novel.factory.js";
 import { validateSchema } from "../middlewares/validate.schema.js";
-import { getAllNovelsSchema } from "../schemas/get.all.novels.schema.js";
-import { getOneWithUuid } from "../schemas/get.one.with.uuid.schema.js";
+import { getNovelsSchema } from "../schemas/get.novels.schema.js";
+import { paramsUuidSchema } from "../schemas/paramsUuidSchema.js";
 import { createNovelSchema } from "../schemas/create.novel.schema.js";
 import { createCommentSchema } from "../schemas/create.comment.schema.js";
-import { createReplySchema } from "../schemas/create.reply.schema.js";
+import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
+import { getCommentsSchema } from "../schemas/get.comments.schema.js";
 const router = Router();
 const novelController = getNovelController();
 
-router.get(
-  "/",
-  validateSchema(getAllNovelsSchema),
-  novelController.getAllNovels,
-);
+router.get("/", validateSchema(getNovelsSchema), novelController.getNovels); ///OKEY
 
 router.post(
   "/",
   validateSchema(createNovelSchema),
   novelController.createNovel,
-);
+); ///OKEY
 
-router.get("/:id", validateSchema(getOneWithUuid), novelController.getOneNovel);
+router.get(
+  "/:id",
+  validateSchema(paramsUuidSchema),
+  novelController.getOneNovel,
+); ///OKEY
 
-router.get("/:id/comments", novelController.getNovelComments);
-
-router.get("/:id/recommendation-rate", novelController.getRecommendationRate);
+router.get(
+  "/:id/comments",
+  validateSchema(getCommentsSchema),
+  novelController.getNovelComments,
+); ///OKEY
 
 router.post(
   "/:id/comments",
   validateSchema(createCommentSchema),
   novelController.addNovelComment,
-);
+); ///OKEY
 
 router.post(
-  "/:id/comments/replies",
-  validateSchema(createReplySchema),
-  novelController.addNovelComment,
-);
+  "/:id/categories",
+  validateSchema(updateCategoriesSchema),
+  novelController.updateNovelCategories,
+); ///OKEY
 
 export default router;

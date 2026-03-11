@@ -1,7 +1,8 @@
-import { Like, Repository } from "typeorm";
+import { ILike, Like, Repository } from "typeorm";
 import { User } from "../entities/User.js";
 import { IUserRepository } from "../interfaces/user.repo.interface.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
+import { GetUsersDto } from "../schemas/get.users.schema.js";
 
 export class UserRepository implements IUserRepository {
   constructor(private userRepo: Repository<User>) {}
@@ -18,14 +19,6 @@ export class UserRepository implements IUserRepository {
     return this.userRepo.save(user);
   }
 
-  async getAll(page: number, limit: number) {
-    const [users, count] = await this.userRepo.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-    return users;
-  }
-
   findOneById(id: string): Promise<User | null> {
     return this.userRepo.findOne({
       where: { id },
@@ -37,25 +30,23 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         profileBackgroundImageUrl: true,
         description: true,
-        novel: {
-          id: true,
-          name: true,
-          coverImage: true,
-        },
-        library: {
-          novelId: true,
-          createdAt: true,
-        },
       },
       relations: {
-        library: true,
-        novel: true,
+        novels: true,
+        comments: true,
+        replies: true,
       },
     });
   }
 
-  async searchUsers(query: string, page: number) {
-    if (!query || query.trim().length === 0) {
+  async searchUsers(dto: GetUsersDto) {
+    const { search, page, limit, role, status } = dto;
+    console.log(dto);
+
+    const isSearchSentButEmpty = search !== undefined && search.trim() === "";
+    const hasNoOtherFilters = !role && !status;
+
+    if (isSearchSentButEmpty && hasNoOtherFilters) {
       return {
         data: [],
         count: 0,
@@ -63,19 +54,28 @@ export class UserRepository implements IUserRepository {
         lastPage: 0,
       };
     }
+    const where: any = {};
+    if (search) where.nickname = ILike(`%${search}%`);
+    if (role) where.role = role;
+    if (status) where.status = status;
 
     const [result, total] = await this.userRepo.findAndCount({
-      where: { username: Like(`${query}%`) },
-      order: { username: "ASC" },
-      take: 10,
-      skip: (page - 1) * 10,
+      where: where,
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        profileImageUrl: true,
+      },
+      order: { createdAt: "ASC" },
+      take: limit,
+      skip: (page - 1) * limit,
     });
-
     return {
       data: result,
       count: total,
       currentPage: page,
-      lastPage: Math.ceil(total / 10),
+      lastPage: Math.ceil(total / limit),
     };
   }
 }

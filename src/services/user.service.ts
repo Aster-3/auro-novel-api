@@ -3,6 +3,7 @@ import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { IUserService } from "../interfaces/user.service.interface.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { GetUsersDto } from "../schemas/get.users.schema.js";
 
 export class UserService implements IUserService {
   constructor(private userRepo: IUserRepository) {}
@@ -21,17 +22,13 @@ export class UserService implements IUserService {
     return await this.userRepo.create(dto);
   };
 
-  getAllUsers = async (page: number = 1, limit: number = 20) => {
-    return await this.userRepo.getAll(page, limit);
-  };
-
   getOneUser = async (id: string) => {
     const user = await this.userRepo.findOneById(id);
     if (!user) throw new NotFoundError("Kullanıcı bulunamadı.");
     return user;
   };
 
-  searchUsers = async (query: string, page: number = 1) => {
-    return await this.userRepo.searchUsers(query, page);
+  searchUsers = async (dto: GetUsersDto) => {
+    return await this.userRepo.searchUsers(dto);
   };
 }
