@@ -19,11 +19,11 @@ export class CommentController {
     const { id } = req.params as any;
     console.log("ID:", id);
     console.log("Query:", res.locals.validatedData);
-    const comments = await this.commentService.getCommentReplies({
+    const replies = await this.commentService.getCommentReplies({
       id,
       ...res.locals.validatedData,
     });
-    res.status(200).json({ comments });
+    res.status(200).json(replies);
   };
 
   toggleLike = async (req: Request, res: Response) => {

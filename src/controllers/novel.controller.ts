@@ -45,6 +45,13 @@ export class NovelController {
     res.status(200).json({ novel });
   };
 
+  updateNovelTags = async (req: Request, res: Response) => {
+    const { tags } = req.body;
+    const { id } = req.params as any;
+    const novel = await this.novelService.updateNovelTags(id, tags);
+    res.status(200).json({ novel });
+  };
+
   incrementViewCount = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     await this.novelService.incrementViewCount(id);

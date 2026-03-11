@@ -9,5 +9,6 @@ export interface INovelRepository {
   findOneById(id: string): Promise<Novel | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
+  updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   incrementViewCount(novelId: string): Promise<void>;
 }

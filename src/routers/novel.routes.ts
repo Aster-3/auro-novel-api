@@ -7,6 +7,7 @@ import { createNovelSchema } from "../schemas/create.novel.schema.js";
 import { createCommentSchema } from "../schemas/create.comment.schema.js";
 import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
 import { getCommentsSchema } from "../schemas/get.comments.schema.js";
+import { updateTagsSchema } from "../schemas/update.tags.schema.js";
 const router = Router();
 const novelController = getNovelController();
 
@@ -40,6 +41,12 @@ router.post(
   "/:id/categories",
   validateSchema(updateCategoriesSchema),
   novelController.updateNovelCategories,
+); ///OKEY
+
+router.post(
+  "/:id/tags",
+  validateSchema(updateTagsSchema),
+  novelController.updateNovelTags,
 ); ///OKEY
 
 router.post(

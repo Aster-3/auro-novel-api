@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { ILike, Repository } from "typeorm";
 import { ITagRepository } from "../interfaces/tag.repo.interface.js";
 import { Tags } from "../entities/Tags.js";
 import { CreateTagDto } from "../schemas/create.tag.schema.js";
@@ -20,11 +20,21 @@ export class TagRepository implements ITagRepository {
     return await this.tagRepo.exists({ where: { slug } });
   }
 
-  async search(dto: SearchTagDto): Promise<Tags[]> {
-    const query = this.tagRepo.createQueryBuilder("tag");
-    if (dto.name) {
-      query.where("tag.name ILIKE :name", { name: `%${dto.name}%` });
-    }
-    return await query.getMany();
+  async search(dto: SearchTagDto) {
+    const { name, page, limit } = dto;
+    const where: any = {};
+
+    if (name) where.name = ILike(`%${name}%`);
+    const [result, total] = await this.tagRepo.findAndCount({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return {
+      data: result,
+      count: total,
+      currentPage: page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 }

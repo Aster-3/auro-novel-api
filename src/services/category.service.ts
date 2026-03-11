@@ -1,7 +1,7 @@
 import { NotFoundError } from "../errors/not.found.error.js";
 import { ICategoryRepository } from "../interfaces/categories.repo.interface.js";
 import { ICategoryService } from "../interfaces/categories.service.interface.js";
-import { SearchCategoryDto } from "../interfaces/search.category.schema.js";
+import { SearchCategoryDto } from "../schemas/search.category.schema.js";
 import { CreateCategoryDto } from "../schemas/create.category.schema.js";
 
 export class CategoryService implements ICategoryService {

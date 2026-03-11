@@ -2,25 +2,40 @@ import { ILike, Repository } from "typeorm";
 import { Category } from "../entities/Category.js";
 import { LanguageType } from "../constants/series.constants.js";
 import { CreateCategoryDto } from "../schemas/create.category.schema.js";
-import { SearchCategoryDto } from "../interfaces/search.category.schema.js";
+import { SearchCategoryDto } from "../schemas/search.category.schema.js";
+import { ICategoryRepository } from "../interfaces/categories.repo.interface.js";
 
-export class CategoryRepository {
+export class CategoryRepository implements ICategoryRepository {
   constructor(private categoryRepo: Repository<Category>) {}
 
-  search(dto: SearchCategoryDto) {
-    const { search, lang } = dto;
+  async search(dto: SearchCategoryDto) {
+    const { search, lang, page, limit } = dto;
     if (search === undefined || lang === undefined) {
-      return this.categoryRepo.find();
+      const [result, total] = await this.categoryRepo.findAndCount();
+      return {
+        data: result,
+        count: total,
+        currentPage: page,
+        lastPage: Math.ceil(total / limit),
+      };
     }
 
     const searchField = lang === LanguageType.EN ? "enName" : "trName";
 
-    return this.categoryRepo.find({
+    const [result, total] = await this.categoryRepo.findAndCount({
       where: {
         [searchField]: ILike(`%${search}%`),
       },
       order: { id: "DESC" },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return {
+      data: result,
+      count: total,
+      currentPage: page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 
   async create(dto: CreateCategoryDto) {

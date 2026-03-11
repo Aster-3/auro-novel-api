@@ -10,8 +10,13 @@ export class TagController {
   };
 
   deleteTag = async (req: Request, res: Response) => {
-    const { id } = res.locals.validatedData;
+    const { id } = req.params as any;
     await this.tagService.deleteTag(id);
     res.sendStatus(204);
+  };
+
+  searchTags = async (req: Request, res: Response) => {
+    const tags = await this.tagService.searchTags(res.locals.validatedData);
+    res.json(tags);
   };
 }

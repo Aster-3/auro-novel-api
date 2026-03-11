@@ -30,6 +30,10 @@ export class NovelService implements INovelService {
     await this.novelRepo.updateNovelCategories(novelId, categoryIds);
   }
 
+  async updateNovelTags(novelId: string, tagIds: string[]) {
+    await this.novelRepo.updateNovelTags(novelId, tagIds);
+  }
+
   async checkNovelExists(id: string): Promise<boolean> {
     return await this.novelRepo.existControl({ id });
   }

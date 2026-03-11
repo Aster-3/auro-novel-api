@@ -6,7 +6,7 @@ import CommentRoutes from "./comment.routes.js";
 import LibraryRoutes from "./library.routes.js";
 import CategoryRoutes from "./category.routes.js";
 import ReplyRouter from "./reply.routes.js";
-
+import TagRouter from "./tag.routes.js";
 const rootRouter = Router();
 
 rootRouter.get("/", (req, res) => res.send("Hello from Main Routes"));
@@ -17,5 +17,6 @@ rootRouter.use("/comments", CommentRoutes);
 rootRouter.use("/library", LibraryRoutes);
 rootRouter.use("/categories", CategoryRoutes);
 rootRouter.use("/replies", ReplyRouter);
+rootRouter.use("/tags", TagRouter);
 
 export default rootRouter;

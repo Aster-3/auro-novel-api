@@ -61,6 +61,7 @@ export class NovelRepository implements INovelRepository {
         viewCount: true,
         author: { id: true, nickname: true, profileImageUrl: true },
         categories: { id: true, trName: true, enName: true },
+        tags: { id: true, name: true },
       },
       relations: {
         author: true,
@@ -72,10 +73,17 @@ export class NovelRepository implements INovelRepository {
 
   async updateNovelCategories(novelId: string, categoryIds: number[]) {
     const categories = categoryIds.map((id) => ({ id }));
-
     await this.novelRepo.save({
       id: novelId,
       categories: categories,
+    } as any);
+  }
+
+  async updateNovelTags(novelId: string, tagIds: string[]) {
+    const tags = tagIds.map((id) => ({ id }));
+    await this.novelRepo.save({
+      id: novelId,
+      tags: tags,
     } as any);
   }
 

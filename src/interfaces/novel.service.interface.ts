@@ -8,6 +8,7 @@ export interface INovelService {
   getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<Novel>>;
   getNovelDetailWithId(id: string): Promise<Novel>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
+  updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   checkNovelExists(id: string): Promise<boolean>;
   incrementViewCount(novelId: string): Promise<void>;
 }

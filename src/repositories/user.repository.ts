@@ -41,7 +41,6 @@ export class UserRepository implements IUserRepository {
 
   async searchUsers(dto: GetUsersDto) {
     const { search, page, limit, role, status } = dto;
-    console.log(dto);
 
     const isSearchSentButEmpty = search !== undefined && search.trim() === "";
     const hasNoOtherFilters = !role && !status;
