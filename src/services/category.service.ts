@@ -1,5 +1,3 @@
-import { LanguageType } from "../constants/series.constants.js";
-import { ConflictError } from "../errors/conflict.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { ICategoryRepository } from "../interfaces/categories.repo.interface.js";
 import { ICategoryService } from "../interfaces/categories.service.interface.js";
