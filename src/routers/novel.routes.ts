@@ -42,4 +42,10 @@ router.post(
   novelController.updateNovelCategories,
 ); ///OKEY
 
+router.post(
+  "/:id/views",
+  validateSchema(paramsUuidSchema),
+  novelController.incrementViewCount,
+); ///OKEY
+
 export default router;

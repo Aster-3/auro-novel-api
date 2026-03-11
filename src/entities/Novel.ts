@@ -19,6 +19,7 @@ import { Category } from "./Category.js";
 import { Tags } from "./Tags.js";
 import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
+import { vi } from "zod/locales";
 
 @Entity()
 export class Novel {

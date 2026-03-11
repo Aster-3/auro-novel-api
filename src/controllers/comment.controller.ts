@@ -25,4 +25,12 @@ export class CommentController {
     });
     res.status(200).json({ comments });
   };
+
+  toggleLike = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const userId = res.locals.validatedData.userId;
+    console.log("Toggling like for comment ID:", id, "by user ID:", userId);
+    const liked = await this.commentService.toggleLike(userId, Number(id));
+    res.status(200).json({ liked });
+  };
 }

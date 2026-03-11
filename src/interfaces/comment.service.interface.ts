@@ -14,4 +14,5 @@ export interface ICommentService {
   getCommentReplies(
     dto: GetCommentRepliesDto,
   ): Promise<FindAndCountType<Reply>>;
+  toggleLike(userId: string, commentId: number): Promise<boolean>;
 }

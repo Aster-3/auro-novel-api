@@ -58,6 +58,7 @@ export class NovelRepository implements INovelRepository {
         status: true,
         positiveReviewsCount: true,
         totalReviewsCount: true,
+        viewCount: true,
         author: { id: true, nickname: true, profileImageUrl: true },
         categories: { id: true, trName: true, enName: true },
       },
@@ -81,5 +82,9 @@ export class NovelRepository implements INovelRepository {
   updateGlobalPopularityScores() {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  }
+
+  async incrementViewCount(novelId: string) {
+    await this.novelRepo.increment({ id: novelId }, "viewCount", 1);
   }
 }

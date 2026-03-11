@@ -33,4 +33,8 @@ export class NovelService implements INovelService {
   async checkNovelExists(id: string): Promise<boolean> {
     return await this.novelRepo.existControl({ id });
   }
+
+  incrementViewCount(novelId: string) {
+    return this.novelRepo.incrementViewCount(novelId);
+  }
 }

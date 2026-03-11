@@ -9,4 +9,5 @@ export interface INovelService {
   getNovelDetailWithId(id: string): Promise<Novel>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
   checkNovelExists(id: string): Promise<boolean>;
+  incrementViewCount(novelId: string): Promise<void>;
 }

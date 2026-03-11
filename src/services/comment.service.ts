@@ -1,5 +1,6 @@
 import { getRepliesDto } from "../dtos/get.replies.dto.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { ICommentLikeRepository } from "../interfaces/comment.like.repo.interface.js";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
@@ -13,6 +14,7 @@ export class CommentService implements ICommentService {
     private commentRepo: ICommentRepository,
     private replyRepo: IReplyRepository,
     private novelRepo?: INovelRepository,
+    private commentLikeRepo?: ICommentLikeRepository,
   ) {}
 
   createComment = async (dto: CreateCommentDto) => {
@@ -35,15 +37,11 @@ export class CommentService implements ICommentService {
     return await this.commentRepo.getTopCommentsOfLastWeek();
   };
 
-  async getCommentReplies(dto: GetCommentRepliesDto) {
-    return await this.replyRepo.getCommentReplies(dto);
-    // const formattedData = result.data.map(
-    //   (reply) => new getRepliesDto(reply, commentId),
-    // );
+  getCommentReplies(dto: GetCommentRepliesDto) {
+    return this.replyRepo.getCommentReplies(dto);
+  }
 
-    // return {
-    //   ...result,
-    //   data: formattedData,
-    // };
+  async toggleLike(userId: string, commentId: number) {
+    return await this.commentLikeRepo?.toggleLike(userId, commentId)!;
   }
 }
