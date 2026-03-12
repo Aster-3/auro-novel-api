@@ -26,6 +26,9 @@ export class Chapter {
   @Column({ type: "int" })
   order!: number;
 
+  @Column({ type: "boolean", default: false })
+  isPublished!: boolean;
+
   @CreateDateColumn()
   createAt!: Date;
 

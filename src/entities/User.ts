@@ -3,10 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  OneToOne,
-  ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
 } from "typeorm";
 import { Comment } from "./Comment.js";
 import { CommentLike } from "./CommentLike.js";
@@ -16,6 +15,7 @@ import { Library } from "./Library.js";
 import { Reply } from "./Reply.js";
 import { ReplyLike } from "./ReplyLike.js";
 import { UserRoles, UserStatus } from "../constants/user.constants.js";
+import { Author } from "./_index.js";
 
 @Entity()
 export class User {
@@ -78,4 +78,7 @@ export class User {
 
   @OneToMany(() => Library, (library) => library.user)
   library!: Library[];
+
+  @OneToOne(() => Author, (author) => author.user)
+  authorProfile?: Author;
 }

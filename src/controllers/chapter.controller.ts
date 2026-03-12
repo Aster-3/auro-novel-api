@@ -25,4 +25,12 @@ export class ChapterController {
     });
     res.json(chapters);
   };
+
+  updateChapter = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    console.log("Locals:", res.locals.validatedData);
+    console.log("Body:", req.body);
+    await this.chapterService.updateChapter({ ...req.body, id });
+    res.sendStatus(204);
+  };
 }

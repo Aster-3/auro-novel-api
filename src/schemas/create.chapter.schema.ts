@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { reqFloat, reqString, reqUuid } from "../utils/zod.error.helper.js";
+import { reqNumber, reqString, reqUuid } from "../utils/zod.error.helper.js";
 
 export const createChapterSchema = z.object({
   body: z.object(
@@ -11,9 +11,10 @@ export const createChapterSchema = z.object({
         50000,
         "İçerik en fazla 50000 kar    akter olabilir",
       ),
-      order: reqFloat("Bölüm sırası")
-        .describe("Bölüm sırası (float destekli)")
-        .min(1, "Sıra 1 veya daha büyük olmalıdır"),
+      order: reqNumber("Bölüm sırası").min(
+        1,
+        "Sıra 1 veya daha büyük olmalıdır",
+      ),
       novelId: reqUuid("Roman Id"),
       volumeId: reqUuid("Cilt Id").nullable(),
     },

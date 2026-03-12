@@ -3,6 +3,7 @@ import { Chapter } from "../entities/_index.js";
 import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
 import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
+import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
 
 export class ChapterRepository implements IChapterRepository {
   constructor(private chapterRepo: Repository<Chapter>) {}
@@ -40,5 +41,17 @@ export class ChapterRepository implements IChapterRepository {
         order: order,
       },
     });
+  }
+
+  async existControl(id: string) {
+    return await this.chapterRepo.exists({
+      where: {
+        id: id,
+      },
+    });
+  }
+
+  async updateChapter(dto: UpdateChapterDTO) {
+    await this.chapterRepo.update({ id: dto.id }, dto);
   }
 }

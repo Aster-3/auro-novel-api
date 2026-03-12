@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -10,12 +11,13 @@ import { Chapter } from "./Chapter.js";
 import { Novel } from "./Novel.js";
 
 @Entity()
+@Index(["novelId", "order"])
 export class Volume {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: "varchar", length: 100 })
-  name!: string;
+  @Column({ type: "varchar", length: 100, nullable: true })
+  name!: string | null;
 
   @Column({ type: "float", default: 1 })
   order!: number;
