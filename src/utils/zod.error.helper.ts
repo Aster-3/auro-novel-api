@@ -23,3 +23,11 @@ export const reqNumber = (label: string) =>
         ? `${label} alanı zorunludur.`
         : `${label} sayı olmalıdır.`,
   });
+
+export const reqFloat = (label: string) =>
+  z.float32({
+    error: (i) =>
+      i.input === undefined
+        ? `${label} alanı zorunludur.`
+        : `${label} sayı olmalıdır.`,
+  });

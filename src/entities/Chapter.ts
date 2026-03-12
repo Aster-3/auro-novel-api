@@ -23,7 +23,7 @@ export class Chapter {
   @Column({ type: "text" })
   content!: string;
 
-  @Column({ type: "float" })
+  @Column({ type: "int" })
   order!: number;
 
   @CreateDateColumn()

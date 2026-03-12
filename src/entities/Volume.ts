@@ -17,7 +17,7 @@ export class Volume {
   @Column({ type: "varchar", length: 100 })
   name!: string;
 
-  @Column({ type: "int", default: 1 })
+  @Column({ type: "float", default: 1 })
   order!: number;
 
   @Column({ type: "uuid" })

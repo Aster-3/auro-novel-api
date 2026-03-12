@@ -1,4 +1,6 @@
+import { CreateVolumeDTO } from "../schemas/create.volume.schema.js";
+
 export interface IVolumeRepository {
-  existById(id: number): Promise<boolean>;
-  delete(id: number): Promise<void>;
+  create(dto: CreateVolumeDTO): Promise<boolean>;
+  delete(id: string): Promise<void>;
 }
