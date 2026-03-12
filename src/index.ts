@@ -4,6 +4,7 @@ import { AppDataSource } from "./database/data-source.js";
 import { GlobalErrorHandler } from "./middlewares/error.handler.js";
 import helmet from "helmet";
 import rootRouter from "./routers/_main.routes.js";
+import { runSeeders } from "typeorm-extension";
 
 const PORT = process.env.PORT || 3000;
 

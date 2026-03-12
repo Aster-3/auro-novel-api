@@ -15,17 +15,17 @@ export class Author {
   id!: string;
 
   @Column({ type: "varchar", length: 150 })
-  name!: string; // Yazarın görünen adı
-
-  @Column({ type: "text", nullable: true })
-  bio?: string;
+  nickname!: string;
 
   @Column({ type: "uuid", nullable: true })
   userId?: string;
 
-  @OneToOne(() => User, (user) => user.authorProfile, { nullable: true })
+  @OneToOne(() => User, (user) => user.authorProfile, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
   @JoinColumn({ name: "userId" })
-  user?: string;
+  user?: User;
 
   @OneToMany(() => Novel, (novel) => novel.author)
   novels!: Novel[];

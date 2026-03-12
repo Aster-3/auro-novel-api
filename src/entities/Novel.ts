@@ -11,7 +11,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { SeriesStatus } from "../constants/series.constants.js";
+import {
+  NovelFormat,
+  SeriesStatus,
+  sourceType,
+} from "../constants/series.constants.js";
 import { Comment } from "./Comment.js";
 import { User } from "./User.js";
 import { Chapter } from "./Chapter.js";
@@ -20,6 +24,7 @@ import { Tags } from "./Tags.js";
 import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
 import { vi } from "zod/locales";
+import { Author } from "./Author.js";
 
 @Entity()
 export class Novel {
@@ -45,12 +50,20 @@ export class Novel {
   status!: SeriesStatus;
 
   @Index()
+  @Column({ type: "enum", enum: NovelFormat, default: NovelFormat.NOVEL })
+  format!: NovelFormat;
+
+  @Index()
+  @Column({ type: "enum", enum: sourceType, default: sourceType.LOCAL })
+  sourceType!: sourceType;
+
+  @Index()
   @Column({ type: "uuid" })
   authorId!: string;
 
-  @ManyToOne(() => User, (user) => user.novels, { onDelete: "CASCADE" })
+  @ManyToOne(() => Author, (author) => author.novels, { onDelete: "CASCADE" })
   @JoinColumn({ name: "authorId" })
-  author!: User;
+  author!: Author;
 
   @Column({ type: "int", default: 0 })
   viewCount!: number;

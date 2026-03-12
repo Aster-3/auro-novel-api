@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --legacy-watch --exec tsx src/index.ts"
+    "dev": "nodemon --legacy-watch --exec tsx src/index.ts",
+    "seed": "npx tsx src/database/run.seeders.ts"
   },
   "repository": {
     "type": "git",
@@ -32,11 +33,13 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.3.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.5",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
+    "typeorm-extension": "^3.9.0",
     "typescript": "^5.9.3"
   }
 }

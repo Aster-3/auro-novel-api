@@ -11,7 +11,7 @@ import { Chapter } from "./Chapter.js";
 import { Novel } from "./Novel.js";
 
 @Entity()
-@Index(["novelId", "order"])
+@Index(["novelId", "order"], { unique: true })
 export class Volume {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

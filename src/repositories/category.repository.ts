@@ -10,12 +10,18 @@ export class CategoryRepository implements ICategoryRepository {
 
   async search(dto: SearchCategoryDto) {
     const { search, lang, page, limit } = dto;
+    console.log("DTO:", dto);
     if (search === undefined || lang === undefined) {
-      const [result, total] = await this.categoryRepo.findAndCount();
+      const [result, total] = await this.categoryRepo.findAndCount({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
       return {
         data: result,
         count: total,
         currentPage: page,
+        skip: (page - 1) * limit,
+        take: limit,
         lastPage: Math.ceil(total / limit),
       };
     }

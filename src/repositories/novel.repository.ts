@@ -59,7 +59,7 @@ export class NovelRepository implements INovelRepository {
         positiveReviewsCount: true,
         totalReviewsCount: true,
         viewCount: true,
-        author: { id: true, nickname: true, profileImageUrl: true },
+        author: { id: true, nickname: true },
         categories: { id: true, trName: true, enName: true },
         tags: { id: true, name: true },
       },
