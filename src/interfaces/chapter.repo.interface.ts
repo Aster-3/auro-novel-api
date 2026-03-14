@@ -9,4 +9,8 @@ export interface IChapterRepository {
   getChapterByNovelId(dto: GetChaptersDto): Promise<FindAndCountType<Chapter>>;
   duplicateControl(novelId: string, order: number): Promise<boolean>;
   updateChapter(dto: UpdateChapterDTO): Promise<void>;
+  getLastChapterOrder(novelId: string): Promise<number>;
+  getSummary(
+    novelId: string,
+  ): Promise<{ total: number; lastPublishedAt: Date | null }>;
 }

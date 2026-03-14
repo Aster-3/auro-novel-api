@@ -33,4 +33,10 @@ export class ChapterController {
     await this.chapterService.updateChapter({ ...req.body, id });
     res.sendStatus(204);
   };
+
+  getSummary = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const summary = await this.chapterService.getSummary(id);
+    res.json(summary);
+  };
 }

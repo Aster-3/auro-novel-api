@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
+import { IChapterService } from "../interfaces/chapter.service.interface.js";
 
 export class NovelController {
   constructor(
@@ -56,5 +57,13 @@ export class NovelController {
     const { id } = req.params as any;
     await this.novelService.incrementViewCount(id);
     res.sendStatus(204);
+  };
+
+  updateNovel = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    console.log("Controller", req.body);
+    console.log("Controller ID", id);
+    const novel = await this.novelService.updateNovel({ id, ...req.body });
+    res.status(200).json({ novel });
   };
 }

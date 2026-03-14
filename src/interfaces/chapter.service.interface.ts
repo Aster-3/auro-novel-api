@@ -9,4 +9,7 @@ export interface IChapterService {
   delete(id: string): Promise<void>;
   getChapterByNovelId(dto: GetChaptersDto): Promise<FindAndCountType<Chapter>>;
   updateChapter(dto: UpdateChapterDTO): Promise<void>;
+  getSummary(
+    novelId: string,
+  ): Promise<{ total: number; lastPublishedAt: Date | null }>;
 }

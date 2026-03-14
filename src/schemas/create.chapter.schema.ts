@@ -11,10 +11,6 @@ export const createChapterSchema = z.object({
         50000,
         "İçerik en fazla 50000 kar    akter olabilir",
       ),
-      order: reqNumber("Bölüm sırası").min(
-        1,
-        "Sıra 1 veya daha büyük olmalıdır",
-      ),
       novelId: reqUuid("Roman Id"),
       volumeId: reqUuid("Cilt Id").nullable(),
     },
@@ -22,4 +18,6 @@ export const createChapterSchema = z.object({
   ),
 });
 
-export type CreateChapterDTO = z.infer<typeof createChapterSchema>["body"];
+export type CreateChapterDTO = z.infer<typeof createChapterSchema>["body"] & {
+  order: number;
+};

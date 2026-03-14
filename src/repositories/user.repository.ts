@@ -19,6 +19,10 @@ export class UserRepository implements IUserRepository {
     return this.userRepo.save(user);
   }
 
+  exsistById(id: string): Promise<boolean> {
+    return this.userRepo.exists({ where: { id } });
+  }
+
   findOneById(id: string): Promise<User | null> {
     return this.userRepo.findOne({
       where: { id },

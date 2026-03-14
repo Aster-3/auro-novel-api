@@ -29,6 +29,7 @@ export class TagRepository implements ITagRepository {
       where,
       skip: (page - 1) * limit,
       take: limit,
+      order: { createdAt: "DESC" },
     });
     return {
       data: result,

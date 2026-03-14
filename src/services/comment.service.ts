@@ -19,6 +19,8 @@ export class CommentService implements ICommentService {
 
   createComment = async (dto: CreateCommentDto) => {
     const novelExists = await this.novelRepo?.existControl({ id: dto.novelId });
+    console.log("DTO:", dto);
+    console.log("Novel Exists:", novelExists);
     if (!novelExists) {
       throw new NotFoundError("Novel not found");
     }

@@ -8,6 +8,8 @@ import { createCommentSchema } from "../schemas/create.comment.schema.js";
 import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
 import { getCommentsSchema } from "../schemas/get.comments.schema.js";
 import { updateTagsSchema } from "../schemas/update.tags.schema.js";
+import { updateNovelSchema } from "../schemas/update.novel.schema.js";
+import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 const router = Router();
 const novelController = getNovelController();
 
@@ -23,6 +25,12 @@ router.get(
   "/:id",
   validateSchema(paramsUuidSchema),
   novelController.getOneNovel,
+); ///OKEY
+
+router.patch(
+  "/:id",
+  validateSchema(updateNovelSchema),
+  novelController.updateNovel,
 ); ///OKEY
 
 router.get(

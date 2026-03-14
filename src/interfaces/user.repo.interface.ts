@@ -9,4 +9,5 @@ export interface IUserRepository {
   findOneById(id: string): Promise<User | null>;
   create(user: CreateUserDto): Promise<User>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
+  exsistById(id: string): Promise<boolean>;
 }

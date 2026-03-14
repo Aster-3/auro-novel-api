@@ -40,10 +40,10 @@ export class Novel {
   slug!: string;
 
   @Column({ type: "text", nullable: true })
-  coverImage?: string;
+  coverImage?: string | null;
 
   @Column({ type: "varchar", length: "1500", nullable: true })
-  synopsis?: string;
+  synopsis?: string | null;
 
   @Index()
   @Column({ type: "enum", enum: SeriesStatus, default: SeriesStatus.DRAFT })

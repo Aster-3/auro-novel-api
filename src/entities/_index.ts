@@ -11,3 +11,4 @@ export * from "./Reply.js";
 export * from "./ReplyLike.js";
 export * from "./Volume.js";
 export * from "./Author.js";
+export * from "./ChapterPurchase.js";

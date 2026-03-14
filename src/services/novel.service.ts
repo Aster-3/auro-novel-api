@@ -6,6 +6,7 @@ import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export class NovelService implements INovelService {
   constructor(private novelRepo: INovelRepository) {}
@@ -23,7 +24,13 @@ export class NovelService implements INovelService {
   async getNovelDetailWithId(id: string) {
     const novel = await this.novelRepo.findOneById(id);
     if (!novel) throw new NotFoundError("Aradığınız novel bulunamadı.");
-    return novel;
+    const recommendationRate =
+      novel.totalReviewsCount > 0
+        ? Math.round(
+            (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+          )
+        : null;
+    return { ...novel, recommendationRate };
   }
 
   async updateNovelCategories(novelId: string, categoryIds: number[]) {
@@ -40,5 +47,12 @@ export class NovelService implements INovelService {
 
   incrementViewCount(novelId: string) {
     return this.novelRepo.incrementViewCount(novelId);
+  }
+
+  async updateNovel(dto: UpdateNovelDTO) {
+    const novelExists = await this.novelRepo.existControl({ id: dto.id });
+    if (!novelExists)
+      throw new NotFoundError("Güncellenmek istenen novel bulunamadı.");
+    await this.novelRepo.updateNovel(dto);
   }
 }

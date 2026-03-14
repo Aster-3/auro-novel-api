@@ -14,8 +14,8 @@ export class Author {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: "varchar", length: 150 })
-  nickname!: string;
+  @Column({ type: "varchar", length: 50, nullable: true })
+  nickname?: string;
 
   @Column({ type: "uuid", nullable: true })
   userId?: string;

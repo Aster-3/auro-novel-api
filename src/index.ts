@@ -4,7 +4,7 @@ import { AppDataSource } from "./database/data-source.js";
 import { GlobalErrorHandler } from "./middlewares/error.handler.js";
 import helmet from "helmet";
 import rootRouter from "./routers/_main.routes.js";
-import { runSeeders } from "typeorm-extension";
+import path from "path";
 
 const PORT = process.env.PORT || 3000;
 
@@ -12,6 +12,10 @@ const app = express();
 
 app.use(helmet());
 app.use(express.json());
+app.use(
+  "/uploads",
+  express.static(path.join(import.meta.dirname, "../uploads")),
+);
 
 app.use("/", rootRouter);
 

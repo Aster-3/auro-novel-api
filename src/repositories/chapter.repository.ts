@@ -22,6 +22,13 @@ export class ChapterRepository implements IChapterRepository {
     const { id, page, limit } = dto;
 
     const [result, total] = await this.chapterRepo.findAndCount({
+      select: {
+        id: true,
+        title: true,
+        order: true,
+        isLocked: true,
+        volumeId: true,
+      },
       where: { novelId: id },
       skip: (page - 1) * limit,
       take: limit,
@@ -53,5 +60,29 @@ export class ChapterRepository implements IChapterRepository {
 
   async updateChapter(dto: UpdateChapterDTO) {
     await this.chapterRepo.update({ id: dto.id }, dto);
+  }
+
+  async getLastChapterOrder(novelId: string) {
+    const chapter = await this.chapterRepo
+      .createQueryBuilder("chapter")
+      .where("chapter.novelId = :novelId", { novelId })
+      .orderBy("chapter.order", "DESC")
+      .getOne();
+
+    return chapter ? chapter.order : 0;
+  }
+
+  async getSummary(novelId: string) {
+    const stats = await this.chapterRepo
+      .createQueryBuilder("chapter")
+      .where("chapter.novelId = :novelId", { novelId })
+      .select("COUNT(chapter.id)", "totalCount")
+      .addSelect("MAX(chapter.createdAt)", "lastPublishedAt")
+      .getRawOne();
+
+    return {
+      total: parseInt(stats.totalCount),
+      lastPublishedAt: stats.lastPublishedAt,
+    };
   }
 }

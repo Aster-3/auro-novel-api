@@ -9,10 +9,12 @@ import ReplyRouter from "./reply.routes.js";
 import TagRouter from "./tag.routes.js";
 import ChapterRoutes from "./chapter.routes.js";
 import VolumeRoutes from "./volume.routes.js";
+import AuthorRoutes from "./author.routes.js";
 
 const rootRouter = Router();
 
 rootRouter.get("/", (req, res) => res.send("Hello from Main Routes"));
+rootRouter.use("/authors", AuthorRoutes);
 rootRouter.use("/auth", AuthRoutes);
 rootRouter.use("/novels", NovelRoutes);
 rootRouter.use("/users", UserRoutes);

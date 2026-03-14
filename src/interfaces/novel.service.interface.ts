@@ -2,6 +2,7 @@ import { FindAndCountType } from "../constants/findAndCountType.js";
 import { Novel } from "../entities/Novel.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
+import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export interface INovelService {
   create(dto: CreateNovelDTo): Promise<Novel>;
@@ -11,4 +12,5 @@ export interface INovelService {
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   checkNovelExists(id: string): Promise<boolean>;
   incrementViewCount(novelId: string): Promise<void>;
+  updateNovel(dto: UpdateNovelDTO): Promise<void>;
 }

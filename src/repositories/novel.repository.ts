@@ -3,6 +3,7 @@ import { Novel } from "../entities/Novel.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
+import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -12,12 +13,12 @@ export class NovelRepository implements INovelRepository {
   }
 
   async existControl(identifier: { id?: string; slug?: string }) {
+    console.log("Exist Control Identifier:", identifier);
     const { id, slug } = identifier;
     if (!id && !slug)
       throw new Error(
         "Sorgu hatası: 'id' veya 'slug' parametrelerinden en az biri tanımlı olmalıdır",
       );
-
     return await this.novelRepo.exists({
       where: id ? { id } : { slug },
     });
@@ -59,12 +60,18 @@ export class NovelRepository implements INovelRepository {
         positiveReviewsCount: true,
         totalReviewsCount: true,
         viewCount: true,
-        author: { id: true, nickname: true },
+        author: {
+          id: true,
+          nickname: true,
+          user: { id: true, nickname: true },
+        },
         categories: { id: true, trName: true, enName: true },
         tags: { id: true, name: true },
       },
       relations: {
-        author: true,
+        author: {
+          user: true,
+        },
         tags: true,
         categories: true,
       },
@@ -94,5 +101,17 @@ export class NovelRepository implements INovelRepository {
 
   async incrementViewCount(novelId: string) {
     await this.novelRepo.increment({ id: novelId }, "viewCount", 1);
+  }
+
+  async updateNovel(dto: UpdateNovelDTO) {
+    console.log("Repository Update Novel DTO:", dto);
+    const { id, ...updateData } = dto;
+    const partialEntity = {
+      ...updateData,
+      categories: updateData.categories?.map((catId) => ({ id: catId })),
+      tags: updateData.tags?.map((tagId) => ({ id: tagId })),
+    };
+
+    await this.novelRepo.save({ id: id, ...partialEntity });
   }
 }

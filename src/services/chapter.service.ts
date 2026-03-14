@@ -11,20 +11,14 @@ export class ChapterService implements IChapterService {
   constructor(
     private chapterRepo: IChapterRepository,
     private volumeRepo: IVolumeRepository,
-    private novelReo: INovelRepository,
+    private novelRepo: INovelRepository,
   ) {}
 
   async create(dto: CreateChapterDTO) {
-    const isDuplicate = await this.chapterRepo.duplicateControl(
+    const lastChapterOrder = await this.chapterRepo.getLastChapterOrder(
       dto.novelId,
-      dto.order,
     );
-    if (isDuplicate) {
-      throw new ConflictError(
-        "Order",
-        "Bu sıraya sahip bir bölüm zaten mevcut.",
-      );
-    }
+
     if (dto.volumeId) {
       const volumeExist = await this.volumeRepo.existControl(dto.volumeId);
       console.log("Volume Exist:", volumeExist);
@@ -33,11 +27,14 @@ export class ChapterService implements IChapterService {
       }
     }
 
-    const novelExist = await this.novelReo.existControl({ id: dto.novelId });
+    const novelExist = await this.novelRepo.existControl({ id: dto.novelId });
     if (!novelExist) {
       throw new ConflictError("NovelId", "Böyle bir novel mevcut değil.");
     }
-    return await this.chapterRepo.create(dto);
+    return await this.chapterRepo.create({
+      ...dto,
+      order: lastChapterOrder + 1,
+    });
   }
 
   async delete(id: string) {
@@ -57,5 +54,9 @@ export class ChapterService implements IChapterService {
       }
     }
     await this.chapterRepo.updateChapter(dto);
+  }
+
+  async getSummary(novelId: string) {
+    return await this.chapterRepo.getSummary(novelId);
   }
 }
