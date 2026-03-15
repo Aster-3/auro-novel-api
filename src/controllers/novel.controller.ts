@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
-import { IChapterService } from "../interfaces/chapter.service.interface.js";
+import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
 
 export class NovelController {
   constructor(
     private novelService: INovelService,
     private commentService: ICommentService,
+    private chapterRepository: IChapterRepository,
   ) {}
 
   createNovel = async (req: Request, res: Response) => {
@@ -65,5 +66,20 @@ export class NovelController {
     console.log("Controller ID", id);
     const novel = await this.novelService.updateNovel({ id, ...req.body });
     res.status(200).json({ novel });
+  };
+
+  getChaptersByNovelId = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const chapters = await this.chapterRepository.getChapterByNovelId({
+      id,
+      ...res.locals.validatedData,
+    });
+    res.json(chapters);
+  };
+
+  getChaptersSummary = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const summary = await this.chapterRepository.getSummary(id);
+    res.json(summary);
   };
 }

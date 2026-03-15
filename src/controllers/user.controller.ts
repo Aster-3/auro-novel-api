@@ -14,4 +14,9 @@ export class UserController {
     const users = await this.userService.searchUsers(res.locals.validatedData);
     res.status(200).json(users);
   };
+
+  getAllVerifications = async (req: Request, res: Response) => {
+    const verifications = await this.userService.getAllVerifications();
+    res.status(200).json(verifications);
+  };
 }

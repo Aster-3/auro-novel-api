@@ -7,7 +7,14 @@ import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
 export interface IChapterService {
   create(dto: CreateChapterDTO): Promise<boolean>;
   delete(id: string): Promise<void>;
-  getChapterByNovelId(dto: GetChaptersDto): Promise<FindAndCountType<Chapter>>;
+  getChapterByNovelId(dto: GetChaptersDto): Promise<
+    FindAndCountType<{
+      id: string;
+      title: string;
+      order: number;
+      isUnlocked: boolean;
+    }>
+  >;
   updateChapter(dto: UpdateChapterDTO): Promise<void>;
   getSummary(
     novelId: string,

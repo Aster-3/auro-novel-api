@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  DeleteDateColumn,
 } from "typeorm";
 import { Comment } from "./Comment.js";
 import { CommentLike } from "./CommentLike.js";
@@ -16,6 +17,7 @@ import { Reply } from "./Reply.js";
 import { ReplyLike } from "./ReplyLike.js";
 import { UserRoles, UserStatus } from "../constants/user.constants.js";
 import { Author, ChapterPurchase } from "./_index.js";
+import { UserVerification } from "./UserVerification.js";
 
 @Entity()
 export class User {
@@ -43,20 +45,23 @@ export class User {
   @Column({ type: "varchar", length: 255, nullable: true })
   description?: string;
 
-  @Column({ type: "boolean", default: false })
-  isVerified!: boolean;
-
   @Column({ type: "enum", enum: UserRoles, default: UserRoles.USER })
   role!: UserRoles;
 
-  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.PENDING })
   status!: UserStatus;
+
+  @Column({ type: "boolean", default: false })
+  isVerified!: boolean;
 
   @CreateDateColumn()
   createdAt!: Date;
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date;
 
   @OneToMany(() => Comment, (comment) => comment.user)
   comments!: Comment[];
@@ -84,4 +89,9 @@ export class User {
 
   @OneToMany(() => ChapterPurchase, (purchase) => purchase.user)
   purchases!: ChapterPurchase[];
+
+  @OneToOne(() => UserVerification, (verification) => verification.user, {
+    cascade: true,
+  })
+  verification!: UserVerification;
 }

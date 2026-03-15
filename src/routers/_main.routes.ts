@@ -10,6 +10,7 @@ import TagRouter from "./tag.routes.js";
 import ChapterRoutes from "./chapter.routes.js";
 import VolumeRoutes from "./volume.routes.js";
 import AuthorRoutes from "./author.routes.js";
+import ChapterPurchaseRoutes from "./chapter.purchase.routes.js";
 
 const rootRouter = Router();
 
@@ -25,5 +26,6 @@ rootRouter.use("/replies", ReplyRouter);
 rootRouter.use("/tags", TagRouter);
 rootRouter.use("/chapters", ChapterRoutes);
 rootRouter.use("/volumes", VolumeRoutes);
+rootRouter.use("/purchases", ChapterPurchaseRoutes);
 
 export default rootRouter;

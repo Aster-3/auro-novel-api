@@ -10,4 +10,14 @@ export class AuthController {
   };
 
   login = (req: Request, res: Response) => {};
+
+  verifyUser = async (req: Request, res: Response) => {
+    const user = await this.userService.verifyUser(req.body);
+    res.json({ user });
+  };
+
+  resendVerificationCode = async (req: Request, res: Response) => {
+    const result = await this.userService.resendCode(req.body.email);
+    res.json(result);
+  };
 }

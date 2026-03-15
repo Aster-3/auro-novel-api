@@ -3,6 +3,9 @@ import { User } from "../entities/User.js";
 import { IUserRepository } from "../interfaces/user.repo.interface.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
+import { VerifyUserDto } from "../schemas/verify.user.schema.js";
+import { UserVerification } from "../entities/UserVerification.js";
+import { UserStatus } from "../constants/user.constants.js";
 
 export class UserRepository implements IUserRepository {
   constructor(private userRepo: Repository<User>) {}
@@ -11,12 +14,42 @@ export class UserRepository implements IUserRepository {
     return this.userRepo.findOneBy({ username });
   }
 
-  findOneByEmail(email: string) {
-    return this.userRepo.findOneBy({ email });
+  async findOneByEmail(email: string) {
+    const a = await this.userRepo.findOneBy({ email });
+    console.log("findOneByEmail result:", a);
+    return a;
   }
 
-  create(user: CreateUserDto) {
-    return this.userRepo.save(user);
+  async create(userDto: CreateUserDto, code: string, expiry: Date) {
+    return await this.userRepo.manager.transaction(async (manager) => {
+      const user = manager.create(User, userDto);
+      const savedUser = await manager.save(User, user);
+
+      const verification = manager.create(UserVerification, {
+        code,
+        expiry,
+        user: savedUser,
+      });
+      await manager.save(UserVerification, verification);
+
+      return savedUser;
+    });
+  }
+
+  async activateUser(user: User, verification: UserVerification) {
+    return await this.userRepo.manager.transaction(async (manager) => {
+      user.isVerified = true;
+      user.status = UserStatus.ACTIVE;
+      const updatedUser = await manager.save(User, user);
+      await manager.remove(UserVerification, verification);
+      return updatedUser;
+    });
+  }
+
+  findByVerificationCodeandEmail(dto: VerifyUserDto) {
+    return this.userRepo.findOne({
+      where: { email: dto.email },
+    });
   }
 
   exsistById(id: string): Promise<boolean> {
@@ -34,10 +67,12 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         profileBackgroundImageUrl: true,
         description: true,
+        role: true,
+        status: true,
+        isVerified: true,
       },
       relations: {
-        novels: true,
-        comments: true,
+        verification: true,
         replies: true,
       },
     });

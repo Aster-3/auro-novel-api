@@ -17,6 +17,7 @@ export const getChaptersSchema = z.object({
       .max(100, "Tek seferde en fazla 100 kayıt çekebilirsiniz.")
       .optional()
       .default(20),
+    userId: reqUuid("Kullanıcı Id").optional(),
   }),
 });
 

@@ -10,18 +10,6 @@ import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 const router = Router();
 const chapterController = getChapterController();
 
-router.get(
-  "/:id",
-  validateSchema(getChaptersSchema),
-  chapterController.getChapterByNovelId,
-);
-
-router.get(
-  "/:id/summary",
-  validateSchema(uuidControlSchema),
-  chapterController.getSummary,
-);
-
 router.post(
   "/",
   validateSchema(createChapterSchema),

@@ -14,6 +14,7 @@ export const updateChapterSchema = z.object({
       .optional(),
     volumeId: reqUuid("Cilt Id").optional(),
     isPublished: z.boolean().optional(),
+    isLocked: z.boolean().optional(),
   }),
   params: z.object({
     id: reqUuid("Bölüm Id"),

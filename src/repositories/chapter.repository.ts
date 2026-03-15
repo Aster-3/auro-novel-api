@@ -19,22 +19,43 @@ export class ChapterRepository implements IChapterRepository {
   }
 
   async getChapterByNovelId(dto: GetChaptersDto) {
-    const { id, page, limit } = dto;
+    const { id, userId, page, limit } = dto;
 
-    const [result, total] = await this.chapterRepo.findAndCount({
-      select: {
-        id: true,
-        title: true,
-        order: true,
-        isLocked: true,
-        volumeId: true,
-      },
-      where: { novelId: id },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const query = this.chapterRepo
+      .createQueryBuilder("chapter")
+      .select([
+        "chapter.id",
+        "chapter.title",
+        "chapter.order",
+        "chapter.isLocked", // Senin tablondaki kolon
+      ])
+      // Sadece bu kullanıcıya ait satın alımı getir (Join içindeki filtre hayat kurtarır)
+      .leftJoinAndSelect(
+        "chapter.purchases",
+        "purchase",
+        "purchase.userId = :userId",
+        { userId: userId ?? null }, // userId yoksa null gönder ki hata almasın
+      )
+      .where("chapter.novelId = :novelId", { novelId: id })
+      .orderBy("chapter.order", "ASC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [chapters, total] = await query.getManyAndCount();
+
+    // Frontend için temiz mapping
+    const data = chapters.map((chapter) => ({
+      id: chapter.id,
+      title: chapter.title,
+      order: chapter.order,
+      // MANTIK: Bölüm kilitli değilse VEYA kullanıcı satın almışsa "unlocked" true döner
+      isUnlocked:
+        !chapter.isLocked ||
+        (chapter.purchases && chapter.purchases.length > 0),
+    }));
+
     return {
-      data: result,
+      data: data,
       count: total,
       currentPage: page,
       lastPage: Math.ceil(total / limit),
@@ -56,6 +77,17 @@ export class ChapterRepository implements IChapterRepository {
         id: id,
       },
     });
+  }
+
+  async getLockStatus(chapterId: string) {
+    const chapter = await this.chapterRepo.findOne({
+      where: { id: chapterId },
+      select: { isLocked: true },
+    });
+    if (!chapter) {
+      return null;
+    }
+    return chapter.isLocked;
   }
 
   async updateChapter(dto: UpdateChapterDTO) {

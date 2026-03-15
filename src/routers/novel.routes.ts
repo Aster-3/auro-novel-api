@@ -10,6 +10,7 @@ import { getCommentsSchema } from "../schemas/get.comments.schema.js";
 import { updateTagsSchema } from "../schemas/update.tags.schema.js";
 import { updateNovelSchema } from "../schemas/update.novel.schema.js";
 import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
+import { getChaptersSchema } from "../schemas/get.chapters.schema.js";
 const router = Router();
 const novelController = getNovelController();
 
@@ -32,6 +33,18 @@ router.patch(
   validateSchema(updateNovelSchema),
   novelController.updateNovel,
 ); ///OKEY
+
+router.get(
+  "/:id/chapters/summary",
+  validateSchema(uuidControlSchema),
+  novelController.getChaptersSummary,
+);
+
+router.get(
+  "/:id/chapters",
+  validateSchema(getChaptersSchema),
+  novelController.getChaptersByNovelId,
+);
 
 router.get(
   "/:id/comments",

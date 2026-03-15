@@ -15,28 +15,11 @@ export class ChapterController {
     res.sendStatus(204);
   };
 
-  getChapterByNovelId = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    console.log("Locals:", res.locals.validatedData);
-    console.log("Query:", req.query);
-    const chapters = await this.chapterService.getChapterByNovelId({
-      id,
-      ...res.locals.validatedData,
-    });
-    res.json(chapters);
-  };
-
   updateChapter = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     console.log("Locals:", res.locals.validatedData);
     console.log("Body:", req.body);
     await this.chapterService.updateChapter({ ...req.body, id });
     res.sendStatus(204);
-  };
-
-  getSummary = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    const summary = await this.chapterService.getSummary(id);
-    res.json(summary);
   };
 }

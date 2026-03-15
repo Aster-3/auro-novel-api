@@ -12,4 +12,6 @@ router.get("/", validateSchema(getUsersSchema), userController.getUsers);
 
 router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
+router.get("/verifications/all", userController.getAllVerifications);
+
 export default router;
