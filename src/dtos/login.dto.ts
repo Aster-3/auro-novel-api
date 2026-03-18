@@ -1,0 +1,19 @@
+export class UserLoginResponseDto {
+  id!: string;
+  username!: string;
+  nickname!: string;
+  email!: string;
+  profileImageUrl!: string | null;
+  role!: string;
+
+  constructor(data?: Partial<UserLoginResponseDto>) {
+    if (data) {
+      this.id = data.id || "";
+      this.username = data.username || "";
+      this.nickname = data.nickname || "Anonim";
+      this.email! = data.email || "";
+      this.profileImageUrl = data.profileImageUrl || null;
+      this.role = data.role || "user";
+    }
+  }
+}

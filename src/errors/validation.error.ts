@@ -1,16 +1,18 @@
 import { AppError } from "./app.error.js";
 
-interface ValidationErrorDetail {
-  field: string;
-  errors: string[];
+// Yeni tip tanımı: Anahtar alan adı, değer ise hata mesajları dizisi
+interface ValidationErrorDetails {
+  errors: Record<string, string[]>;
 }
 
 export class ValidationError extends AppError {
-  details: ValidationErrorDetail[];
-  statusCode = 400;
+  details: ValidationErrorDetails;
+  statusCode = 422;
 
-  constructor(details: ValidationErrorDetail[]) {
-    const autoMessage = `Validation failed for: ${details.map((d) => d.field).join(", ")}`;
+  constructor(details: ValidationErrorDetails) {
+    // Mesaj kısmında tüm hatalı alanları virgülle ayırarak gösteriyoruz
+    const fieldNames = Object.keys(details.errors).join(", ");
+    const autoMessage = `Validation failed for: ${fieldNames}`;
 
     super(autoMessage);
     this.name = "ValidationError";
@@ -22,7 +24,8 @@ export class ValidationError extends AppError {
       success: false,
       message: this.message,
       statusCode: this.statusCode,
-      details: this.details,
+      // Burada direkt details'i dönüyoruz, içinde zaten "errors" objesi var
+      errors: this.details.errors,
     };
   }
 }

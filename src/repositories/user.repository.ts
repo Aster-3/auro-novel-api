@@ -6,6 +6,8 @@ import { GetUsersDto } from "../schemas/get.users.schema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
 import { UserVerification } from "../entities/UserVerification.js";
 import { UserStatus } from "../constants/user.constants.js";
+import { UpdateUserDto } from "../schemas/update.user.schema.js";
+import { GetMeQuery } from "../schemas/get.me.schema.js";
 
 export class UserRepository implements IUserRepository {
   constructor(private userRepo: Repository<User>) {}
@@ -70,6 +72,7 @@ export class UserRepository implements IUserRepository {
         role: true,
         status: true,
         isVerified: true,
+        refreshToken: true,
       },
       relations: {
         verification: true,
@@ -115,5 +118,67 @@ export class UserRepository implements IUserRepository {
       currentPage: page,
       lastPage: Math.ceil(total / limit),
     };
+  }
+
+  async findForLogin(email: string) {
+    return await this.userRepo.findOne({
+      where: { email },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        email: true,
+        profileImageUrl: true,
+        profileBackgroundImageUrl: true,
+        role: true,
+        password: true,
+        refreshToken: true,
+        isVerified: true,
+      },
+    });
+  }
+
+  async updateUser(dto: UpdateUserDto) {
+    console.log("Controller updateData:", dto);
+    const updatedUser = await this.userRepo.save(dto);
+    return this.findOneById(updatedUser.id);
+  }
+
+  async getMe(dto: GetMeQuery) {
+    console.log("Select fields for getMe:", dto);
+    const selectFields = dto.fields?.length
+      ? dto.fields.reduce((acc, f) => ({ ...acc, [f]: true }), { id: true })
+      : { id: true, username: true, email: true };
+
+    const user = await this.userRepo.findOne({
+      where: { id: dto.userId },
+      select: selectFields,
+    });
+    if (!user) {
+      throw new Error("Kullanıcı bulunamadı.");
+    }
+    return user;
+  }
+
+  updateRefreshToken = async (userId: string, refreshToken: string) => {
+    await this.userRepo.update({ id: userId }, { refreshToken });
+  };
+
+  async getUserForTokenRefresh(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        email: true,
+        profileImageUrl: true,
+        role: true,
+      },
+    });
+    if (!user) {
+      return null;
+    }
+    return user;
   }
 }

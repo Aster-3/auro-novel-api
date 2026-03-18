@@ -10,14 +10,22 @@ export const validateSchema =
     });
 
     if (!result.success) {
-      const formattedErrors = result.error.issues.map((issue: any) => {
-        const fieldName = issue.path.length > 1 ? issue.path[1] : issue.path[0];
-        return {
-          field: String(fieldName),
-          errors: [issue.message],
-        };
+      // Hataları alan adlarına göre gruplayalım
+      const errors: Record<string, string[]> = {};
+
+      result.error.issues.forEach((issue: any) => {
+        const fieldName = String(
+          issue.path.length > 1 ? issue.path[1] : issue.path[0],
+        );
+
+        if (!errors[fieldName]) {
+          errors[fieldName] = [];
+        }
+        errors[fieldName].push(issue.message);
       });
-      return next(new ValidationError(formattedErrors));
+
+      // ValidationError'a doğrudan bu nesneyi gönderiyoruz
+      return next(new ValidationError({ errors }));
     }
 
     res.locals.validatedData = {

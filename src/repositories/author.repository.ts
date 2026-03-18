@@ -2,6 +2,7 @@ import { Repository } from "typeorm";
 import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { CreateAuthorDto } from "../schemas/create.author.schmea.js";
 import { Author } from "../entities/Author.js";
+import { UpdateUserDto } from "../schemas/update.user.schema.js";
 
 export class AuthorRepository implements IAuthorRepository {
   constructor(private authorRepo: Repository<Author>) {}

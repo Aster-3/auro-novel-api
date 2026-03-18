@@ -16,8 +16,6 @@ export class NovelController {
   };
 
   getNovels = async (req: Request, res: Response) => {
-    console.log("Request Query:", req.query);
-    console.log("Validated Data:", res.locals.validatedData);
     const novels = await this.novelService.getNovels(res.locals.validatedData);
     res.status(200).json(novels);
   };

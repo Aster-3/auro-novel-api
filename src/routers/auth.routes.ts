@@ -6,6 +6,7 @@ import { validateDto } from "../middlewares/validate.dto.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { verifyUserSchema } from "../schemas/verify.user.schema.js";
 import { resendCodeSchema } from "../interfaces/resend.code.interface.js";
+import { userLoginSchema } from "../schemas/user.login.shema.js";
 
 const router = Router();
 const authController = getAuthController();
@@ -16,7 +17,7 @@ router.post(
   validateDto(CreateUserDto),
   authController.register,
 );
-router.post("/login", authController.login);
+router.post("/login", validateSchema(userLoginSchema), authController.login);
 
 router.post(
   "/verify",
@@ -29,5 +30,7 @@ router.post(
   validateSchema(resendCodeSchema),
   authController.resendVerificationCode,
 );
+
+router.post("/refresh-token", authController.refreshToken);
 
 export default router;

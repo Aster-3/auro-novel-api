@@ -12,7 +12,9 @@ export class ConflictError extends AppError {
     return {
       success: false,
       message: this.message,
-      field: this.conflictField,
+      errors: {
+        [this.conflictField]: [this.message],
+      },
       statusCode: this.statusCode,
     };
   }

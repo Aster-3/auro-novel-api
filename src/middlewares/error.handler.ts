@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/app.error.js";
 import { ValidationError } from "../errors/validation.error.js";
 import { ConflictError } from "../errors/conflict.error.js";
+import { MulterError } from "multer";
 
 export const GlobalErrorHandler = (
   error: Error,
@@ -24,6 +25,14 @@ export const GlobalErrorHandler = (
 
   if (error instanceof AppError) {
     return res.status(error.statusCode).json(error.serialize());
+  }
+
+  if (error instanceof MulterError) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+      statusCode: 400,
+    });
   }
 
   console.error("### CRITIC ERROR ###", {

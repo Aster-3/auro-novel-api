@@ -42,7 +42,7 @@ export class User {
   @Column({ type: "text", nullable: true })
   profileBackgroundImageUrl?: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "varchar", length: 500, nullable: true })
   description?: string;
 
   @Column({ type: "enum", enum: UserRoles, default: UserRoles.USER })
@@ -53,6 +53,9 @@ export class User {
 
   @Column({ type: "boolean", default: false })
   isVerified!: boolean;
+
+  @Column({ type: "varchar", nullable: true, select: false })
+  refreshToken?: string;
 
   @CreateDateColumn()
   createdAt!: Date;
