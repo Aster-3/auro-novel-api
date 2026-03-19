@@ -40,11 +40,14 @@ export class NovelRepository implements INovelRepository {
       skip: (page - 1) * limit,
       take: limit,
     });
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
     return {
-      data: novels,
-      count: total,
+      items: novels,
+      total: total,
+      nextPage: nextPage,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      lastPage: totalPage,
     };
   }
 

@@ -33,8 +33,17 @@ export class NovelController {
     res.status(200).json(comments);
   };
 
+  getLast3CommentsByNovelId = async (req: Request, res: Response) => {
+    const { novelId } = req.params as any;
+    const comments =
+      await this.commentService.getLast3CommentsByNovelId(novelId);
+    res.status(200).json(comments);
+  };
+
   addNovelComment = async (req: Request, res: Response) => {
-    const comment = await this.commentService.createComment(req.body);
+    const comment = await this.commentService.createComment(
+      res.locals.validatedData,
+    );
     res.status(201).json({ comment });
   };
 

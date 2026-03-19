@@ -19,8 +19,6 @@ export class CommentService implements ICommentService {
 
   createComment = async (dto: CreateCommentDto) => {
     const novelExists = await this.novelRepo?.existControl({ id: dto.novelId });
-    console.log("DTO:", dto);
-    console.log("Novel Exists:", novelExists);
     if (!novelExists) {
       throw new NotFoundError("Novel not found");
     }
@@ -45,5 +43,9 @@ export class CommentService implements ICommentService {
 
   async toggleLike(userId: string, commentId: number) {
     return await this.commentLikeRepo?.toggleLike(userId, commentId)!;
+  }
+
+  getLast3CommentsByNovelId(novelId: string) {
+    return this.commentRepo.getLast3CommentsByNovelId(novelId);
   }
 }

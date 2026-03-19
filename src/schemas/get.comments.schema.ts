@@ -2,7 +2,7 @@ import * as z from "zod";
 
 export const getCommentsSchema = z.object({
   params: z.object({
-    id: z.uuid("Geçerli bir novel id'si giriniz"),
+    novelId: z.uuid("Geçerli bir novel id'si giriniz"),
   }),
   query: z.object({
     page: z.coerce

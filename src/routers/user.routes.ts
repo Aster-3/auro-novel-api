@@ -29,8 +29,8 @@ router.patch(
   "/me",
   authMiddleware,
   upload.fields([
-    { name: "profileImgUrl", maxCount: 1 },
-    { name: "profileBackgroundImgUrl", maxCount: 1 },
+    { name: "profileImageUrl", maxCount: 1 },
+    { name: "profileBackgroundImageUrl", maxCount: 1 },
   ]),
   validateSchema(updateUserSchema),
   userController.updateUser,

@@ -7,9 +7,12 @@ export const createCommentSchema = z.object({
       .min(10, "Yorum en az 10 karakter olmalıdır")
       .max(1500, "Yorum en fazla 1500 karakter olmalıdır"),
     isRecommend: z.boolean("Önerilme durumu zorunludur"),
-    novelId: reqUuid("Novel id"),
     userId: reqUuid("User id"),
+  }),
+  params: z.object({
+    novelId: z.uuid("Geçerli bir novel id'si giriniz"),
   }),
 });
 
-export type CreateCommentDto = z.infer<typeof createCommentSchema>["body"];
+export type CreateCommentDto = z.infer<typeof createCommentSchema>["body"] &
+  z.infer<typeof createCommentSchema.shape.params>;

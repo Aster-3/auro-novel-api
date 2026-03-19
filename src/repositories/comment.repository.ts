@@ -5,15 +5,16 @@ import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 import { Novel } from "../entities/_index.js";
 import { ConflictError } from "../errors/conflict.error.js";
+import { ne } from "@faker-js/faker";
 
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
-  async create(comment: CreateCommentDto) {
+  async create(dto: CreateCommentDto) {
     const hasCommentedBefore = await this.commentRepo.exists({
       where: {
-        userId: comment.userId,
-        novelId: comment.novelId,
+        userId: dto.userId,
+        novelId: dto.novelId,
       },
     });
 
@@ -26,21 +27,26 @@ export class CommentRepository implements ICommentRepository {
     return await this.commentRepo.manager.transaction(async (manager) => {
       await manager.increment(
         Novel,
-        { id: comment.novelId },
+        { id: dto.novelId },
         "totalReviewsCount",
         1,
       );
 
-      if (comment.isRecommend) {
+      if (dto.isRecommend) {
         await manager.increment(
           Novel,
-          { id: comment.novelId },
+          { id: dto.novelId },
           "positiveReviewsCount",
           1,
         );
       }
 
-      return await manager.save(Comment, comment);
+      const newComment = manager.create(Comment, {
+        ...dto,
+        novelId: dto.novelId, // dto.novelId'den geldiğini belirttiniz
+      });
+
+      return await manager.save(Comment, newComment);
     });
   }
 
@@ -60,11 +66,28 @@ export class CommentRepository implements ICommentRepository {
       .getMany();
   }
 
+  getLast3CommentsByNovelId(novelId: string) {
+    return this.commentRepo.find({
+      where: { novel: { id: novelId } },
+      order: { createdAt: "DESC" },
+      take: 3,
+      select: {
+        id: true,
+        user: { id: true, nickname: true, profileImageUrl: true },
+        content: true,
+        isRecommend: true,
+        createdAt: true,
+      },
+      relations: {
+        user: true,
+      },
+    });
+  }
   async getCommentsByNovelId(dto: GetCommentsDto) {
-    const { id, page, limit } = dto;
+    const { novelId, page, limit } = dto;
 
     const [comments, total] = await this.commentRepo.findAndCount({
-      where: { novel: { id: id } },
+      where: { novel: { id: novelId } },
       skip: (page - 1) * limit,
       select: {
         id: true,
@@ -81,11 +104,15 @@ export class CommentRepository implements ICommentRepository {
       order: { createdAt: "DESC" },
       take: limit,
     });
+
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
     return {
-      data: comments,
-      count: total,
+      items: comments,
+      total: total,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      nextPage: nextPage,
+      lastPage: totalPage,
     };
   }
 }

@@ -89,8 +89,9 @@ export class UserRepository implements IUserRepository {
 
     if (isSearchSentButEmpty && hasNoOtherFilters) {
       return {
-        data: [],
-        count: 0,
+        items: [],
+        total: 0,
+        nextPage: null,
         currentPage: page,
         lastPage: 0,
       };
@@ -112,11 +113,14 @@ export class UserRepository implements IUserRepository {
       take: limit,
       skip: (page - 1) * limit,
     });
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
     return {
-      data: result,
-      count: total,
+      items: result,
+      total: total,
+      nextPage: nextPage,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      lastPage: totalPage,
     };
   }
 
@@ -141,7 +145,7 @@ export class UserRepository implements IUserRepository {
   async updateUser(dto: UpdateUserDto) {
     console.log("Controller updateData:", dto);
     const updatedUser = await this.userRepo.save(dto);
-    return this.findOneById(updatedUser.id);
+    return this.getUserForTokenRefresh(updatedUser.id);
   }
 
   async getMe(dto: GetMeQuery) {

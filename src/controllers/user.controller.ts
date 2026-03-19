@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { IUserService } from "../interfaces/user.service.interface.js";
-import { fi } from "zod/locales";
 import { uploadToS3 } from "../services/s3.service.js";
 
 export class UserController {
@@ -26,19 +25,23 @@ export class UserController {
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const updateData = { ...req.body, id: req.user?.id };
 
-    if (files.profileImgUrl) {
-      const profileImgUrl = await uploadToS3(files.profileImgUrl[0], "avatars");
-      updateData.profileImageUrl = profileImgUrl;
+    if (files.profileImageUrl) {
+      const profileImageUrl = await uploadToS3(
+        files.profileImageUrl[0],
+        "avatars",
+      );
+      updateData.profileImageUrl = profileImageUrl;
     }
 
-    if (files.profileBackgroundImgUrl) {
-      const profileBackgroundImgUrl = await uploadToS3(
-        files.profileBackgroundImgUrl[0],
+    if (files.profileBackgroundImageUrl) {
+      const profileBackgroundImageUrl = await uploadToS3(
+        files.profileBackgroundImageUrl[0],
         "covers",
       );
-      updateData.profileBackgroundImageUrl = profileBackgroundImgUrl;
+
+      updateData.profileBackgroundImageUrl = profileBackgroundImageUrl;
     }
-    console.log("Controller updateData:", updateData);
+
     const updatedUser = await this.userService.updateUser(updateData);
     res.status(200).json(updatedUser);
   };
