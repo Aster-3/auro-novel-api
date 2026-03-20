@@ -29,8 +29,8 @@ export class CommentService implements ICommentService {
     await this.commentRepo.delete(id);
   };
 
-  getCommentsByNovelId = async (dto: GetCommentsDto) => {
-    return await this.commentRepo.getCommentsByNovelId(dto);
+  getCommentsByNovelId = async (dto: GetCommentsDto, userId?: string) => {
+    return await this.commentRepo.getCommentsByNovelId(dto, userId);
   };
 
   getTopCommentsOfLastWeek = async () => {

@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { UnauthenticatedError } from "../errors/unauthenticated.error.js";
 import { tokenService } from "../services/token.service.js";
-import { ForbiddenError } from "../errors/forbidden.error.js";
 
 export const authMiddleware = (
   req: Request,

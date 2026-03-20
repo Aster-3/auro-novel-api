@@ -41,10 +41,11 @@ export class NovelController {
   };
 
   addNovelComment = async (req: Request, res: Response) => {
-    const comment = await this.commentService.createComment(
-      res.locals.validatedData,
-    );
-    res.status(201).json({ comment });
+    const userId = req.user?.id;
+    const dto = { ...res.locals.validatedData, userId };
+
+    const comment = await this.commentService.createComment(dto);
+    res.status(201).json({ ...comment, userId });
   };
 
   updateNovelCategories = async (req: Request, res: Response) => {

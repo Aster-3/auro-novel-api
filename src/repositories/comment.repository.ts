@@ -5,8 +5,6 @@ import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 import { Novel } from "../entities/_index.js";
 import { ConflictError } from "../errors/conflict.error.js";
-import { ne } from "@faker-js/faker";
-
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -20,7 +18,7 @@ export class CommentRepository implements ICommentRepository {
 
     if (hasCommentedBefore)
       throw new ConflictError(
-        "userId and novelId",
+        "duplicate_comment",
         "Bu seriye zaten bir inceleme bırakmışsınız",
       );
 
@@ -83,33 +81,60 @@ export class CommentRepository implements ICommentRepository {
       },
     });
   }
-  async getCommentsByNovelId(dto: GetCommentsDto) {
+  async getCommentsByNovelId(dto: GetCommentsDto, userId?: string) {
     const { novelId, page, limit } = dto;
+    const skip = (page - 1) * limit;
 
-    const [comments, total] = await this.commentRepo.findAndCount({
-      where: { novel: { id: novelId } },
-      skip: (page - 1) * limit,
-      select: {
-        id: true,
-        user: { id: true, nickname: true, profileImageUrl: true },
-        content: true,
-        isRecommend: true,
-        createdAt: true,
-        likeCount: true,
-        replyCount: true,
+    // 1. Sorgu Hazırlığı: Temel Yorum ve Kullanıcı Bilgileri
+    const query = this.commentRepo
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user") // Yorumun sahibini getir
+      .where("comment.novelId = :novelId", { novelId })
+      .orderBy("comment.createdAt", "DESC")
+      .skip(skip)
+      .take(limit);
+
+    // 2. Koşullu Sorgu: Sadece userId varsa 'Beğeni Kontrolü' yap
+    if (userId) {
+      query
+        .leftJoin(
+          "comment.likes", // Comment entity içindeki Relation adı (beğeniler tablosu)
+          "userLike",
+          "userLike.userId = :userId",
+          { userId },
+        )
+        .addSelect(
+          "CASE WHEN userLike.id IS NOT NULL THEN true ELSE false END",
+          "comment_viewerHasLiked",
+        );
+      // Not: TypeORM bazen alias eklerken 'comment_' ön ekini kullanır.
+    }
+
+    // 3. Verileri Çek
+    const [rawComments, total] = await query.getManyAndCount();
+
+    // 4. Veriyi Temizle ve Formatla (Frontend'e hazır hale getir)
+    const items = rawComments.map((comment) => ({
+      id: comment.id,
+      content: comment.content,
+      isRecommend: comment.isRecommend,
+      createdAt: comment.createdAt,
+      likeCount: comment.likeCount,
+      replyCount: comment.replyCount,
+      user: {
+        id: comment.user?.id,
+        nickname: comment.user?.nickname,
+        profileImageUrl: comment.user?.profileImageUrl,
       },
-      relations: {
-        user: true,
-      },
-      order: { createdAt: "DESC" },
-      take: limit,
-    });
+      viewerHasLiked: userId ? !!(comment as any).viewerHasLiked : false,
+    }));
 
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
+
     return {
-      items: comments,
-      total: total,
+      items: items as any,
+      total,
       currentPage: page,
       nextPage: nextPage,
       lastPage: totalPage,

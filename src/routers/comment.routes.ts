@@ -21,7 +21,7 @@ router.get(
 );
 
 router.post(
-  "/:id/like",
+  "/:id/toggle-like",
   validateSchema(toggleLikeSchema),
   commentController.toggleLike,
 ); // OKEY

@@ -1,6 +1,7 @@
 export interface FindAndCountType<T> {
-  data: T[];
-  count: number;
+  items: T[];
+  total: number;
   currentPage: number;
   lastPage: number;
+  nextPage: number | null;
 }

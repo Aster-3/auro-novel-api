@@ -7,7 +7,10 @@ import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 export interface ICommentRepository {
   create(comment: CreateCommentDto | CreateReplyDto): Promise<Comment | null>;
   delete(id: number): Promise<void>;
-  getCommentsByNovelId(dto: GetCommentsDto): Promise<FindAndCountType<Comment>>;
+  getCommentsByNovelId(
+    dto: GetCommentsDto,
+    userId?: string,
+  ): Promise<FindAndCountType<Comment>>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsByNovelId(novelId: string): Promise<Comment[]>;
 }
