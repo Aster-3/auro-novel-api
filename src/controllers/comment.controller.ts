@@ -16,19 +16,18 @@ export class CommentController {
   };
 
   getCommentReplies = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    console.log("ID:", id);
-    console.log("Query:", res.locals.validatedData);
-    const replies = await this.commentService.getCommentReplies({
-      id,
-      ...res.locals.validatedData,
-    });
+    const data = { ...res.locals.validatedData, id: Number(req.params.id) };
+    const userId = req.user?.id;
+    if (userId) {
+      data.userId = userId;
+    }
+    const replies = await this.commentService.getCommentReplies(data);
     res.status(200).json(replies);
   };
 
   toggleLike = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const userId = res.locals.validatedData.userId;
+    const userId = req.user?.id!;
+    const { id } = req.params as any;
     console.log("Toggling like for comment ID:", id, "by user ID:", userId);
     const liked = await this.commentService.toggleLike(userId, Number(id));
     res.status(200).json({ liked });

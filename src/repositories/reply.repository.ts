@@ -33,43 +33,71 @@ export class ReplyRepository implements IReplyRepository {
   };
 
   getCommentReplies = async (dto: GetCommentRepliesDto) => {
-    const { id, page, limit } = dto;
+    const { id: rootCommentId, page = 1, limit = 10, userId } = dto;
+    const skip = (page - 1) * limit;
 
-    const [replies, total] = await this.replyRepo.findAndCount({
-      where: {
-        rootCommentId: id,
-      },
-      select: {
-        id: true,
-        content: true,
-        likeCount: true,
-        createdAt: true,
+    // 1. Sorgu Hazırlığı
+    const query = this.replyRepo
+      .createQueryBuilder("reply")
+      .leftJoinAndSelect("reply.user", "user") // Yanıtı yazan
+      .leftJoinAndSelect("reply.parentReply", "parentReply") // Yanıt verilen üst yanıt
+      .leftJoinAndSelect("parentReply.user", "parentUser") // Üst yanıtın sahibi
+      .where("reply.rootCommentId = :rootCommentId", { rootCommentId })
+      .orderBy("reply.createdAt", "ASC") // Sohbet akışı için eskiden yeniye
+      .skip(skip)
+      .take(limit);
+
+    // 2. Eğer kullanıcı giriş yapmışsa beğeni durumunu kontrol et
+    if (userId) {
+      query.addSelect((subQuery) => {
+        return subQuery
+          .select("COUNT(like.userId)", "cnt")
+          .from("reply_like", "like")
+          .where("like.replyId = reply.id")
+          .andWhere("like.userId = :userId", { userId });
+      }, "viewerHasLiked");
+    }
+
+    // 3. Verileri Çek
+    const { entities, raw } = await query.getRawAndEntities();
+    const total = await query.getCount();
+
+    // 4. Formatlama (Mapping)
+    const items = entities.map((reply, index) => {
+      // Subquery sonucu PostgreSQL'den string gelir ("1" veya "0")
+      const hasLiked = userId ? parseInt(raw[index].viewerHasLiked) > 0 : false;
+
+      return {
+        id: reply.id,
+        content: reply.content,
+        likeCount: reply.likeCount,
+        createdAt: reply.createdAt,
         user: {
-          id: true,
-          nickname: true,
-          profileImageUrl: true,
+          id: reply.user?.id,
+          nickname: reply.user?.nickname,
+          profileImageUrl: reply.user?.profileImageUrl,
         },
-        parentReply: {
-          content: true,
-          user: { nickname: true },
-        },
-      },
-      relations: {
-        user: true,
-        parentReply: {
-          user: true,
-        },
-      },
-      order: { createdAt: "ASC" },
-      skip: (page - 1) * limit,
-      take: limit,
+        // Eğer bu bir alt yanıtsa (mention), hangi içeriğe ve kime yanıt verildiği
+        parentReply: reply.parentReply
+          ? {
+              content: reply.parentReply.content,
+              user: {
+                nickname: reply.parentReply.user?.nickname,
+              },
+            }
+          : null,
+        viewerHasLiked: hasLiked,
+      };
     });
 
+    const totalPage = Math.ceil(total / limit);
+
     return {
-      data: replies,
-      count: total,
+      items: items as any[], // Tip güvenliği için as any kullandık, gerçek projede uygun bir DTO tanımlanabilir
+      total,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      nextPage: page < totalPage ? page + 1 : null,
+      lastPage: totalPage,
     };
   };
 }

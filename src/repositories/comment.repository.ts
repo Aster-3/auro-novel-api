@@ -82,62 +82,91 @@ export class CommentRepository implements ICommentRepository {
     });
   }
   async getCommentsByNovelId(dto: GetCommentsDto, userId?: string) {
-    const { novelId, page, limit } = dto;
+    const { novelId, page = 1, limit = 10 } = dto;
     const skip = (page - 1) * limit;
 
-    // 1. Sorgu Hazırlığı: Temel Yorum ve Kullanıcı Bilgileri
+    // 1. Sorgu Hazırlığı
     const query = this.commentRepo
       .createQueryBuilder("comment")
-      .leftJoinAndSelect("comment.user", "user") // Yorumun sahibini getir
+      .leftJoinAndSelect("comment.user", "user") // Yorum sahibini getir
       .where("comment.novelId = :novelId", { novelId })
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);
 
-    // 2. Koşullu Sorgu: Sadece userId varsa 'Beğeni Kontrolü' yap
+    // 2. Koşullu Filtreleme ve Beğeni Kontrolü
     if (userId) {
-      query
-        .leftJoin(
-          "comment.likes", // Comment entity içindeki Relation adı (beğeniler tablosu)
-          "userLike",
-          "userLike.userId = :userId",
-          { userId },
-        )
-        .addSelect(
-          "CASE WHEN userLike.id IS NOT NULL THEN true ELSE false END",
-          "comment_viewerHasLiked",
-        );
-      // Not: TypeORM bazen alias eklerken 'comment_' ön ekini kullanır.
+      // Kendi yorumunu genel listeden çıkar
+      query.andWhere("comment.userId != :userId", { userId });
+
+      // Kullanıcının her bir yorumu beğenip beğenmediğini hızlıca kontrol et (Subquery)
+      query.addSelect((subQuery) => {
+        return subQuery
+          .select("COUNT(like.userId)", "cnt")
+          .from("comment_like", "like")
+          .where("like.commentId = comment.id")
+          .andWhere("like.userId = :userId", { userId });
+      }, "viewerHasLiked");
     }
 
-    // 3. Verileri Çek
-    const [rawComments, total] = await query.getManyAndCount();
+    // 3. Veritabanı İsteği
+    const { entities, raw } = await query.getRawAndEntities();
+    const total = await query.getCount();
 
-    // 4. Veriyi Temizle ve Formatla (Frontend'e hazır hale getir)
-    const items = rawComments.map((comment) => ({
-      id: comment.id,
-      content: comment.content,
-      isRecommend: comment.isRecommend,
-      createdAt: comment.createdAt,
-      likeCount: comment.likeCount,
-      replyCount: comment.replyCount,
-      user: {
-        id: comment.user?.id,
-        nickname: comment.user?.nickname,
-        profileImageUrl: comment.user?.profileImageUrl,
-      },
-      viewerHasLiked: userId ? !!(comment as any).viewerHasLiked : false,
-    }));
+    // 4. Veri Formatlama (Mapping)
+    const items = entities.map((comment, index) => {
+      // raw[index].viewerHasLiked, PostgreSQL'de string (örn: "1" veya "0") döner.
+      const hasLiked = userId ? parseInt(raw[index].viewerHasLiked) > 0 : false;
+
+      return {
+        id: comment.id,
+        content: comment.content,
+        isRecommend: comment.isRecommend,
+        createdAt: comment.createdAt,
+        likeCount: comment.likeCount,
+        replyCount: comment.replyCount,
+        user: {
+          id: comment.user?.id,
+          nickname: comment.user?.nickname,
+          profileImageUrl: comment.user?.profileImageUrl,
+        },
+        viewerHasLiked: hasLiked,
+      };
+    });
 
     const totalPage = Math.ceil(total / limit);
-    const nextPage = page < totalPage ? page + 1 : null;
 
     return {
-      items: items as any,
+      items: items as any[],
       total,
       currentPage: page,
-      nextPage: nextPage,
+      nextPage: page < totalPage ? page + 1 : null,
       lastPage: totalPage,
     };
+  }
+
+  async getMyComment(novelId: string, userId: string) {
+    return await this.commentRepo.findOne({
+      where: {
+        novelId,
+        userId,
+      },
+      select: {
+        id: true,
+        content: true,
+        isRecommend: true,
+        createdAt: true,
+        likeCount: true,
+        replyCount: true,
+        user: {
+          id: true,
+          nickname: true,
+          profileImageUrl: true,
+        },
+      },
+      relations: {
+        user: true,
+      },
+    });
   }
 }

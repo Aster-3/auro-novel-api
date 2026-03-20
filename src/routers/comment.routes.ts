@@ -4,6 +4,8 @@ import { validateSchema } from "../middlewares/validate.schema.js";
 import { deleteCommentSchema } from "../schemas/delete.comment.schema.js";
 import { getCommentRepliesSchema } from "../schemas/get.comment.replies.schema.js";
 import { toggleLikeSchema } from "../schemas/toggle.like.schema.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
 
 const router = Router();
 const commentController = getCommentController();
@@ -16,6 +18,7 @@ router.delete(
 
 router.get(
   "/:id/replies",
+  optionalAuthMiddleware,
   validateSchema(getCommentRepliesSchema),
   commentController.getCommentReplies,
 );
@@ -23,6 +26,7 @@ router.get(
 router.post(
   "/:id/toggle-like",
   validateSchema(toggleLikeSchema),
+  authMiddleware,
   commentController.toggleLike,
 ); // OKEY
 

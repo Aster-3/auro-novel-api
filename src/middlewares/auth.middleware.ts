@@ -8,8 +8,10 @@ export const authMiddleware = (
   next: NextFunction,
 ) => {
   try {
-    console.log("Authorization Header:", req.headers.authorization);
     const authHeader = req.headers.authorization;
+    if (authHeader) {
+      console.log("Kullanıcının tokeni var:", authHeader);
+    }
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new UnauthenticatedError("ACCESS_TOKEN_INVALID");

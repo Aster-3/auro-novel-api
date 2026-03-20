@@ -7,18 +7,14 @@ export const createReplySchema = z.object({
       .min(1, "Yanıt boş bırakılamaz")
       .max(1500, "Yanıt en fazla 1500 karakter olmalıdır"),
 
-    userId: reqUuid("Kullanıcı id"),
-
     rootCommentId: reqNumber("Root Yorum id").min(
       1,
       "Root Yorum id 1'den büyük olmalıdır",
     ),
 
-    parentCommentId: z.preprocess(
+    parentReplyId: z.preprocess(
       (val) => (val === "" ? null : val),
-      reqNumber("Parent Yorum id")
-        .min(1, "Parent Yorum id 1'den büyük olmalıdır")
-        .nullable(),
+      reqNumber("Yanıt id").min(1, "Yanıt id 1'den büyük olmalıdır").nullable(),
     ),
   }),
 });

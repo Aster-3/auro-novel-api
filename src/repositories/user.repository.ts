@@ -18,7 +18,6 @@ export class UserRepository implements IUserRepository {
 
   async findOneByEmail(email: string) {
     const a = await this.userRepo.findOneBy({ email });
-    console.log("findOneByEmail result:", a);
     return a;
   }
 
@@ -149,7 +148,6 @@ export class UserRepository implements IUserRepository {
   }
 
   async getMe(dto: GetMeQuery) {
-    console.log("Select fields for getMe:", dto);
     const selectFields = dto.fields?.length
       ? dto.fields.reduce((acc, f) => ({ ...acc, [f]: true }), { id: true })
       : { id: true, username: true, email: true };

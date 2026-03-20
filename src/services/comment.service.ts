@@ -1,4 +1,3 @@
-import { getRepliesDto } from "../dtos/get.replies.dto.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { ICommentLikeRepository } from "../interfaces/comment.like.repo.interface.js";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
@@ -47,5 +46,9 @@ export class CommentService implements ICommentService {
 
   getLast3CommentsByNovelId(novelId: string) {
     return this.commentRepo.getLast3CommentsByNovelId(novelId);
+  }
+
+  getMyComment(novelId: string, userId: string) {
+    return this.commentRepo.getMyComment(novelId, userId);
   }
 }

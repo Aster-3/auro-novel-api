@@ -22,4 +22,6 @@ export const getCommentRepliesSchema = z.object({
 export type GetCommentRepliesDto = z.infer<
   typeof getCommentRepliesSchema.shape.params
 > &
-  z.infer<typeof getCommentRepliesSchema.shape.query>;
+  z.infer<typeof getCommentRepliesSchema.shape.query> & {
+    userId?: string;
+  };

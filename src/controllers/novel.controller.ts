@@ -27,10 +27,23 @@ export class NovelController {
   };
 
   getNovelComments = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
     const comments = await this.commentService.getCommentsByNovelId(
       res.locals.validatedData,
+      userId,
     );
     res.status(200).json(comments);
+  };
+
+  getMyComment = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(200).json(null);
+    }
+    const { novelId } = req.params as any;
+    const comment = await this.commentService.getMyComment(novelId, userId);
+    res.status(200).json(comment);
   };
 
   getLast3CommentsByNovelId = async (req: Request, res: Response) => {

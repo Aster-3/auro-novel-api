@@ -13,4 +13,5 @@ export interface ICommentRepository {
   ): Promise<FindAndCountType<Comment>>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsByNovelId(novelId: string): Promise<Comment[]>;
+  getMyComment(novelId: string, userId: string): Promise<Comment | null>;
 }

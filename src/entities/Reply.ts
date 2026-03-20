@@ -39,10 +39,10 @@ export class Reply {
 
   @Index()
   @Column({ type: "int", nullable: true })
-  parentCommentId!: number | null;
+  parentReplyId!: number | null;
 
   @ManyToOne(() => Reply, { nullable: true, onDelete: "CASCADE" })
-  @JoinColumn({ name: "parentCommentId" })
+  @JoinColumn({ name: "parentReplyId" })
   parentReply?: Reply | null;
 
   @Index()

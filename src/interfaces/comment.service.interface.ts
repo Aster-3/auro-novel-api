@@ -19,4 +19,5 @@ export interface ICommentService {
   ): Promise<FindAndCountType<Reply>>;
   toggleLike(userId: string, commentId: number): Promise<boolean>;
   getLast3CommentsByNovelId(novelId: string): Promise<Comment[]>;
+  getMyComment(novelId: string, userId: string): Promise<Comment | null>;
 }

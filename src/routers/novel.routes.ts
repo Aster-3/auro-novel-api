@@ -56,6 +56,13 @@ router.get(
   novelController.getNovelComments,
 ); ///OKEY
 
+router.get(
+  "/:novelId/my-comment",
+  optionalAuthMiddleware,
+  validateSchema(paramsNovelIdSchema),
+  novelController.getMyComment,
+); ///OKEY
+
 router.post(
   "/:novelId/comments",
   authMiddleware,
