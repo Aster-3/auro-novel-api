@@ -27,6 +27,9 @@ export class Author {
   @JoinColumn({ name: "userId" })
   user?: User;
 
+  @Column({ type: "boolean", default: false })
+  isVerified!: boolean;
+
   @OneToMany(() => Novel, (novel) => novel.author)
   novels!: Novel[];
 }

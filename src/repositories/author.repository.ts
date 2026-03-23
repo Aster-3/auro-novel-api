@@ -26,6 +26,7 @@ export class AuthorRepository implements IAuthorRepository {
           id: true,
           nickname: true,
         },
+        isVerified: true,
       },
       take: limit,
       relations: {

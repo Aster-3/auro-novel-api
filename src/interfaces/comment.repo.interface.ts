@@ -12,6 +12,10 @@ export interface ICommentRepository {
     userId?: string,
   ): Promise<FindAndCountType<Comment>>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
-  getLast3CommentsByNovelId(novelId: string): Promise<Comment[]>;
+  getLast3CommentsWithCount(
+    novelId: string,
+  ): Promise<{ items: Comment[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
+  isOwner(commentId: number, userId: string): Promise<boolean>;
+  getOneById(id: number): Promise<Comment | null>;
 }

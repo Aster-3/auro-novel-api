@@ -5,6 +5,7 @@ import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 import { Novel } from "../entities/_index.js";
 import { ConflictError } from "../errors/conflict.error.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -49,7 +50,34 @@ export class CommentRepository implements ICommentRepository {
   }
 
   async delete(id: number) {
-    await this.commentRepo.delete(id);
+    const comment = await this.commentRepo.findOne({
+      where: { id },
+      select: ["id", "novelId", "isRecommend"],
+    });
+
+    if (!comment) {
+      throw new NotFoundError("Yorum bulunamadı.");
+    }
+
+    return await this.commentRepo.manager.transaction(async (manager) => {
+      await manager.delete(Comment, id);
+
+      await manager.decrement(
+        Novel,
+        { id: comment.novelId },
+        "totalReviewsCount",
+        1,
+      );
+
+      if (comment.isRecommend) {
+        await manager.decrement(
+          Novel,
+          { id: comment.novelId },
+          "positiveReviewsCount",
+          1,
+        );
+      }
+    });
   }
 
   async getTopCommentsOfLastWeek(): Promise<Comment[]> {
@@ -64,42 +92,44 @@ export class CommentRepository implements ICommentRepository {
       .getMany();
   }
 
-  getLast3CommentsByNovelId(novelId: string) {
-    return this.commentRepo.find({
+  async getLast3CommentsWithCount(novelId: string) {
+    const [items, total] = await this.commentRepo.findAndCount({
       where: { novel: { id: novelId } },
       order: { createdAt: "DESC" },
       take: 3,
       select: {
         id: true,
-        user: { id: true, nickname: true, profileImageUrl: true },
         content: true,
         isRecommend: true,
         createdAt: true,
+        user: { id: true, nickname: true, profileImageUrl: true },
       },
       relations: {
         user: true,
       },
     });
+
+    return {
+      items,
+      total,
+    };
   }
+
   async getCommentsByNovelId(dto: GetCommentsDto, userId?: string) {
     const { novelId, page = 1, limit = 10 } = dto;
     const skip = (page - 1) * limit;
 
-    // 1. Sorgu Hazırlığı
     const query = this.commentRepo
       .createQueryBuilder("comment")
-      .leftJoinAndSelect("comment.user", "user") // Yorum sahibini getir
+      .leftJoinAndSelect("comment.user", "user")
       .where("comment.novelId = :novelId", { novelId })
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);
 
-    // 2. Koşullu Filtreleme ve Beğeni Kontrolü
     if (userId) {
-      // Kendi yorumunu genel listeden çıkar
       query.andWhere("comment.userId != :userId", { userId });
 
-      // Kullanıcının her bir yorumu beğenip beğenmediğini hızlıca kontrol et (Subquery)
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")
@@ -109,13 +139,10 @@ export class CommentRepository implements ICommentRepository {
       }, "viewerHasLiked");
     }
 
-    // 3. Veritabanı İsteği
     const { entities, raw } = await query.getRawAndEntities();
     const total = await query.getCount();
 
-    // 4. Veri Formatlama (Mapping)
     const items = entities.map((comment, index) => {
-      // raw[index].viewerHasLiked, PostgreSQL'de string (örn: "1" veya "0") döner.
       const hasLiked = userId ? parseInt(raw[index].viewerHasLiked) > 0 : false;
 
       return {
@@ -146,23 +173,51 @@ export class CommentRepository implements ICommentRepository {
   }
 
   async getMyComment(novelId: string, userId: string) {
+    const query = this.commentRepo
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .where("comment.novelId = :novelId", { novelId })
+      .andWhere("comment.userId = :userId", { userId });
+
+    query.addSelect((subQuery) => {
+      return subQuery
+        .select("COUNT(like.userId)", "cnt")
+        .from("comment_like", "like")
+        .where("like.commentId = comment.id")
+        .andWhere("like.userId = :userId", { userId });
+    }, "viewerHasLiked");
+
+    const result = await query.getRawAndEntities();
+    const entity = result.entities[0];
+    const raw = result.raw[0];
+
+    if (!entity) return null;
+
+    return {
+      ...entity,
+      viewerHasLiked: raw ? parseInt(raw.viewerHasLiked) > 0 : false,
+    };
+  }
+
+  async isOwner(commentId: number, userId: string): Promise<boolean> {
+    const comment = await this.commentRepo.findOne({
+      where: { id: commentId, userId },
+    });
+    return !!comment;
+  }
+
+  async getOneById(id: number): Promise<Comment | null> {
     return await this.commentRepo.findOne({
-      where: {
-        novelId,
-        userId,
-      },
+      where: { id },
       select: {
         id: true,
         content: true,
         isRecommend: true,
         createdAt: true,
+        updatedAt: true,
         likeCount: true,
         replyCount: true,
-        user: {
-          id: true,
-          nickname: true,
-          profileImageUrl: true,
-        },
+        user: { id: true, nickname: true, profileImageUrl: true },
       },
       relations: {
         user: true,

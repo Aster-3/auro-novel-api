@@ -4,13 +4,28 @@ export class ReplyController {
   constructor(private replyService: IReplyService) {}
 
   createReply = async (req: any, res: any) => {
-    const reply = await this.replyService.createReply(req.body);
+    const userId = req.user?.id;
+    console.log(
+      "Received request to create reply with body:",
+      req.body,
+      "and user ID:",
+      userId,
+    );
+    const reply = await this.replyService.createReply({ ...req.body, userId });
     res.json(reply);
   };
 
   deleteReply = async (req: any, res: any) => {
-    const { id } = req.params;
-    await this.replyService.deleteReply(Number(id));
+    const { replyId } = req.params;
+    const userId = req.user?.id;
+    await this.replyService.deleteReply({ replyId: Number(replyId), userId });
     res.sendStatus(204);
+  };
+
+  toggleLike = async (req: any, res: any) => {
+    const { replyId } = req.params;
+    const userId = req.user?.id;
+    const isLiked = await this.replyService.toggleLike(userId, Number(replyId));
+    res.json({ isLiked });
   };
 }

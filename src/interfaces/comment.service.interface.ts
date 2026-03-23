@@ -12,12 +12,15 @@ export interface ICommentService {
     userId?: string,
   ): Promise<FindAndCountType<Comment>>;
   createComment(dto: CreateCommentDto): Promise<Comment | null>;
-  deleteComment(id: number): Promise<void>;
+  deleteComment(id: number, userId?: string): Promise<void>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getCommentReplies(
     dto: GetCommentRepliesDto,
   ): Promise<FindAndCountType<Reply>>;
   toggleLike(userId: string, commentId: number): Promise<boolean>;
-  getLast3CommentsByNovelId(novelId: string): Promise<Comment[]>;
+  getLast3CommentsByNovelId(
+    novelId: string,
+  ): Promise<{ items: Comment[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
+  getOneCommentById(id: number): Promise<Comment | null>;
 }

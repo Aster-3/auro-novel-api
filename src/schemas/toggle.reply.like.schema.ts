@@ -1,12 +1,8 @@
 import * as z from "zod";
 import { reqNumber } from "../utils/zod.error.helper.js";
 
-export const deleteReplySchema = z.object({
+export const toggleReplyLikeSchema = z.object({
   params: z.object({
     replyId: z.preprocess((val) => Number(val), reqNumber("Reply id'si")),
   }),
 });
-
-export type DeleteReplySchema = z.infer<typeof deleteReplySchema>["params"] & {
-  userId?: string;
-};

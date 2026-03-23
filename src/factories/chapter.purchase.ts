@@ -9,6 +9,7 @@ import { ChapterPurchaseService } from "../services/create.chapter.purchase.serv
 export const getChapterPurchaseController = () => {
   const chapterPurchaseRepo = new ChapterPurchaseRepository(
     AppDataSource.getRepository(ChapterPurchase),
+    AppDataSource,
   );
   const userRepo = new UserRepository(AppDataSource.getRepository(User));
   const chapterRepo = new ChapterRepository(

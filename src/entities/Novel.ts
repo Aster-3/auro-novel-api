@@ -17,14 +17,13 @@ import {
   sourceType,
 } from "../constants/series.constants.js";
 import { Comment } from "./Comment.js";
-import { User } from "./User.js";
 import { Chapter } from "./Chapter.js";
 import { Category } from "./Category.js";
 import { Tags } from "./Tags.js";
 import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
-import { vi } from "zod/locales";
 import { Author } from "./Author.js";
+import { NovelDailyStats } from "./NovelDailyStats.js";
 
 @Entity()
 export class Novel {
@@ -74,7 +73,9 @@ export class Novel {
   @Column({ type: "int", default: 0 })
   totalReviewsCount!: number;
 
-  @Index()
+  @Column({ type: "int", default: 0 })
+  purchaseCount!: number;
+
   @Column({ type: "float", default: 0, select: false })
   popularityScore: number = 0;
 
@@ -103,4 +104,7 @@ export class Novel {
 
   @OneToMany(() => Volume, (volume) => volume.novel)
   volumes!: Volume[];
+
+  @OneToMany(() => NovelDailyStats, (stats) => stats.novel)
+  dailyStats!: NovelDailyStats[];
 }

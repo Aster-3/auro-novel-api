@@ -43,22 +43,24 @@ export class ChapterRepository implements IChapterRepository {
 
     const [chapters, total] = await query.getManyAndCount();
 
-    // Frontend için temiz mapping
     const data = chapters.map((chapter) => ({
       id: chapter.id,
       title: chapter.title,
       order: chapter.order,
-      // MANTIK: Bölüm kilitli değilse VEYA kullanıcı satın almışsa "unlocked" true döner
       isUnlocked:
         !chapter.isLocked ||
         (chapter.purchases && chapter.purchases.length > 0),
     }));
 
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
+
     return {
-      data: data,
-      count: total,
+      items: data as any[], // Tip dönüşümü, çünkü data yapısı değişti
+      total: total,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      lastPage: totalPage,
+      nextPage: nextPage,
     };
   }
 

@@ -1,10 +1,13 @@
-import { Repository } from "typeorm";
-import { ChapterPurchase } from "../entities/_index.js";
+import { DataSource, Repository } from "typeorm";
+import { ChapterPurchase, Novel } from "../entities/_index.js";
 import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.schema.js";
 import { IChapterPurchaseRepository } from "../interfaces/chapter.purchase.repo.interface.js";
 
 export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
-  constructor(private chapterPurchaseRepo: Repository<ChapterPurchase>) {}
+  constructor(
+    private chapterPurchaseRepo: Repository<ChapterPurchase>,
+    private dataSource: DataSource,
+  ) {}
 
   async getAllChapterPurchases() {
     return await this.chapterPurchaseRepo.find({
@@ -20,18 +23,46 @@ export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
           id: true,
           title: true,
           order: true,
+          novel: {
+            id: true,
+            name: true,
+          },
         },
       },
       relations: {
         user: true,
-        chapter: true,
+        chapter: {
+          novel: true,
+        },
       },
     });
   }
 
   async createChapterPurchase(dto: CreateChapterPurchaseDTO) {
-    const result = await this.chapterPurchaseRepo.save(dto);
-    return !!result;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const result = await queryRunner.manager.save(ChapterPurchase, dto);
+
+      await queryRunner.manager
+        .createQueryBuilder()
+        .update(Novel)
+        .set({ purchaseCount: () => "purchaseCount + 1" })
+        .where('id = (SELECT "novelId" FROM chapter WHERE id = :chapterId)', {
+          chapterId: dto.chapterId,
+        })
+        .execute();
+
+      await queryRunner.commitTransaction();
+      return !!result;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async hasPurchasedChapter(userId: string, chapterId: string) {

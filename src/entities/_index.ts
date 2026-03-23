@@ -13,3 +13,4 @@ export * from "./Volume.js";
 export * from "./Author.js";
 export * from "./ChapterPurchase.js";
 export * from "./UserVerification.js";
+export * from "./NovelDailyStats.js";

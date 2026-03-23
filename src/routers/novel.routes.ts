@@ -45,6 +45,7 @@ router.get(
 
 router.get(
   "/:id/chapters",
+  optionalAuthMiddleware,
   validateSchema(getChaptersSchema),
   novelController.getChaptersByNovelId,
 );

@@ -24,7 +24,13 @@ export class CommentService implements ICommentService {
     return await this.commentRepo.create(dto);
   };
 
-  deleteComment = async (id: number) => {
+  deleteComment = async (id: number, userId?: string) => {
+    const isOwner = await this.commentRepo.isOwner(id, userId!);
+    if (!isOwner) {
+      throw new NotFoundError(
+        "Yorum bulunamadı veya bu yorumu silmeye yetkiniz yok.",
+      );
+    }
     await this.commentRepo.delete(id);
   };
 
@@ -45,10 +51,14 @@ export class CommentService implements ICommentService {
   }
 
   getLast3CommentsByNovelId(novelId: string) {
-    return this.commentRepo.getLast3CommentsByNovelId(novelId);
+    return this.commentRepo.getLast3CommentsWithCount(novelId);
   }
 
   getMyComment(novelId: string, userId: string) {
     return this.commentRepo.getMyComment(novelId, userId);
+  }
+
+  getOneCommentById(id: number) {
+    return this.commentRepo.getOneById(id);
   }
 }

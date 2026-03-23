@@ -91,9 +91,12 @@ export class NovelController {
 
   getChaptersByNovelId = async (req: Request, res: Response) => {
     const { id } = req.params as any;
+    const userId = req.user?.id;
+
     const chapters = await this.chapterRepository.getChapterByNovelId({
       id,
       ...res.locals.validatedData,
+      userId,
     });
     res.json(chapters);
   };

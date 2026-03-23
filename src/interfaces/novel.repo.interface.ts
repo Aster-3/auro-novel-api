@@ -13,4 +13,5 @@ export interface INovelRepository {
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   incrementViewCount(novelId: string): Promise<void>;
   updateNovel(dto: UpdateNovelDTO): Promise<void>;
+  isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
 }

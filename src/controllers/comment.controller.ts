@@ -5,8 +5,9 @@ export class CommentController {
   constructor(private commentService: ICommentService) {}
 
   deleteComment = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    await this.commentService.deleteComment(Number(id));
+    const { commentId } = req.params;
+    const userId = req.user?.id;
+    await this.commentService.deleteComment(Number(commentId), userId);
     res.sendStatus(204);
   };
 
@@ -31,5 +32,13 @@ export class CommentController {
     console.log("Toggling like for comment ID:", id, "by user ID:", userId);
     const liked = await this.commentService.toggleLike(userId, Number(id));
     res.status(200).json({ liked });
+  };
+
+  getOneCommentById = async (req: Request, res: Response) => {
+    const { commentId } = req.params as any;
+    const comment = await this.commentService.getOneCommentById(
+      Number(commentId),
+    );
+    res.status(200).json(comment);
   };
 }

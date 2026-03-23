@@ -1,6 +1,7 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -41,7 +42,7 @@ export class Reply {
   @Column({ type: "int", nullable: true })
   parentReplyId!: number | null;
 
-  @ManyToOne(() => Reply, { nullable: true, onDelete: "CASCADE" })
+  @ManyToOne(() => Reply, { nullable: true, onDelete: "NO ACTION" })
   @JoinColumn({ name: "parentReplyId" })
   parentReply?: Reply | null;
 
@@ -55,6 +56,9 @@ export class Reply {
   })
   @JoinColumn({ name: "rootCommentId" })
   comment!: Comment;
+
+  @DeleteDateColumn()
+  deletedAt!: Date | null;
 
   @OneToMany(() => Reply, (reply) => reply.parentReply)
   children!: Reply[];

@@ -63,6 +63,7 @@ export class NovelRepository implements INovelRepository {
         positiveReviewsCount: true,
         totalReviewsCount: true,
         viewCount: true,
+        purchaseCount: true,
         author: {
           id: true,
           nickname: true,
@@ -116,5 +117,18 @@ export class NovelRepository implements INovelRepository {
     };
 
     await this.novelRepo.save({ id: id, ...partialEntity });
+  }
+
+  async isOwnerControl(novelId: string, authorId: string): Promise<boolean> {
+    if (!authorId || !novelId) {
+      return false;
+    }
+
+    return await this.novelRepo.exists({
+      where: {
+        id: novelId,
+        authorId: authorId,
+      },
+    });
   }
 }

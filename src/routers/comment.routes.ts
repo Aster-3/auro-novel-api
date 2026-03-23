@@ -10,9 +10,16 @@ import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware 
 const router = Router();
 const commentController = getCommentController();
 
-router.delete(
-  "/:id",
+router.get(
+  "/:commentId",
   validateSchema(deleteCommentSchema),
+  commentController.getOneCommentById,
+);
+
+router.delete(
+  "/:commentId",
+  validateSchema(deleteCommentSchema),
+  authMiddleware,
   commentController.deleteComment,
 ); // OKEY
 
