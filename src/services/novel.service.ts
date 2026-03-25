@@ -7,14 +7,43 @@ import { ConflictError } from "../errors/conflict.error.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
+import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
+import { uploadToS3 } from "./s3.service.js";
 
 export class NovelService implements INovelService {
-  constructor(private novelRepo: INovelRepository) {}
+  constructor(
+    private novelRepo: INovelRepository,
+    private authorRepo: IAuthorRepository,
+  ) {}
 
-  async create(dto: CreateNovelDTo) {
-    const novel = await this.novelRepo.existControl({ slug: dto.slug });
-    if (novel) throw new ConflictError("slug", "Bu slug zaten kullanımda.");
-    return this.novelRepo.create(dto);
+  async create(dto: CreateNovelDTo, file?: Express.Multer.File) {
+    const isSlugTaken = await this.novelRepo.existControl({ slug: dto.slug });
+    if (isSlugTaken)
+      throw new ConflictError("slug", "Bu slug zaten kullanımda.");
+
+    const novelData = { ...dto };
+
+    if (dto.authorId) {
+      // Admin tarafından novel oluşturulurken authorId sağlanabilir, bu yüzden kontrol ediyoruz
+      let author = await this.authorRepo.findByUserId(dto.authorId);
+
+      if (!author) {
+        console.log("Yazar bulunamadı, oluşturuluyor:", dto.authorId);
+        const newAuthorId = await this.authorRepo.create({
+          userId: dto.authorId,
+        });
+        novelData.authorId = newAuthorId;
+      } else {
+        novelData.authorId = author.id;
+      }
+    }
+
+    if (file) {
+      const fileUrl = await uploadToS3(file, "novel-covers");
+      novelData.coverImage = fileUrl;
+    }
+
+    return this.novelRepo.create(novelData);
   }
 
   async getNovels(dto: GetNovelsDTo) {
@@ -54,5 +83,9 @@ export class NovelService implements INovelService {
     if (!novelExists)
       throw new NotFoundError("Güncellenmek istenen novel bulunamadı.");
     await this.novelRepo.updateNovel(dto);
+  }
+
+  async deleteNovel(novelId: string): Promise<void> {
+    await this.novelRepo.deleteNovel(novelId);
   }
 }

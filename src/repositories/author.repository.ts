@@ -7,8 +7,9 @@ import { UpdateUserDto } from "../schemas/update.user.schema.js";
 export class AuthorRepository implements IAuthorRepository {
   constructor(private authorRepo: Repository<Author>) {}
 
-  async create(dto: CreateAuthorDto): Promise<void> {
-    await this.authorRepo.save(dto);
+  async create(dto: CreateAuthorDto): Promise<string> {
+    const author = await this.authorRepo.save(dto);
+    return author.id;
   }
 
   async delete(id: string): Promise<void> {
@@ -40,4 +41,14 @@ export class AuthorRepository implements IAuthorRepository {
       lastPage: Math.ceil(total / limit),
     };
   }
+
+  findByUserId = async (userId: string): Promise<Author | null> => {
+    const author = await this.authorRepo.findOne({
+      where: { userId },
+    });
+    if (!author) {
+      return null;
+    }
+    return author;
+  };
 }

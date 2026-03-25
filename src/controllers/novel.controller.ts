@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
 import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
+import { UserRoles } from "../constants/user.constants.js";
+import { BadRequestError } from "../errors/bad.request.js";
 
 export class NovelController {
   constructor(
@@ -11,7 +13,26 @@ export class NovelController {
   ) {}
 
   createNovel = async (req: Request, res: Response) => {
-    const novel = await this.novelService.create(req.body);
+    console.log("createNovel endpointine gelen istek:", {
+      body: req.body,
+      file: req.files,
+      user: req.user,
+    });
+    let data = req.body;
+    const user = req.user;
+    console.log("Kullanıcı bilgisi:", user);
+    if (user?.role !== UserRoles.ADMIN) {
+      if (!user?.id) {
+        return res.status(403).json({ message: "Yazar ID'si bulunamadı." });
+      }
+      data = { ...data, authorId: user?.id };
+    } else {
+      if (!data.authorId) {
+        throw new BadRequestError("Admin için yazar ID'si gereklidir.");
+      }
+    }
+    console.log("Novel oluşturma isteği, veri:", data, "Dosya:", req.file);
+    const novel = await this.novelService.create(data, req.file);
     res.status(201).json(novel);
   };
 
@@ -84,6 +105,7 @@ export class NovelController {
   updateNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     console.log("Controller", req.body);
+    console.log(req.file);
     console.log("Controller ID", id);
     const novel = await this.novelService.updateNovel({ id, ...req.body });
     res.status(200).json({ novel });
@@ -105,5 +127,11 @@ export class NovelController {
     const { id } = req.params as any;
     const summary = await this.chapterRepository.getSummary(id);
     res.json(summary);
+  };
+
+  deleteNovel = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    await this.novelService.deleteNovel(id);
+    res.sendStatus(204);
   };
 }

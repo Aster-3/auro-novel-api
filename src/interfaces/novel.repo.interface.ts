@@ -14,4 +14,5 @@ export interface INovelRepository {
   incrementViewCount(novelId: string): Promise<void>;
   updateNovel(dto: UpdateNovelDTO): Promise<void>;
   isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
+  deleteNovel(novelId: string): Promise<void>;
 }

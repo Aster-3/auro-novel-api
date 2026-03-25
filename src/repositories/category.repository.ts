@@ -17,11 +17,10 @@ export class CategoryRepository implements ICategoryRepository {
         take: limit,
       });
       return {
-        data: result,
-        count: total,
+        items: result,
+        total: total,
         currentPage: page,
-        skip: (page - 1) * limit,
-        take: limit,
+        nextPage: page * limit < total ? page + 1 : null,
         lastPage: Math.ceil(total / limit),
       };
     }
@@ -36,11 +35,16 @@ export class CategoryRepository implements ICategoryRepository {
       skip: (page - 1) * limit,
       take: limit,
     });
+
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
+
     return {
-      data: result,
-      count: total,
+      items: result as any[],
+      total: total,
+      nextPage: nextPage,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      lastPage: totalPage,
     };
   }
 

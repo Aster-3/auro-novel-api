@@ -31,11 +31,14 @@ export class TagRepository implements ITagRepository {
       take: limit,
       order: { createdAt: "DESC" },
     });
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
     return {
-      data: result,
-      count: total,
+      items: result,
+      total: total,
       currentPage: page,
-      lastPage: Math.ceil(total / limit),
+      nextPage: nextPage,
+      lastPage: totalPage,
     };
   }
 }

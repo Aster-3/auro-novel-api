@@ -14,13 +14,19 @@ import { getChaptersSchema } from "../schemas/get.chapters.schema.js";
 import { paramsNovelIdSchema } from "../schemas/params.novel.id.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
+import multer from "multer";
+import { ro } from "@faker-js/faker";
 const router = Router();
 const novelController = getNovelController();
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/", validateSchema(getNovelsSchema), novelController.getNovels); ///OKEY
 
 router.post(
   "/",
+  upload.single("coverImage"),
+  authMiddleware,
   validateSchema(createNovelSchema),
   novelController.createNovel,
 ); ///OKEY
@@ -33,8 +39,16 @@ router.get(
 
 router.patch(
   "/:id",
+  upload.single("coverImage"),
+  authMiddleware,
   validateSchema(updateNovelSchema),
   novelController.updateNovel,
+); ///OKEY
+
+router.delete(
+  "/:id",
+  validateSchema(paramsUuidSchema),
+  novelController.deleteNovel,
 ); ///OKEY
 
 router.get(

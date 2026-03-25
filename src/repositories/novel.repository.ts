@@ -13,14 +13,18 @@ export class NovelRepository implements INovelRepository {
   }
 
   async existControl(identifier: { id?: string; slug?: string }) {
-    console.log("Exist Control Identifier:", identifier);
     const { id, slug } = identifier;
-    if (!id && !slug)
+
+    if (!id && !slug) {
       throw new Error(
         "Sorgu hatası: 'id' veya 'slug' parametrelerinden en az biri tanımlı olmalıdır",
       );
+    }
+
+    const queryCondition = id ? { id } : { slug };
+
     return await this.novelRepo.exists({
-      where: id ? { id } : { slug },
+      where: queryCondition,
     });
   }
 
@@ -130,5 +134,9 @@ export class NovelRepository implements INovelRepository {
         authorId: authorId,
       },
     });
+  }
+
+  async deleteNovel(novelId: string): Promise<void> {
+    await this.novelRepo.delete(novelId);
   }
 }

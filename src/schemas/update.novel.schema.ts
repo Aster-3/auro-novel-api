@@ -17,10 +17,6 @@ export const updateNovelSchema = z.object({
         "Slug sadece küçük harf, sayı ve tire (-) içerebilir",
       )
       .optional(),
-    coverImage: z
-      .url("Geçerli bir kapak resmi linki giriniz")
-      .nullable()
-      .optional(),
     synopsis: reqString("Özet")
       .max(1500, "Özet 1500 karakteri geçemez")
       .nullable()
