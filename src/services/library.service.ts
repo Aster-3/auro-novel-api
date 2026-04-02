@@ -5,7 +5,6 @@ export class LibraryService implements ILibraryService {
   constructor(private libraryRepo: ILibraryRepository) {}
 
   async addNovelToLibrary(novelId: string, userId: string): Promise<void> {
-    console.log("Buraya KADAR GELDİM");
     await this.libraryRepo.addNovelToLibrary(novelId, userId);
   }
   async removeNovelFromLibrary(novelId: string, userId: string): Promise<void> {

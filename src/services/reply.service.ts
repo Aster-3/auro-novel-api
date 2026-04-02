@@ -11,7 +11,6 @@ export class ReplyService implements IReplyService {
   ) {}
 
   createReply = async (reply: CreateReplyDto) => {
-    console.log("Creating reply with DTO:", reply);
     return await this.replyRepo.create(reply);
   };
 

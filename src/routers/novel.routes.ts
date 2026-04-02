@@ -15,7 +15,6 @@ import { paramsNovelIdSchema } from "../schemas/params.novel.id.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
 import multer from "multer";
-import { ro } from "@faker-js/faker";
 const router = Router();
 const novelController = getNovelController();
 
@@ -58,6 +57,13 @@ router.get(
 );
 
 router.get(
+  "/:id/draft-chapters",
+  authMiddleware,
+  validateSchema(getChaptersSchema),
+  novelController.getDraftChaptersByNovelId,
+);
+
+router.get(
   "/:id/chapters",
   optionalAuthMiddleware,
   validateSchema(getChaptersSchema),
@@ -93,12 +99,14 @@ router.get(
 
 router.post(
   "/:id/categories",
+  authMiddleware,
   validateSchema(updateCategoriesSchema),
   novelController.updateNovelCategories,
 ); ///OKEY
 
 router.post(
   "/:id/tags",
+  authMiddleware,
   validateSchema(updateTagsSchema),
   novelController.updateNovelTags,
 ); ///OKEY

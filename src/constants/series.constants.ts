@@ -12,11 +12,16 @@ export enum LanguageType {
 }
 
 export enum NovelFormat {
-  NOVEL = "novel",
-  SHORT_STORY = "short_story",
+  WEBNOVEL = "webnovel",
+  LIGHT_NOVEL = "light_novel",
 }
 
 export enum sourceType {
   LOCAL = "local",
   GLOBAL = "global",
+}
+
+export enum SortType {
+  ASC = "asc",
+  DESC = "desc",
 }

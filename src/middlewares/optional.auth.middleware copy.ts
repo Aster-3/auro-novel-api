@@ -8,7 +8,6 @@ export const optionalAuthMiddleware = (
   try {
     const authHeader = req.headers.authorization;
 
-    // Token yoksa hata fırlatma, sadece devam et
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return next();
     }
@@ -18,15 +17,13 @@ export const optionalAuthMiddleware = (
 
     try {
       const decoded = tokenService.verifyAccessToken(token);
-      (req as any).user = decoded; // Token geçerliyse user'ı ekle
+      (req as any).user = decoded;
     } catch (error) {
-      // Token geçersizse de hata fırlatma, misafir muamelesi yap
       console.log("Optional Token Invalid, continuing as guest");
     }
 
     next();
   } catch (error) {
-    // Beklenmedik sistem hataları için
     next();
   }
 };

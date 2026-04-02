@@ -5,12 +5,7 @@ export class ReplyController {
 
   createReply = async (req: any, res: any) => {
     const userId = req.user?.id;
-    console.log(
-      "Received request to create reply with body:",
-      req.body,
-      "and user ID:",
-      userId,
-    );
+
     const reply = await this.replyService.createReply({ ...req.body, userId });
     res.json(reply);
   };

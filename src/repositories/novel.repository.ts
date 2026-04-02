@@ -4,12 +4,26 @@ import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
+import { Chapter, Volume } from "../entities/_index.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
 
-  create(novel: CreateNovelDTo) {
-    return this.novelRepo.save(novel);
+  async create(createNovelDto: CreateNovelDTo) {
+    return await this.novelRepo.manager.transaction(async (manager) => {
+      const newNovel = manager.create(Novel, createNovelDto);
+      const savedNovel = await manager.save(newNovel);
+
+      const firstVolume = manager.create(Volume, {
+        title: "Cilt 1",
+        orderIndex: 1,
+        novelId: savedNovel.id,
+      });
+
+      await manager.save(firstVolume);
+
+      return savedNovel;
+    });
   }
 
   async existControl(identifier: { id?: string; slug?: string }) {
@@ -67,7 +81,11 @@ export class NovelRepository implements INovelRepository {
         positiveReviewsCount: true,
         totalReviewsCount: true,
         viewCount: true,
+        sourceType: true,
+        format: true,
         purchaseCount: true,
+        chapterCount: true,
+        lastChapterDate: true,
         author: {
           id: true,
           nickname: true,
@@ -112,7 +130,6 @@ export class NovelRepository implements INovelRepository {
   }
 
   async updateNovel(dto: UpdateNovelDTO) {
-    console.log("Repository Update Novel DTO:", dto);
     const { id, ...updateData } = dto;
     const partialEntity = {
       ...updateData,
@@ -131,12 +148,29 @@ export class NovelRepository implements INovelRepository {
     return await this.novelRepo.exists({
       where: {
         id: novelId,
-        authorId: authorId,
+        author: {
+          user: { id: authorId },
+        },
       },
     });
   }
 
   async deleteNovel(novelId: string): Promise<void> {
     await this.novelRepo.delete(novelId);
+  }
+
+  async refreshChapterStats(novelId: string): Promise<void> {
+    const stats = await this.novelRepo.manager
+      .createQueryBuilder(Chapter, "chapter")
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere("chapter.isPublished = :isPublished", { isPublished: true })
+      .select("COUNT(chapter.id)", "count")
+      .addSelect("MAX(chapter.publishedAt)", "lastDate")
+      .getRawOne();
+
+    await this.novelRepo.update(novelId, {
+      chapterCount: parseInt(stats.count) || 0,
+      lastChapterDate: stats.lastDate || null,
+    });
   }
 }

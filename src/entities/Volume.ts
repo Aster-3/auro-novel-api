@@ -11,7 +11,7 @@ import { Chapter } from "./Chapter.js";
 import { Novel } from "./Novel.js";
 
 @Entity()
-@Index(["novelId", "order"], { unique: true })
+@Index(["novelId", "orderIndex"], { unique: true })
 export class Volume {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -19,8 +19,20 @@ export class Volume {
   @Column({ type: "varchar", length: 100, nullable: true })
   name!: string | null;
 
-  @Column({ type: "float", default: 1 })
-  order!: number;
+  @Column({ type: "text", nullable: true })
+  coverImage!: string | null;
+
+  @Column({
+    type: "decimal",
+    precision: 6,
+    scale: 2,
+    default: 1.0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  orderIndex!: number;
 
   @Column({ type: "uuid" })
   novelId!: string;

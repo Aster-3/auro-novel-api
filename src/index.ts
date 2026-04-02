@@ -5,6 +5,8 @@ import { GlobalErrorHandler } from "./middlewares/error.handler.js";
 import helmet from "helmet";
 import rootRouter from "./routers/_main.routes.js";
 import path from "path";
+import { Chapter } from "./entities/Chapter.js";
+import { ChapterPurchase } from "./entities/ChapterPurchase.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -23,9 +25,8 @@ app.use(GlobalErrorHandler);
 
 async function startServer() {
   try {
-    await AppDataSource.initialize();
+    const ds = await AppDataSource.initialize();
     console.log("Database connected.");
-
     const server = app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}.`);
     });

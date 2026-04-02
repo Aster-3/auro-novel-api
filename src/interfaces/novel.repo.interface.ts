@@ -15,4 +15,5 @@ export interface INovelRepository {
   updateNovel(dto: UpdateNovelDTO): Promise<void>;
   isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
   deleteNovel(novelId: string): Promise<void>;
+  refreshChapterStats(novelId: string): Promise<void>;
 }

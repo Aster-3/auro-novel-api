@@ -13,14 +13,9 @@ export class NovelController {
   ) {}
 
   createNovel = async (req: Request, res: Response) => {
-    console.log("createNovel endpointine gelen istek:", {
-      body: req.body,
-      file: req.files,
-      user: req.user,
-    });
     let data = req.body;
     const user = req.user;
-    console.log("Kullanıcı bilgisi:", user);
+
     if (user?.role !== UserRoles.ADMIN) {
       if (!user?.id) {
         return res.status(403).json({ message: "Yazar ID'si bulunamadı." });
@@ -31,7 +26,6 @@ export class NovelController {
         throw new BadRequestError("Admin için yazar ID'si gereklidir.");
       }
     }
-    console.log("Novel oluşturma isteği, veri:", data, "Dosya:", req.file);
     const novel = await this.novelService.create(data, req.file);
     res.status(201).json(novel);
   };
@@ -104,10 +98,11 @@ export class NovelController {
 
   updateNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    console.log("Controller", req.body);
-    console.log(req.file);
-    console.log("Controller ID", id);
-    const novel = await this.novelService.updateNovel({ id, ...req.body });
+    const novel = await this.novelService.updateNovel({
+      id,
+      ...req.body,
+      coverImage: req.file,
+    });
     res.status(200).json({ novel });
   };
 
@@ -115,11 +110,26 @@ export class NovelController {
     const { id } = req.params as any;
     const userId = req.user?.id;
 
-    const chapters = await this.chapterRepository.getChapterByNovelId({
+    const chapters = await this.chapterRepository.getChapters({
       id,
       ...res.locals.validatedData,
       userId,
     });
+    res.json(chapters);
+  };
+
+  getDraftChaptersByNovelId = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const userId = req.user?.id;
+    const isAuthor = await this.novelService.isOwnerControl(id, userId!);
+
+    if (!isAuthor) {
+      return res.status(403).json({ message: "Bu novel size ait değil." });
+    }
+    const chapters = await this.chapterRepository.getDraftChapterByNovelId(
+      res.locals.validatedData,
+    );
+
     res.json(chapters);
   };
 

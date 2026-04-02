@@ -1,5 +1,3 @@
-import { FindOptionsWhere, ILike, Like } from "typeorm";
-import { Novel } from "../entities/Novel.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
@@ -24,11 +22,9 @@ export class NovelService implements INovelService {
     const novelData = { ...dto };
 
     if (dto.authorId) {
-      // Admin tarafından novel oluşturulurken authorId sağlanabilir, bu yüzden kontrol ediyoruz
       let author = await this.authorRepo.findByUserId(dto.authorId);
 
       if (!author) {
-        console.log("Yazar bulunamadı, oluşturuluyor:", dto.authorId);
         const newAuthorId = await this.authorRepo.create({
           userId: dto.authorId,
         });
@@ -80,12 +76,24 @@ export class NovelService implements INovelService {
 
   async updateNovel(dto: UpdateNovelDTO) {
     const novelExists = await this.novelRepo.existControl({ id: dto.id });
-    if (!novelExists)
-      throw new NotFoundError("Güncellenmek istenen novel bulunamadı.");
-    await this.novelRepo.updateNovel(dto);
+    if (!novelExists) throw new NotFoundError("...");
+
+    // Yeni bir obje oluşturup alanları elle eşliyoruz (Mapping)
+    const updateData = {
+      ...dto,
+      coverImage: dto.coverImage
+        ? await uploadToS3(dto.coverImage, "novel-covers")
+        : undefined,
+    };
+
+    await this.novelRepo.updateNovel(updateData);
   }
 
   async deleteNovel(novelId: string): Promise<void> {
     await this.novelRepo.deleteNovel(novelId);
+  }
+
+  async isOwnerControl(novelId: string, authorId: string): Promise<boolean> {
+    return await this.novelRepo.isOwnerControl(novelId, authorId);
   }
 }

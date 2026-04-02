@@ -14,7 +14,6 @@ export const updateChapterSchema = z.object({
       .optional(),
     volumeId: reqUuid("Cilt Id").optional(),
     isPublished: z.boolean().optional(),
-    isLocked: z.boolean().optional(),
   }),
   params: z.object({
     id: reqUuid("Bölüm Id"),
@@ -22,4 +21,7 @@ export const updateChapterSchema = z.object({
 });
 
 export type UpdateChapterDTO = z.infer<typeof updateChapterSchema.shape.body> &
-  z.infer<typeof updateChapterSchema.shape.params>;
+  z.infer<typeof updateChapterSchema.shape.params> & {
+    orderIndex?: number;
+    publishedAt?: Date | null;
+  };

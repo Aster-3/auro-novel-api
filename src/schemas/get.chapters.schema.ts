@@ -1,11 +1,16 @@
 import * as z from "zod";
 import { reqUuid } from "../utils/zod.error.helper.js";
+import { SortType } from "../constants/series.constants.js";
 
 export const getChaptersSchema = z.object({
   params: z.object({
     id: reqUuid("Roman Id"),
   }),
   query: z.object({
+    sort: z
+      .enum(SortType, "Geçersiz sıralama türü")
+      .optional()
+      .default(SortType.ASC),
     page: z.coerce
       .number()
       .min(1, "Sayfa numarası 1'den küçük olamaz")

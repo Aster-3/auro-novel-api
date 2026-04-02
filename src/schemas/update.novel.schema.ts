@@ -22,14 +22,18 @@ export const updateNovelSchema = z.object({
       .nullable()
       .optional(),
     status: z.enum(SeriesStatus).optional(),
-
-    // İlişkisel alanlar (Genelde ID listesi olarak alınır)
     categories: z
-      .array(reqNumber("Kategori id"), "Kategori idleri zorunludur.")
+      .array(
+        z.coerce.number(),
+        "Kategori idleri zorunludur ve sayı formatında olmalıdır.",
+      )
       .max(3, "En fazla 3 kategori seçebilirsiniz.")
       .optional(),
     tags: z
-      .array(reqUuid("Etiket id"), "Etiket idleri zorunludur.")
+      .array(
+        z.coerce.string(),
+        "Etiket idleri zorunludur ve string formatında olmalıdır.",
+      )
       .max(20, "En fazla 20 etiket seçebilirsiniz.")
       .optional(),
   }),
@@ -39,4 +43,6 @@ export const updateNovelSchema = z.object({
 });
 
 export type UpdateNovelDTO = z.infer<typeof updateNovelSchema.shape.body> &
-  z.infer<typeof updateNovelSchema.shape.params>;
+  z.infer<typeof updateNovelSchema.shape.params> & {
+    coverImage?: any;
+  };

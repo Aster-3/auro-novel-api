@@ -5,8 +5,6 @@ export class CategoryController {
   constructor(private categoryService: ICategoryService) {}
 
   searchCategories = async (req: Request, res: Response) => {
-    console.log(res.locals.validatedData);
-    console.log(req.query);
     const categories = await this.categoryService.searchCategories(
       res.locals.validatedData,
     );

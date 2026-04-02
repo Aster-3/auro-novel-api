@@ -4,9 +4,13 @@ export class VolumeController {
   constructor(private volumeService: IVolumeService) {}
 
   createVolume = async (req: any, res: any) => {
-    console.log(res.locals.validatedData);
-    console.log("BOdy:", req.body);
-    await this.volumeService.createVolume(res.locals.validatedData);
+    const isAdmin = req.user?.role === "admin";
+    const userId = req.user?.id || "";
+    await this.volumeService.createVolume(
+      res.locals.validatedData,
+      isAdmin,
+      userId,
+    );
     res.status(201).json({ message: "Cilt başarıyla oluşturuldu." });
   };
 
@@ -19,6 +23,6 @@ export class VolumeController {
   getVolumeByNovelId = async (req: any, res: any) => {
     const { id } = req.params;
     const volumes = await this.volumeService.getVolumeByNovelId(id);
-    res.json(volumes);
+    res.json({ volumes });
   };
 }

@@ -49,12 +49,30 @@ export class Novel {
   status!: SeriesStatus;
 
   @Index()
-  @Column({ type: "enum", enum: NovelFormat, default: NovelFormat.NOVEL })
+  @Column({ type: "enum", enum: NovelFormat, default: NovelFormat.WEBNOVEL })
   format!: NovelFormat;
 
   @Index()
   @Column({ type: "enum", enum: sourceType, default: sourceType.LOCAL })
   sourceType!: sourceType;
+
+  @Column({ type: "int", default: 50 })
+  authorSharePercent!: number;
+
+  @Column({ type: "int", default: 10 })
+  defaultChapterPrice!: number;
+
+  @Column({ type: "int", default: 0 })
+  chapterCount!: number;
+
+  @Column({ type: "timestamp", nullable: true, default: null })
+  lastChapterDate?: Date | null;
+
+  @Column({ type: "int", default: 1 })
+  paywallStartVolume!: number;
+
+  @Column({ type: "int", default: 31 })
+  paywallStartChapter!: number;
 
   @Index()
   @Column({ type: "uuid" })

@@ -6,19 +6,9 @@ export const createVolumeSchema = z.object({
     name: reqString("Cilt Adı")
       .max(100, "Cilt adı en fazla 100 karakter olabilir")
       .nullable(),
-    order: reqFloat("Cilt Sırası")
-      .min(1, "Sıra 1 veya daha büyük olmalıdır")
-      .describe("Cilt sırası (Maksimum 1 ondalık)")
-      .refine(
-        (val) => {
-          const decimalStr = val.toString().split(".")[1];
-          return !decimalStr || decimalStr.length <= 1;
-        },
-        {
-          message:
-            "Cilt sırasında en fazla 1 ondalık basamak olabilir (Örn: 1.2)",
-        },
-      ),
+    orderIndex: reqFloat("Cilt Sırası")
+      .min(0, "Sıra 0 veya daha büyük olmalıdır")
+      .optional(),
     novelId: reqUuid("Roman Id"),
   }),
 });

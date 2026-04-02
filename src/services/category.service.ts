@@ -21,7 +21,6 @@ export class CategoryService implements ICategoryService {
 
   async updateCategory(id: number, dto: CreateCategoryDto): Promise<void> {
     const result = await this.categoryRepository.update(id, dto);
-    console.log("Update Res:", dto, id);
     if (result.affected === 0) {
       throw new NotFoundError("Güncellenmek istenen kategori bulunamadı.");
     }

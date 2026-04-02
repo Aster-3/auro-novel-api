@@ -142,7 +142,6 @@ export class UserRepository implements IUserRepository {
   }
 
   async updateUser(dto: UpdateUserDto) {
-    console.log("Controller updateData:", dto);
     const updatedUser = await this.userRepo.save(dto);
     return this.getUserForTokenRefresh(updatedUser.id);
   }

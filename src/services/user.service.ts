@@ -111,8 +111,6 @@ export class UserService implements IUserService {
       throw new ConflictError("user", "Bu hesap zaten onaylanmış.");
     }
 
-    console.log("Kullanıcı:", user);
-
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     const newExpiry = new Date(Date.now() + 5 * 60000);
 
@@ -162,8 +160,6 @@ export class UserService implements IUserService {
   };
 
   async updateUser(dto: UpdateUserDto): Promise<User> {
-    console.log("Service updateData:", dto);
-
     const updated = await this.userRepo.updateUser(dto);
     if (!updated) {
       throw new NotFoundError("Kullanıcı bulunamadı.");

@@ -29,7 +29,6 @@ export class CommentController {
   toggleLike = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
     const { id } = req.params as any;
-    console.log("Toggling like for comment ID:", id, "by user ID:", userId);
     const liked = await this.commentService.toggleLike(userId, Number(id));
     res.status(200).json({ liked });
   };

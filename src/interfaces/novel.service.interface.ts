@@ -14,4 +14,5 @@ export interface INovelService {
   incrementViewCount(novelId: string): Promise<void>;
   updateNovel(dto: UpdateNovelDTO): Promise<void>;
   deleteNovel(novelId: string): Promise<void>;
+  isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
 }
