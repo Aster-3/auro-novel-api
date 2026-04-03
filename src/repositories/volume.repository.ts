@@ -1,4 +1,4 @@
-import { LessThan, MoreThan, Repository } from "typeorm";
+import { IsNull, LessThan, MoreThan, Not, Repository } from "typeorm";
 import { Volume } from "../entities/Volume.js";
 import { IVolumeRepository } from "../interfaces/volume.repo.interface.js";
 import { CreateVolumeDTO } from "../schemas/create.volume.schema.js";
@@ -106,7 +106,6 @@ export class VolumeRepository implements IVolumeRepository {
       .where("volume.novelId = :novelId", { novelId })
       .andWhere("volume.orderIndex < :currentOrderIndex", { currentOrderIndex })
       .groupBy("volume.id")
-      // Yayınlanmış bölüm sayısı 0 olan bir cilt varsa
       .having("COUNT(chapter.id) = 0")
       .getOne();
 
@@ -116,11 +115,13 @@ export class VolumeRepository implements IVolumeRepository {
   async findOldestEmptyOrLatestVolume(novelId: string) {
     const emptyVolume = await this.volumeRepo
       .createQueryBuilder("volume")
-      .leftJoin("volume.chapters", "chapter")
+      .leftJoin("volume.chapters", "chapter") // Bu artık ChapterPublication'a bağlanıyor
       .select(["volume.id", "volume.orderIndex"])
       .where("volume.novelId = :novelId", { novelId })
       .groupBy("volume.id")
-      .having("COUNT(chapter.id) = 0")
+      .addGroupBy("volume.orderIndex")
+      // DİKKAT: chapter.id değil, senin entity'deki adıyla chapter.chapterId
+      .having("COUNT(chapter.chapterId) = 0")
       .orderBy("volume.orderIndex", "ASC")
       .getOne();
 
@@ -164,13 +165,29 @@ export class VolumeRepository implements IVolumeRepository {
     novelId: string,
     currentOrderIndex: number,
   ): Promise<boolean> {
+    // innerJoin kullanarak sadece içinde bölüm (chapter) olan ciltleri filtreliyoruz
     const nextVolumeWithChapters = await this.volumeRepo
       .createQueryBuilder("volume")
-      .innerJoin("volume.chapters", "chapter")
+      .innerJoin("volume.chapters", "chapter") // Ciltlerin bölümleriyle birleştir
       .where("volume.novelId = :novelId", { novelId })
       .andWhere("volume.orderIndex > :currentOrderIndex", { currentOrderIndex })
       .getExists();
 
     return nextVolumeWithChapters;
+  }
+
+  async isLastVolumeWithChapters(
+    novelId: string,
+    currentOrderIndex: number,
+  ): Promise<boolean> {
+    const hasLaterPopulatedVolume = await this.volumeRepo.exists({
+      where: {
+        novelId: novelId,
+        orderIndex: MoreThan(currentOrderIndex),
+        chapters: { chapterId: Not(IsNull()) },
+      },
+    });
+
+    return !hasLaterPopulatedVolume;
   }
 }

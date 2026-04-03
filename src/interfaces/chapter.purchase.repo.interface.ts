@@ -4,5 +4,9 @@ import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.sch
 export interface IChapterPurchaseRepository {
   getAllChapterPurchases(): Promise<ChapterPurchase[]>;
   createChapterPurchase(dto: CreateChapterPurchaseDTO): Promise<boolean>;
-  hasPurchasedChapter(userId: string, chapterId: string): Promise<boolean>;
+  hasPurchasedChapterByUserId(
+    userId: string,
+    chapterId: string,
+  ): Promise<boolean>;
+  isChapterEverPurchased(chapterId: string): Promise<boolean>;
 }

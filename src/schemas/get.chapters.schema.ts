@@ -26,6 +26,4 @@ export const getChaptersSchema = z.object({
 });
 
 export type GetChaptersDto = z.infer<typeof getChaptersSchema.shape.params> &
-  z.infer<typeof getChaptersSchema.shape.query> & {
-    userId?: string;
-  };
+  z.infer<typeof getChaptersSchema.shape.query>;

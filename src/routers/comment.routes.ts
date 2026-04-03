@@ -1,14 +1,13 @@
 import { Router } from "express";
-import { getCommentController } from "../factories/comment.factory.js";
 import { validateSchema } from "../middlewares/validate.schema.js";
 import { deleteCommentSchema } from "../schemas/delete.comment.schema.js";
 import { getCommentRepliesSchema } from "../schemas/get.comment.replies.schema.js";
 import { toggleLikeSchema } from "../schemas/toggle.like.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
+import { commentController } from "../container.js";
 
 const router = Router();
-const commentController = getCommentController();
 
 router.get(
   "/:commentId",

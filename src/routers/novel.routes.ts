@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { getNovelController } from "../factories/novel.factory.js";
 import { validateSchema } from "../middlewares/validate.schema.js";
 import { getNovelsSchema } from "../schemas/get.novels.schema.js";
 import { paramsUuidSchema } from "../schemas/paramsUuidSchema.js";
@@ -9,14 +8,13 @@ import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
 import { getCommentsSchema } from "../schemas/get.comments.schema.js";
 import { updateTagsSchema } from "../schemas/update.tags.schema.js";
 import { updateNovelSchema } from "../schemas/update.novel.schema.js";
-import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { getChaptersSchema } from "../schemas/get.chapters.schema.js";
 import { paramsNovelIdSchema } from "../schemas/params.novel.id.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
 import multer from "multer";
+import { novelController } from "../container.js";
 const router = Router();
-const novelController = getNovelController();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -48,12 +46,6 @@ router.delete(
   "/:id",
   validateSchema(paramsUuidSchema),
   novelController.deleteNovel,
-); ///OKEY
-
-router.get(
-  "/:id/chapters/summary",
-  validateSchema(uuidControlSchema),
-  novelController.getChaptersSummary,
 );
 
 router.get(

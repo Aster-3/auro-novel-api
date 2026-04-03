@@ -1,15 +1,14 @@
 import { Router } from "express";
 import { validateSchema } from "../middlewares/validate.schema.js";
 import { registerSchema } from "../schemas/register.validation.js";
-import { getAuthController } from "../factories/auth.factory.js";
 import { validateDto } from "../middlewares/validate.dto.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { verifyUserSchema } from "../schemas/verify.user.schema.js";
 import { resendCodeSchema } from "../interfaces/resend.code.interface.js";
 import { userLoginSchema } from "../schemas/user.login.shema.js";
+import { authController } from "../container.js";
 
 const router = Router();
-const authController = getAuthController();
 
 router.post(
   "/register",

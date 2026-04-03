@@ -5,6 +5,7 @@ import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { Chapter, Volume } from "../entities/_index.js";
+import { PublicationStatus } from "../constants/chapter.constants.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -161,16 +162,48 @@ export class NovelRepository implements INovelRepository {
 
   async refreshChapterStats(novelId: string): Promise<void> {
     const stats = await this.novelRepo.manager
-      .createQueryBuilder(Chapter, "chapter")
-      .where("chapter.novelId = :novelId", { novelId })
-      .andWhere("chapter.isPublished = :isPublished", { isPublished: true })
-      .select("COUNT(chapter.id)", "count")
-      .addSelect("MAX(chapter.publishedAt)", "lastDate")
+      .createQueryBuilder("ChapterPublication", "pub")
+      .innerJoin("pub.chapter", "ch")
+      .where("ch.novelId = :novelId", { novelId })
+      .andWhere("pub.publicationStatus = :status", {
+        status: PublicationStatus.PUBLISHED,
+      })
+      .select("COUNT(pub.chapterId)", "count")
+      .addSelect('MAX(pub."publishedAt")', "lastDate")
       .getRawOne();
 
     await this.novelRepo.update(novelId, {
       chapterCount: parseInt(stats.count) || 0,
       lastChapterDate: stats.lastDate || null,
     });
+  }
+
+  async getPaywallConfig(novelId: string) {
+    const novel = await this.novelRepo.findOne({
+      where: { id: novelId },
+      select: {
+        id: true,
+        paywallStartVolume: true,
+        paywallStartChapter: true,
+        author: {
+          user: { id: true },
+        },
+      },
+      relations: {
+        author: {
+          user: true,
+        },
+      },
+    });
+    if (!novel) return null;
+    return {
+      paywallStartVolume: novel.paywallStartVolume,
+      paywallStartChapter: novel.paywallStartChapter,
+      author: {
+        user: {
+          id: novel.author?.user?.id || null,
+        },
+      },
+    };
   }
 }

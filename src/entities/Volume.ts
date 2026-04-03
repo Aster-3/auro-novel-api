@@ -7,7 +7,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Chapter } from "./Chapter.js";
+import { ChapterPublication } from "./ChapterPublication.js";
 import { Novel } from "./Novel.js";
 
 @Entity()
@@ -41,6 +41,6 @@ export class Volume {
   @JoinColumn({ name: "novelId" })
   novel!: Novel;
 
-  @OneToMany(() => Chapter, (chapter) => chapter.volume)
-  chapters!: Chapter[];
+  @OneToMany(() => ChapterPublication, (chapter) => chapter.volume)
+  chapters!: ChapterPublication[];
 }

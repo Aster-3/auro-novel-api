@@ -23,7 +23,8 @@ export class ChapterPurchaseService implements IChapterPurchaseService {
     if (!userExists) {
       throw new NotFoundError("User not found");
     }
-    const isLocked = await this.chapterRepository.getLockStatus(dto.chapterId);
+    // const isLocked = await this.chapterRepository.getLockStatus(dto.chapterId);
+    const isLocked = false;
 
     if (isLocked === null) {
       throw new NotFoundError("Bölüm mevcut değil.");
@@ -37,7 +38,7 @@ export class ChapterPurchaseService implements IChapterPurchaseService {
     }
 
     const hasPurchased =
-      await this.chapterPurchaseRepository.hasPurchasedChapter(
+      await this.chapterPurchaseRepository.hasPurchasedChapterByUserId(
         dto.userId,
         dto.chapterId,
       );

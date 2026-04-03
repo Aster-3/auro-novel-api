@@ -6,7 +6,6 @@ import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export interface INovelRepository {
   create(novel: CreateNovelDTo): Promise<Novel>;
-  getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<Novel>>;
   findOneById(id: string): Promise<Novel | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
@@ -16,4 +15,13 @@ export interface INovelRepository {
   isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
   deleteNovel(novelId: string): Promise<void>;
   refreshChapterStats(novelId: string): Promise<void>;
+  getPaywallConfig(novelId: string): Promise<{
+    paywallStartVolume: number | null;
+    paywallStartChapter: number | null;
+    author: {
+      user: {
+        id: string | null;
+      };
+    };
+  } | null>;
 }

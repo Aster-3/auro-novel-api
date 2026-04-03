@@ -30,4 +30,9 @@ export interface IVolumeRepository {
     currentOrderIndex: number,
   ): Promise<boolean>;
   isOwnerControlByNovelId(novelId: string, authorId: string): Promise<boolean>;
+  // This method is used to check if there are any published chapters in the next volumes of the current volume.
+  isLastVolumeWithChapters(
+    novelId: string,
+    currentOrderIndex: number,
+  ): Promise<boolean>;
 }

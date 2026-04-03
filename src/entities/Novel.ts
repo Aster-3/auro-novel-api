@@ -68,11 +68,11 @@ export class Novel {
   @Column({ type: "timestamp", nullable: true, default: null })
   lastChapterDate?: Date | null;
 
-  @Column({ type: "int", default: 1 })
-  paywallStartVolume!: number;
+  @Column({ type: "int", default: 1, nullable: true })
+  paywallStartVolume!: number | null;
 
-  @Column({ type: "int", default: 31 })
-  paywallStartChapter!: number;
+  @Column({ type: "int", default: 31, nullable: true })
+  paywallStartChapter!: number | null;
 
   @Index()
   @Column({ type: "uuid" })
@@ -95,7 +95,7 @@ export class Novel {
   purchaseCount!: number;
 
   @Column({ type: "float", default: 0, select: false })
-  popularityScore: number = 0;
+  popularityScore!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

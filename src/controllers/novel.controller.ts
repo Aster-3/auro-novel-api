@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { ICommentService } from "../interfaces/comment.service.interface.js";
-import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
 import { UserRoles } from "../constants/user.constants.js";
 import { BadRequestError } from "../errors/bad.request.js";
+import { IChapterService } from "../interfaces/chapter.service.interface.js";
 
 export class NovelController {
   constructor(
     private novelService: INovelService,
     private commentService: ICommentService,
-    private chapterRepository: IChapterRepository,
+    private chapterService: IChapterService,
   ) {}
 
   createNovel = async (req: Request, res: Response) => {
@@ -107,36 +107,29 @@ export class NovelController {
   };
 
   getChaptersByNovelId = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
     const userId = req.user?.id;
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
 
-    const chapters = await this.chapterRepository.getChapters({
-      id,
-      ...res.locals.validatedData,
-      userId,
-    });
+    const chapters = await this.chapterService.getChaptersByNovelId(
+      res.locals.validatedData,
+      userId!,
+      isAdmin,
+    );
     res.json(chapters);
   };
 
   getDraftChaptersByNovelId = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const userId = req.user?.id;
-    const isAuthor = await this.novelService.isOwnerControl(id, userId!);
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
 
-    if (!isAuthor) {
-      return res.status(403).json({ message: "Bu novel size ait değil." });
-    }
-    const chapters = await this.chapterRepository.getDraftChapterByNovelId(
+    const chapters = await this.chapterService.getDraftChaptersByNovelId(
       res.locals.validatedData,
+      userId!,
+      isAdmin,
     );
 
     res.json(chapters);
-  };
-
-  getChaptersSummary = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    const summary = await this.chapterRepository.getSummary(id);
-    res.json(summary);
   };
 
   deleteNovel = async (req: Request, res: Response) => {

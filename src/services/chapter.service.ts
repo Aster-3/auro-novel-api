@@ -1,56 +1,54 @@
+import { IChapterService } from "../interfaces/chapter.service.interface.js";
+import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
+import { IUnitOfWork } from "../interfaces/unit.of.work.interface.js";
+import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { ForbiddenError } from "../errors/forbidden.error.js";
-import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
-import { IChapterService } from "../interfaces/chapter.service.interface.js";
-import { INovelRepository } from "../interfaces/novel.repo.interface.js";
-import { IVolumeRepository } from "../interfaces/volume.repo.interface.js";
-import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
+import { NotFoundError } from "../errors/not.found.error.js";
+import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
 import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
 
 export class ChapterService implements IChapterService {
-  constructor(
-    private chapterRepo: IChapterRepository,
-    private volumeRepo: IVolumeRepository,
-    private novelRepo: INovelRepository,
-  ) {}
+  constructor(private uow: IUnitOfWork) {}
 
-  async getOneChapter(id: string, userId: string) {
-    const chapter = await this.chapterRepo.getOneChapter(id);
-
-    if (!chapter) {
-      throw new ConflictError("no_chapter", "Böyle bir bölüm mevcut değil.");
-    }
-
-    const isPrequel = chapter.volume.orderIndex === 0;
-    const isAfterPaywall =
-      chapter.volume.orderIndex > chapter.novel.paywallStartVolume ||
-      (chapter.volume.orderIndex === chapter.novel.paywallStartVolume &&
-        chapter.orderIndex >= chapter.novel.paywallStartChapter);
-
-    const isLockedBySystem = isPrequel || isAfterPaywall;
-
-    const isOwner = chapter.novel?.author?.userId === userId;
-    const hasPurchased = chapter.purchases?.some((p) => p.userId === userId);
-
-    const isUnlocked = !isLockedBySystem || isOwner || hasPurchased;
-
-    if (!isUnlocked) {
-      throw new ForbiddenError(
-        "Bu bölüme erişim izniniz yok. Lütfen satın alın veya aboneliğinizi kontrol edin.",
+  async createChapter(
+    dto: CreateChapterDTO,
+    authorId: string,
+    isAdmin: boolean,
+  ): Promise<void> {
+    console.log(dto, authorId, isAdmin);
+    const isOwner = await this.uow.novelRepository.isOwnerControl(
+      dto.novelId,
+      authorId,
+    );
+    if (!isAdmin && !isOwner) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu romanın sahibi değilsiniz.",
       );
     }
-    return {
-      id: chapter.id,
-      title: chapter.title,
-      content: chapter.content, // Artık güvenle içeriği dönebiliriz
-      chapterOrder: chapter.orderIndex,
-      volumeOrder: chapter.volume.orderIndex,
-      volumeId: chapter.volume.id,
-    };
+    await this.uow.chapterRepository.createChapter(dto);
   }
 
-  async create(dto: CreateChapterDTO, isAdmin: boolean, authorId: string) {
-    const isOwner = await this.novelRepo.isOwnerControl(dto.novelId, authorId);
+  async publishChapter(
+    dto: CreatePublicationDTO,
+    authorId: string,
+    isAdmin: boolean,
+  ): Promise<void> {
+    const draft = await this.uow.chapterRepository.getOneDraftChapterById(
+      dto.id,
+    );
+
+    if (!draft) {
+      throw new NotFoundError("Bölüm bulunamadı veya zaten yayınlanmış.");
+    }
+
+    if (draft.novel.id !== dto.novelId) {
+      throw new ConflictError("novel_id", "Geçersiz novel ID.");
+    }
+    console.log(dto, authorId, isAdmin);
+    const isOwner = draft.novel?.author?.userId === authorId;
+
     if (!isAdmin && !isOwner) {
       throw new ConflictError(
         "invalid_access",
@@ -58,134 +56,76 @@ export class ChapterService implements IChapterService {
       );
     }
 
+    // işlemler
+
     if (!dto.volumeId) {
       const suggestedVolume =
-        await this.volumeRepo.findOldestEmptyOrLatestVolume(dto.novelId);
-      if (!suggestedVolume) {
-        dto.volumeId = await this.volumeRepo.create({
-          novelId: dto.novelId,
-          orderIndex: 1,
-          name: null,
-        });
-      } else {
-        dto.volumeId = suggestedVolume.id;
-      }
-    } else {
-      const availableVolume = await this.volumeRepo.getOneById(dto.volumeId);
-
-      if (!availableVolume || availableVolume.novelId !== dto.novelId) {
-        throw new ConflictError("volumeId", "Geçersiz cilt.");
-      }
-
-      if (!isAdmin) {
-        const hasEmptyPrev = await this.volumeRepo.hasAnyEmptyPreviousVolume(
+        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
           dto.novelId,
-          availableVolume.orderIndex,
         );
-        if (hasEmptyPrev) {
-          throw new ConflictError(
-            "volume_order",
-            "Aradaki boş ciltleri doldurmalısınız.",
-          );
-        }
+      if (!suggestedVolume) {
+        throw new ConflictError(
+          "volumeId",
+          "Bölüm eklemek için en az bir cilt oluşturmalısınız.",
+        );
+      }
+      dto.volumeId = suggestedVolume.id;
+    } else {
+      const volume = await this.uow.volumeRepository.getOneById(dto.volumeId);
+
+      if (!volume || volume.novelId !== dto.novelId) {
+        throw new ConflictError("volumeId", "Geçersiz cilt ID.");
+      }
+
+      const lastAddableVolume =
+        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
+          dto.novelId,
+        );
+
+      if (
+        !lastAddableVolume ||
+        volume.orderIndex > lastAddableVolume.orderIndex
+      ) {
+        throw new ConflictError(
+          "volumeId",
+          "En fazla bir cilt atlanabilir. Lütfen önceki ciltleri doldurun.",
+        );
       }
     }
 
-    let finalOrder: number;
-
-    if (isAdmin && dto.orderIndex !== undefined && dto.orderIndex !== null) {
-      finalOrder = dto.orderIndex;
-
-      const exists = await this.chapterRepo.duplicateControl(
-        dto.volumeId,
-        finalOrder,
-      );
-      if (exists)
-        throw new ConflictError("order", `${finalOrder} zaten mevcut.`);
-    } else {
-      const lastChapter = await this.chapterRepo.getLastChapterInVolume(
-        dto.novelId,
+    const lastOrder =
+      await this.uow.chapterPublicationRepository.getLastChapterOrderInVolume(
         dto.volumeId,
       );
 
-      const currentMax = Math.floor(lastChapter?.orderIndex ?? 0);
-      finalOrder = currentMax + 1;
+    if (!dto.orderIndex || !isAdmin) {
+      dto.orderIndex = lastOrder + 1;
     }
 
-    return await this.chapterRepo.create({
-      ...dto,
-      orderIndex: finalOrder,
-    });
-  }
-
-  async delete(id: string, userId: string) {
-    const chapter = await this.chapterRepo.getShortInfoById(id);
-    if (!chapter) throw new ConflictError("id", "Bölüm bulunamadı.");
-
-    const isOwner = chapter.novel?.author?.userId === userId;
-    if (!isOwner) throw new ForbiddenError("Yetkiniz yok.");
-
-    const isPurchased = await this.chapterRepo.isPurchased(id);
-    if (isPurchased) {
+    if (dto.orderIndex > lastOrder + 1 || dto.orderIndex <= lastOrder) {
       throw new ConflictError(
-        "chapter_purchased",
-        "Satın alınmış bölümler silinemez.",
+        "orderIndex",
+        "Bölüm sıralaması geçersiz. Mevcut son sıradan sonra gelmelidir.",
       );
     }
 
-    // if (chapter.isPublished) {
-    //   const hasAfterInVolume = await this.chapterRepo.hasPublishedAfterInVolume(
-    //     chapter.volumeId,
-    //     chapter.orderIndex,
-    //   );
+    await this.uow.startTransaction();
+    try {
+      await this.uow.chapterPublicationRepository.create({
+        chapterId: dto.id,
+        volumeId: dto.volumeId,
+        orderIndex: dto.orderIndex,
+        publishedAt: new Date(),
+      });
 
-    //   const hasInNextVolumes = await this.volumeRepo.hasPublishedInNextVolumes(
-    //     chapter.novelId,
-    //     chapter.volume.orderIndex,
-    //   );
-
-    //   if (hasAfterInVolume || hasInNextVolumes) {
-    //     throw new ConflictError(
-    //       "published_after",
-    //       "Yayında olan bir cilt boş bırakılamaz.",
-    //     );
-    //   }
-    // }
-
-    // const hasOtherChaptersInVolume =
-    //   await this.chapterRepo.hasOtherChaptersInVolume(
-    //     chapter.id,
-    //     chapter.volumeId,
-    //   );
-
-    // console.log("hasOtherChaptersInVolume:", hasOtherChaptersInVolume);
-
-    // if (!hasOtherChaptersInVolume) {
-    //   const hasNotEmptyNextVolume = await this.volumeRepo.hasAnyNextVolume(
-    //     chapter.novelId,
-    //     chapter.volume.orderIndex,
-    //   );
-    //   if (hasNotEmptyNextVolume) {
-    //     throw new ConflictError(
-    //       "last_chapter_in_volume",
-    //       "Bu bölümü silebilmek için önce sonraki ciltlerdeki bölümleri silmelisiniz.",
-    //     );
-    //   } else {
-    //     console.log("buraya girdi");
-    //     throw new ConflictError(
-    //       "last_chapter_in_volume",
-    //       "Bir ciltte en az bir bölüm bulunmalıdır.",
-    //     );
-    //   }
-    // }
-
-    await this.chapterRepo.delete(id);
-
-    await this.chapterRepo.closeGapInVolume(
-      chapter.volumeId,
-      chapter.orderIndex,
-    );
-    await this.novelRepo.refreshChapterStats(chapter.novelId);
+      await this.uow.novelRepository.refreshChapterStats(dto.novelId);
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
   }
 
   async updateChapter(
@@ -193,156 +133,495 @@ export class ChapterService implements IChapterService {
     authorId: string,
     isAdmin: boolean,
   ) {
-    const chapter = await this.chapterRepo.getShortInfoById(dto.id);
-    if (!chapter) throw new ConflictError("id", "Bölüm bulunamadı.");
-
-    const isOwner = chapter.novel?.author?.userId === authorId;
-    if (!isAdmin && !isOwner) throw new ForbiddenError("Yetkiniz yok.");
-
-    const oldVolumeId = chapter.volumeId;
-    const oldOrderIndex = chapter.orderIndex;
-    const isMovingToAnotherVolume = !!(
-      dto.volumeId && dto.volumeId !== oldVolumeId
+    const chapter = await this.uow.chapterRepository.getOneDraftChapterById(
+      dto.id,
     );
 
-    const finalPublishState =
-      dto.isPublished !== undefined ? dto.isPublished : chapter.isPublished;
-
-    /**
-     */
-    if (
-      chapter.isPublished &&
-      (dto.isPublished === false || isMovingToAnotherVolume)
-    ) {
-      const hasPublishedAfter =
-        await this.chapterRepo.hasPublishedAfterInVolume(
-          oldVolumeId,
-          oldOrderIndex,
-        );
-
-      if (hasPublishedAfter) {
-        const errorMsg = isMovingToAnotherVolume
-          ? "Bu bölümü taşımak için önce bu ciltteki sonraki bölümleri yayından kaldırmalısınız."
-          : "Bu bölümü yayından kaldırmak için sonraki bölümleri yayından kaldırmalısınız.";
-        throw new ConflictError("orderIndex", errorMsg);
-      }
-
-      const hasOtherPublished =
-        await this.chapterRepo.hasOtherPublishedInVolume(
-          chapter.id,
-          oldVolumeId,
-        );
-
-      if (!hasOtherPublished) {
-        const hasNextVolumes = await this.volumeRepo.hasPublishedInNextVolumes(
-          chapter.novelId,
-          chapter.volume.orderIndex,
-        );
-
-        if (hasNextVolumes) {
-          throw new ConflictError(
-            "publish_order",
-            "Yayında olan bir cilt boş bırakılamaz.",
-          );
-        }
-      }
+    if (!chapter) {
+      throw new NotFoundError("Bölüm bulunamadı veya zaten yayınlanmış.");
     }
 
-    if (isMovingToAnotherVolume) {
-      const targetVolume = await this.volumeRepo.getOneById(dto.volumeId!);
-      if (!targetVolume) throw new ConflictError("volumeId", "Geçersiz cilt.");
+    if (!isAdmin && chapter.novel?.author?.userId !== authorId) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu bölüme erişim izniniz yok.",
+      );
+    }
 
-      // Boş cilt atlama kontrolü
-      const hasEmptyPrev = await this.volumeRepo.hasAnyEmptyPreviousVolume(
-        chapter.novelId,
-        targetVolume.orderIndex,
+    await this.uow.chapterRepository.updateChapter(dto);
+  }
+
+  async deleteChapter(
+    chapterId: string,
+    authorId: string,
+    isAdmin: boolean,
+  ): Promise<void> {
+    const chapterAuthorId =
+      await this.uow.chapterRepository.getAuthorIdByChapterId(chapterId);
+
+    if (authorId !== chapterAuthorId && !isAdmin) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu bölüme erişim izniniz yok.",
+      );
+    }
+
+    const isPurchased =
+      await this.uow.chapterPurchaseRepository.isChapterEverPurchased(
+        chapterId,
       );
 
-      if (hasEmptyPrev) {
-        throw new ConflictError(
-          "volume_order",
-          "Aradaki boş ciltleri doldurmalısınız.",
-        );
-      }
-
-      const hasOtherChaptersInVolume =
-        await this.chapterRepo.hasOtherChaptersInVolume(
-          chapter.id,
-          chapter.volumeId,
-        );
-
-      if (!hasOtherChaptersInVolume) {
-        throw new ConflictError(
-          "last_chapter_in_volume",
-          "Bir ciltte en az bir bölüm bulunmalıdır.",
-        );
-      }
-
-      const maxOrder = await this.chapterRepo.getMaxOrderIndexInVolume(
-        dto.volumeId!,
+    if (isPurchased) {
+      throw new ConflictError(
+        "chapterId",
+        "Bu bölüm satın alındığı için silinemez.",
       );
-      dto.orderIndex = (maxOrder || 0) + 1;
     }
 
-    /**
-     * 3. YAYINLAMA (PUBLISH) KONTROLLERİ
-     */
-    if (dto.isPublished === true) {
-      if (chapter.publishedAt === null) {
-        dto.publishedAt = new Date();
-      }
+    const isPublished =
+      await this.uow.chapterPublicationRepository.getChapterForMeta(chapterId);
 
-      // Önceki ciltlerin yayınlanma durumu (Boş cilt kontrolü)
-      const currentVolumeOrder = isMovingToAnotherVolume
-        ? (await this.volumeRepo.getOneById(dto.volumeId!))?.orderIndex
-        : chapter.volume.orderIndex;
+    if (!isPublished) {
+      return await this.uow.chapterRepository.deleteChapter(chapterId);
+    }
 
-      const isAcceptablePublish =
-        await this.volumeRepo.hasUnpublishedPreviousVolume(
-          chapter.novelId,
-          currentVolumeOrder || 0,
+    const hasOtherChaptersInVolume =
+      await this.uow.chapterPublicationRepository.otherChaptersExistInVolume(
+        chapterId,
+        isPublished.volumeId,
+      );
+
+    console.log(
+      "Bu bölümün cildinde başka bölümler var mı?",
+      hasOtherChaptersInVolume,
+    );
+
+    if (!hasOtherChaptersInVolume) {
+      const isLastVolumeWithChapters =
+        await this.uow.volumeRepository.isLastVolumeWithChapters(
+          isPublished.novelId,
+          isPublished.volumeOrder,
         );
 
-      if (isAcceptablePublish) {
+      if (!isLastVolumeWithChapters) {
         throw new ConflictError(
-          "publish_order",
-          "Önceki ciltleri yayınlamalısınız.",
-        );
-      }
-
-      // Cilt içi sıralı yayınlama kontrolü
-      const targetVolId = dto.volumeId || oldVolumeId;
-      const lastPublishedIndex =
-        await this.chapterRepo.getLastPublishedChapterIndexInVolume(
-          targetVolId,
-        );
-
-      // Eğer taşınıyorsa yeni orderIndex'e, taşınmıyorsa mevcuda bakılır
-      const orderToCheck = dto.orderIndex || oldOrderIndex;
-
-      if (orderToCheck > (lastPublishedIndex || 0) + 1) {
-        throw new ConflictError(
-          "orderIndex",
-          "Önceki bölümleri yayınlamalısınız.",
+          "chapterId",
+          "Cilt boş bırakılamayacağı için bu bölüm silinemez.",
         );
       }
     }
 
-    // Veritabanı Güncelleme
-    await this.chapterRepo.updateChapter(dto);
+    await this.uow.startTransaction();
 
-    // İstatistik Yenileme
-    if (dto.isPublished !== undefined) {
-      await this.novelRepo.refreshChapterStats(chapter.novelId);
-    }
-
-    // Eski Ciltteki Sıralama Boşluğunu Kapat (Sadece taşıma olduysa)
-    if (isMovingToAnotherVolume) {
-      await this.chapterRepo.closeGapInVolume(oldVolumeId, oldOrderIndex);
+    try {
+      await this.uow.chapterRepository.deleteChapter(chapterId);
+      await this.uow.chapterPublicationRepository.closeGapInVolume(
+        isPublished.volumeId,
+        isPublished.chapterOrder,
+      );
+      await this.uow.novelRepository.refreshChapterStats(isPublished.novelId);
+      console.log(
+        "Bölüm başarıyla silindi, istatistikler güncellendi.",
+        isPublished,
+      );
+      await this.uow.commit();
+    } catch (error) {
+      console.error("Bölüm silme işlemi sırasında hata oluştu:", error);
+      await this.uow.rollback();
+    } finally {
+      await this.uow.release();
     }
   }
 
-  async getSummary(novelId: string) {
-    return await this.chapterRepo.getSummary(novelId);
+  async getChapterForReading(id: string, userId: string, isAdmin: boolean) {
+    const data =
+      await this.uow.chapterPublicationRepository.getChapterForReading(id);
+
+    if (!data) {
+      throw new NotFoundError("Bölüm mevcut değil veya yayında değil.");
+    }
+
+    const {
+      paywallStartVolume,
+      paywallStartChapter,
+      authorId,
+      volumeOrder,
+      chapterOrder,
+    } = data;
+
+    let isLockedBySystem = volumeOrder === 0;
+
+    if (
+      paywallStartVolume !== null &&
+      paywallStartChapter !== null &&
+      !isLockedBySystem
+    ) {
+      isLockedBySystem =
+        volumeOrder > paywallStartVolume ||
+        (volumeOrder === paywallStartVolume &&
+          chapterOrder >= paywallStartChapter);
+    }
+
+    const isOwner = authorId === userId;
+
+    const needsPurchaseCheck = isLockedBySystem && !isAdmin && !isOwner;
+    const hasPurchased = needsPurchaseCheck
+      ? await this.uow.chapterPurchaseRepository.hasPurchasedChapterByUserId(
+          userId,
+          id,
+        )
+      : false;
+
+    const canAccess = !isLockedBySystem || isAdmin || isOwner || hasPurchased;
+
+    if (!canAccess) {
+      throw new ForbiddenError("Bu bölüme erişmek için satın almalısınız.");
+    }
+
+    return {
+      id: data.id,
+      title: data.title,
+      content: data.content,
+      chapterOrder: data.chapterOrder,
+      volumeOrder: data.volumeOrder,
+      volumeId: data.volumeId,
+    };
+  }
+
+  async getOneDraftChapter(id: string, authorId: string, isAdmin: boolean) {
+    const chapter = await this.uow.chapterRepository.getOneDraftChapterById(id);
+
+    if (!chapter) {
+      throw new NotFoundError("Bölüm bulunamadı veya zaten yayınlanmış.");
+    }
+    if (!isAdmin && chapter.novel?.author?.userId !== authorId) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu bölüme erişim izniniz yok.",
+      );
+    }
+    return chapter;
+  }
+
+  async getDraftChaptersByNovelId(
+    dto: GetChaptersDto,
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    const isOwner = await this.uow.novelRepository.isOwnerControl(
+      dto.id,
+      userId,
+    );
+
+    console.log("Kullanıcı sahibi mi?", isOwner);
+
+    if (!isAdmin && !isOwner) {
+      console.log("Kullanıcı ne admin ne de sahibi, erişim reddediliyor.");
+      throw new ConflictError(
+        "invalid_access",
+        "Bu romanın sahibi değilsiniz.",
+      );
+    }
+
+    const chapters =
+      await this.uow.chapterRepository.getDraftChaptersByNovelId(dto);
+    return chapters;
+  }
+
+  async getChaptersByNovelId(
+    dto: GetChaptersDto,
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    const chapters =
+      await this.uow.chapterPublicationRepository.getChaptersByNovelId(
+        dto,
+        userId,
+        isAdmin,
+      );
+    return chapters;
+  }
+
+  async createChapter2(
+    dto: CreateChapterDTO,
+    authorId: string,
+    isAdmin: boolean,
+  ) {
+    // async getOneChapter(id: string, userId: string) {
+    //   const chapter = await this.chapterRepo.getOneChapter(id);
+    //   if (!chapter) {
+    //     throw new ConflictError("no_chapter", "Böyle bir bölüm mevcut değil.");
+    //   }
+    //   const isPrequel = chapter.volume.orderIndex === 0;
+    //   const isAfterPaywall =
+    //     chapter.volume.orderIndex > chapter.novel.paywallStartVolume ||
+    //     (chapter.volume.orderIndex === chapter.novel.paywallStartVolume &&
+    //       chapter.orderIndex >= chapter.novel.paywallStartChapter);
+    //   const isLockedBySystem = isPrequel || isAfterPaywall;
+    //   const isOwner = chapter.novel?.author?.userId === userId;
+    //   const hasPurchased = chapter.purchases?.some((p) => p.userId === userId);
+    //   const isUnlocked = !isLockedBySystem || isOwner || hasPurchased;
+    //   if (!isUnlocked) {
+    //     throw new ForbiddenError(
+    //       "Bu bölüme erişim izniniz yok. Lütfen satın alın veya aboneliğinizi kontrol edin.",
+    //     );
+    //   }
+    //   return {
+    //     id: chapter.id,
+    //     title: chapter.title,
+    //     content: chapter.content, // Artık güvenle içeriği dönebiliriz
+    //     chapterOrder: chapter.orderIndex,
+    //     volumeOrder: chapter.volume.orderIndex,
+    //     volumeId: chapter.volume.id,
+    //   };
+    // }
+    // async create(dto: CreateChapterDTO, isAdmin: boolean, authorId: string) {
+    //   const isOwner = await this.novelRepo.isOwnerControl(dto.novelId, authorId);
+    //   if (!isAdmin && !isOwner) {
+    //     throw new ConflictError(
+    //       "invalid_access",
+    //       "Bu romanın sahibi değilsiniz.",
+    //     );
+    //   }
+    //   if (!dto.volumeId) {
+    //     const suggestedVolume =
+    //       await this.volumeRepo.findOldestEmptyOrLatestVolume(dto.novelId);
+    //     if (!suggestedVolume) {
+    //       dto.volumeId = await this.volumeRepo.create({
+    //         novelId: dto.novelId,
+    //         orderIndex: 1,
+    //         name: null,
+    //       });
+    //     } else {
+    //       dto.volumeId = suggestedVolume.id;
+    //     }
+    //   } else {
+    //     const availableVolume = await this.volumeRepo.getOneById(dto.volumeId);
+    //     if (!availableVolume || availableVolume.novelId !== dto.novelId) {
+    //       throw new ConflictError("volumeId", "Geçersiz cilt.");
+    //     }
+    //     if (!isAdmin) {
+    //       const hasEmptyPrev = await this.volumeRepo.hasAnyEmptyPreviousVolume(
+    //         dto.novelId,
+    //         availableVolume.orderIndex,
+    //       );
+    //       if (hasEmptyPrev) {
+    //         throw new ConflictError(
+    //           "volume_order",
+    //           "Aradaki boş ciltleri doldurmalısınız.",
+    //         );
+    //       }
+    //     }
+    //   }
+    //   let finalOrder: number;
+    //   if (isAdmin && dto.orderIndex !== undefined && dto.orderIndex !== null) {
+    //     finalOrder = dto.orderIndex;
+    //     const exists = await this.chapterRepo.duplicateControl(
+    //       dto.volumeId,
+    //       finalOrder,
+    //     );
+    //     if (exists)
+    //       throw new ConflictError("order", `${finalOrder} zaten mevcut.`);
+    //   } else {
+    //     const lastChapter = await this.chapterRepo.getLastChapterInVolume(
+    //       dto.novelId,
+    //       dto.volumeId,
+    //     );
+    //     const currentMax = Math.floor(lastChapter?.orderIndex ?? 0);
+    //     finalOrder = currentMax + 1;
+    //   }
+    //   return await this.chapterRepo.create({
+    //     ...dto,
+    //     orderIndex: finalOrder,
+    //   });
+    // }
+    // async delete(id: string, userId: string) {
+    //   const chapter = await this.chapterRepo.getShortInfoById(id);
+    //   if (!chapter) throw new ConflictError("id", "Bölüm bulunamadı.");
+    //   const isOwner = chapter.novel?.author?.userId === userId;
+    //   if (!isOwner) throw new ForbiddenError("Yetkiniz yok.");
+    //   const isPurchased = await this.chapterRepo.isPurchased(id);
+    //   if (isPurchased) {
+    //     throw new ConflictError(
+    //       "chapter_purchased",
+    //       "Satın alınmış bölümler silinemez.",
+    //     );
+    //   }
+    //   // if (chapter.isPublished) {
+    //   //   const hasAfterInVolume = await this.chapterRepo.hasPublishedAfterInVolume(
+    //   //     chapter.volumeId,
+    //   //     chapter.orderIndex,
+    //   //   );
+    //   //   const hasInNextVolumes = await this.volumeRepo.hasPublishedInNextVolumes(
+    //   //     chapter.novelId,
+    //   //     chapter.volume.orderIndex,
+    //   //   );
+    //   //   if (hasAfterInVolume || hasInNextVolumes) {
+    //   //     throw new ConflictError(
+    //   //       "published_after",
+    //   //       "Yayında olan bir cilt boş bırakılamaz.",
+    //   //     );
+    //   //   }
+    //   // }
+    //   // const hasOtherChaptersInVolume =
+    //   //   await this.chapterRepo.hasOtherChaptersInVolume(
+    //   //     chapter.id,
+    //   //     chapter.volumeId,
+    //   //   );
+    //   // console.log("hasOtherChaptersInVolume:", hasOtherChaptersInVolume);
+    //   // if (!hasOtherChaptersInVolume) {
+    //   //   const hasNotEmptyNextVolume = await this.volumeRepo.hasAnyNextVolume(
+    //   //     chapter.novelId,
+    //   //     chapter.volume.orderIndex,
+    //   //   );
+    //   //   if (hasNotEmptyNextVolume) {
+    //   //     throw new ConflictError(
+    //   //       "last_chapter_in_volume",
+    //   //       "Bu bölümü silebilmek için önce sonraki ciltlerdeki bölümleri silmelisiniz.",
+    //   //     );
+    //   //   } else {
+    //   //     console.log("buraya girdi");
+    //   //     throw new ConflictError(
+    //   //       "last_chapter_in_volume",
+    //   //       "Bir ciltte en az bir bölüm bulunmalıdır.",
+    //   //     );
+    //   //   }
+    //   // }
+    //   await this.chapterRepo.delete(id);
+    //   await this.chapterRepo.closeGapInVolume(
+    //     chapter.volumeId,
+    //     chapter.orderIndex,
+    //   );
+    //   await this.novelRepo.refreshChapterStats(chapter.novelId);
+    // }
+    // async updateChapter(
+    //   dto: UpdateChapterDTO,
+    //   authorId: string,
+    //   isAdmin: boolean,
+    // ) {
+    //   const chapter = await this.chapterRepo.getShortInfoById(dto.id);
+    //   if (!chapter) throw new ConflictError("id", "Bölüm bulunamadı.");
+    //   const isOwner = chapter.novel?.author?.userId === authorId;
+    //   if (!isAdmin && !isOwner) throw new ForbiddenError("Yetkiniz yok.");
+    //   const oldVolumeId = chapter.volumeId;
+    //   const oldOrderIndex = chapter.orderIndex;
+    //   const isMovingToAnotherVolume = !!(
+    //     dto.volumeId && dto.volumeId !== oldVolumeId
+    //   );
+    //   const finalPublishState =
+    //     dto.isPublished !== undefined ? dto.isPublished : chapter.isPublished;
+    //   /**
+    //    */
+    //   if (
+    //     chapter.isPublished &&
+    //     (dto.isPublished === false || isMovingToAnotherVolume)
+    //   ) {
+    //     const hasPublishedAfter =
+    //       await this.chapterRepo.hasPublishedAfterInVolume(
+    //         oldVolumeId,
+    //         oldOrderIndex,
+    //       );
+    //     if (hasPublishedAfter) {
+    //       const errorMsg = isMovingToAnotherVolume
+    //         ? "Bu bölümü taşımak için önce bu ciltteki sonraki bölümleri yayından kaldırmalısınız."
+    //         : "Bu bölümü yayından kaldırmak için sonraki bölümleri yayından kaldırmalısınız.";
+    //       throw new ConflictError("orderIndex", errorMsg);
+    //     }
+    //     const hasOtherPublished =
+    //       await this.chapterRepo.hasOtherPublishedInVolume(
+    //         chapter.id,
+    //         oldVolumeId,
+    //       );
+    //     if (!hasOtherPublished) {
+    //       const hasNextVolumes = await this.volumeRepo.hasPublishedInNextVolumes(
+    //         chapter.novelId,
+    //         chapter.volume.orderIndex,
+    //       );
+    //       if (hasNextVolumes) {
+    //         throw new ConflictError(
+    //           "publish_order",
+    //           "Yayında olan bir cilt boş bırakılamaz.",
+    //         );
+    //       }
+    //     }
+    //   }
+    //   if (isMovingToAnotherVolume) {
+    //     const targetVolume = await this.volumeRepo.getOneById(dto.volumeId!);
+    //     if (!targetVolume) throw new ConflictError("volumeId", "Geçersiz cilt.");
+    //     // Boş cilt atlama kontrolü
+    //     const hasEmptyPrev = await this.volumeRepo.hasAnyEmptyPreviousVolume(
+    //       chapter.novelId,
+    //       targetVolume.orderIndex,
+    //     );
+    //     if (hasEmptyPrev) {
+    //       throw new ConflictError(
+    //         "volume_order",
+    //         "Aradaki boş ciltleri doldurmalısınız.",
+    //       );
+    //     }
+    //     const hasOtherChaptersInVolume =
+    //       await this.chapterRepo.hasOtherChaptersInVolume(
+    //         chapter.id,
+    //         chapter.volumeId,
+    //       );
+    //     if (!hasOtherChaptersInVolume) {
+    //       throw new ConflictError(
+    //         "last_chapter_in_volume",
+    //         "Bir ciltte en az bir bölüm bulunmalıdır.",
+    //       );
+    //     }
+    //     const maxOrder = await this.chapterRepo.getMaxOrderIndexInVolume(
+    //       dto.volumeId!,
+    //     );
+    //     dto.orderIndex = (maxOrder || 0) + 1;
+    //   }
+    //   /**
+    //    * 3. YAYINLAMA (PUBLISH) KONTROLLERİ
+    //    */
+    //   if (dto.isPublished === true) {
+    //     if (chapter.publishedAt === null) {
+    //       dto.publishedAt = new Date();
+    //     }
+    //     // Önceki ciltlerin yayınlanma durumu (Boş cilt kontrolü)
+    //     const currentVolumeOrder = isMovingToAnotherVolume
+    //       ? (await this.volumeRepo.getOneById(dto.volumeId!))?.orderIndex
+    //       : chapter.volume.orderIndex;
+    //     const isAcceptablePublish =
+    //       await this.volumeRepo.hasUnpublishedPreviousVolume(
+    //         chapter.novelId,
+    //         currentVolumeOrder || 0,
+    //       );
+    //     if (isAcceptablePublish) {
+    //       throw new ConflictError(
+    //         "publish_order",
+    //         "Önceki ciltleri yayınlamalısınız.",
+    //       );
+    //     }
+    //     // Cilt içi sıralı yayınlama kontrolü
+    //     const targetVolId = dto.volumeId || oldVolumeId;
+    //     const lastPublishedIndex =
+    //       await this.chapterRepo.getLastPublishedChapterIndexInVolume(
+    //         targetVolId,
+    //       );
+    //     // Eğer taşınıyorsa yeni orderIndex'e, taşınmıyorsa mevcuda bakılır
+    //     const orderToCheck = dto.orderIndex || oldOrderIndex;
+    //     if (orderToCheck > (lastPublishedIndex || 0) + 1) {
+    //       throw new ConflictError(
+    //         "orderIndex",
+    //         "Önceki bölümleri yayınlamalısınız.",
+    //       );
+    //     }
+    //   }
+    //   // Veritabanı Güncelleme
+    //   await this.chapterRepo.updateChapter(dto);
+    //   // İstatistik Yenileme
+    //   if (dto.isPublished !== undefined) {
+    //     await this.novelRepo.refreshChapterStats(chapter.novelId);
+    //   }
+    //   // Eski Ciltteki Sıralama Boşluğunu Kapat (Sadece taşıma olduysa)
+    //   if (isMovingToAnotherVolume) {
+    //     await this.chapterRepo.closeGapInVolume(oldVolumeId, oldOrderIndex);
+    //   }
+    // }
   }
 }

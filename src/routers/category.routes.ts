@@ -1,13 +1,12 @@
 import { Router } from "express";
-import { getCategoryController } from "../factories/category.factory.js";
 import { validateSchema } from "../middlewares/validate.schema.js";
 import { createCategorySchema } from "../schemas/create.category.schema.js";
 import { deleteCategorySchema } from "../schemas/delete.category.schema.js";
 import { searchCategorySchema } from "../schemas/search.category.schema.js";
 import { updateCategorySchema } from "../schemas/update.category.schema.js";
+import { categoryController } from "../container.js";
 
 const router = Router();
-const categoryController = getCategoryController();
 
 router.get(
   "/",

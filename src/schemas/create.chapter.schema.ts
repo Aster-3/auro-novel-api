@@ -12,11 +12,6 @@ export const createChapterSchema = z.object({
         "İçerik en fazla 50000 karakter olabilir",
       ),
       novelId: reqUuid("Roman Id"),
-      volumeId: reqUuid("Cilt Id").optional(),
-      orderIndex: z
-        .number()
-        .min(0, "Sıra 0 veya daha büyük olmalıdır")
-        .optional(),
     },
     "Body verisi geçersiz.",
   ),

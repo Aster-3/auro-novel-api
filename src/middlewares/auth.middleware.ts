@@ -8,7 +8,6 @@ export const authMiddleware = (
   next: NextFunction,
 ) => {
   try {
-    console.log("Received request to create reply with body:", req.body);
     const authHeader = req.headers.authorization;
     if (authHeader) {
       console.log("Kullanıcının tokeni var:", authHeader);

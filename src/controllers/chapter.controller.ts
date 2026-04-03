@@ -7,25 +7,52 @@ export class ChapterController {
   getOneChapter = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const userId = req.user?.id || "";
-    const chapter = await this.chapterService.getOneChapter(id, userId);
+    const isAdmin = req.user?.role === "admin";
+    const chapter = await this.chapterService.getChapterForReading(
+      id,
+      userId,
+      isAdmin,
+    );
+    res.status(200).json(chapter);
+  };
+
+  getOneDraftChapter = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === "admin";
+    const chapter = await this.chapterService.getOneDraftChapter(
+      id,
+      userId,
+      isAdmin,
+    );
+
     res.status(200).json(chapter);
   };
 
   createChapter = async (req: Request, res: Response) => {
     const isAdmin = req.user?.role === "admin";
     const authorId = req.user?.id || "";
-    const result = await this.chapterService.create(
-      req.body,
-      isAdmin,
+    await this.chapterService.createChapter(req.body, authorId, isAdmin);
+    res.status(201).json();
+  };
+
+  publishChapter = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const isAdmin = req.user?.role === "admin";
+    const authorId = req.user?.id || "";
+    await this.chapterService.publishChapter(
+      { ...req.body, id: id },
       authorId,
+      isAdmin,
     );
-    res.status(result ? 201 : 400).json({ success: result });
+    res.status(201).json();
   };
 
   deleteChapter = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const userId = req.user?.id || "";
-    await this.chapterService.delete(id, userId);
+    const isAdmin = req.user?.role === "admin";
+    await this.chapterService.deleteChapter(id, userId, isAdmin);
     res.sendStatus(204);
   };
 
@@ -34,7 +61,7 @@ export class ChapterController {
     const userId = req.user?.id || "";
     const isAdmin = req.user?.role === "admin";
     await this.chapterService.updateChapter(
-      { ...req.body, id },
+      { ...req.body, id: id },
       userId,
       isAdmin,
     );

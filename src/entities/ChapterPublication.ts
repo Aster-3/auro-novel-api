@@ -1,29 +1,58 @@
-// import { Column, Entity, OneToOne, PrimaryGeneratedColumn } from "typeorm";
-// import { Chapter } from "./Chapter.js";
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryColumn,
+} from "typeorm";
+import { Chapter } from "./Chapter.js";
+import { Volume } from "./Volume.js";
+import { PublicationStatus } from "../constants/chapter.constants.js";
 
-// @Entity()
-// export class ChapterPublication {
+@Entity()
+@Index(["volumeId", "orderIndex"], { unique: true })
+export class ChapterPublication {
+  @PrimaryColumn("uuid")
+  chapterId!: string;
 
-//     @PrimaryGeneratedColumn("uuid")
-//     id!: string;
+  @OneToOne(() => Chapter, (chapter) => chapter.publication, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "chapterId" })
+  chapter!: Chapter;
 
-//      @Column({
-//         type: "decimal",
-//         precision: 6,
-//         scale: 2,
-//         default: 1.0,
-//         transformer: {
-//           to: (value: number) => value,
-//           from: (value: string) => parseFloat(value),
-//         },
-//       })
-//       orderIndex!: number;
+  @Column({ type: "uuid" })
+  volumeId!: string;
 
-//       @Column({type: "uuid", nullable: false})
-//         chapterId!: string;
+  @ManyToOne(() => Volume, (volume) => volume.chapters, {
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "volumeId" })
+  volume!: Volume;
 
-//     @OneToOne(() => Chapter, (chapter) => chapter.publication, {
-//         onDelete: "CASCADE",
-//     })
-//     chapter!: Chapter;
-// }
+  @Column({
+    type: "decimal",
+    precision: 6,
+    scale: 2,
+    default: 1.0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  orderIndex!: number;
+
+  @Index()
+  @Column({
+    type: "enum",
+    enum: PublicationStatus,
+    default: PublicationStatus.PUBLISHED,
+  })
+  publicationStatus!: PublicationStatus;
+
+  @Index()
+  @Column({ type: "timestamp" })
+  publishedAt!: Date;
+}

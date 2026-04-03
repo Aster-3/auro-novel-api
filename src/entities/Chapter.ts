@@ -1,21 +1,19 @@
 import {
-  BeforeUpdate,
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { Novel } from "./Novel.js";
-import { Volume } from "./Volume.js";
-import { ChapterPurchase } from "./_index.js";
+import { ChapterPublication } from "./ChapterPublication.js";
+import { ChapterPurchase } from "./ChapterPurchase.js";
 
 @Entity()
-@Index(["novelId", "order"], { unique: true })
 export class Chapter {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -26,34 +24,6 @@ export class Chapter {
   @Column({ type: "text" })
   content!: string;
 
-  @Column({ type: "int" })
-  order!: number;
-
-  @Column({ type: "boolean", default: false })
-  isPublished!: boolean;
-
-  @Column({ type: "int", default: 0 })
-  price!: number;
-
-  @Column({ type: "boolean", default: false })
-  isLocked!: boolean;
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updateAt!: Date;
-
-  @Column({ type: "timestamp", nullable: true, default: null })
-  publishedAt!: Date | null;
-
-  @BeforeUpdate()
-  updatePublishedAt() {
-    if (this.isPublished && !this.publishedAt) {
-      this.publishedAt = new Date();
-    }
-  }
-
   @Column({ type: "uuid" })
   novelId!: string;
 
@@ -63,15 +33,21 @@ export class Chapter {
   @JoinColumn({ name: "novelId" })
   novel!: Novel;
 
-  @Column({ type: "uuid", nullable: true })
-  volumeId!: string | null;
+  @CreateDateColumn()
+  createdAt!: Date;
 
-  @ManyToOne(() => Volume, (volume) => volume.chapters, {
-    onDelete: "SET NULL",
+  @UpdateDateColumn()
+  updatedAt!: Date;
+
+  @OneToOne(() => ChapterPublication, (publication) => publication.chapter, {
+    cascade: true,
+    nullable: true,
   })
-  @JoinColumn({ name: "volumeId" })
-  volume!: Volume | null;
+  publication?: ChapterPublication;
 
-  @OneToMany(() => ChapterPurchase, (purchase) => purchase.chapter)
-  purchases!: ChapterPurchase[];
+  @OneToMany(() => ChapterPurchase, (purchase) => purchase.chapter, {
+    cascade: true,
+    nullable: true,
+  })
+  purchases?: ChapterPurchase[];
 }

@@ -22,7 +22,7 @@ export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
         chapter: {
           id: true,
           title: true,
-          order: true,
+          orderIndex: true,
           novel: {
             id: true,
             name: true,
@@ -65,10 +65,18 @@ export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
     }
   }
 
-  async hasPurchasedChapter(userId: string, chapterId: string) {
+  async hasPurchasedChapterByUserId(userId: string, chapterId: string) {
     return await this.chapterPurchaseRepo.exists({
       where: {
         userId: userId,
+        chapterId: chapterId,
+      },
+    });
+  }
+
+  async isChapterEverPurchased(chapterId: string): Promise<boolean> {
+    return await this.chapterPurchaseRepo.exists({
+      where: {
         chapterId: chapterId,
       },
     });
