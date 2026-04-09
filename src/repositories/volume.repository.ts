@@ -11,6 +11,10 @@ export class VolumeRepository implements IVolumeRepository {
     return volume.id;
   }
 
+  async update(volumeId: string, name: string) {
+    await this.volumeRepo.update({ id: volumeId }, { name });
+  }
+
   async delete(id: string) {
     await this.volumeRepo.delete(id);
   }
@@ -19,6 +23,24 @@ export class VolumeRepository implements IVolumeRepository {
     return await this.volumeRepo.findOne({
       where: { id },
     });
+  }
+
+  async isVolumeEmpty(volumeId: string) {
+    const hasChapters = await this.volumeRepo
+      .createQueryBuilder("volume")
+      .innerJoin("volume.chapters", "chapter")
+      .where("volume.id = :volumeId", { volumeId })
+      .getExists();
+    return !hasChapters;
+  }
+
+  async checkIfLastVolume(novelId: string, volumeId: string): Promise<boolean> {
+    const lastVolume = await this.volumeRepo.findOne({
+      where: { novelId },
+      order: { orderIndex: "DESC" },
+      select: { id: true },
+    });
+    return lastVolume?.id === volumeId;
   }
 
   existControl(volumeId: string) {

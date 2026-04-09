@@ -13,20 +13,12 @@ export class NovelController {
   ) {}
 
   createNovel = async (req: Request, res: Response) => {
-    let data = req.body;
-    const user = req.user;
-
-    if (user?.role !== UserRoles.ADMIN) {
-      if (!user?.id) {
-        return res.status(403).json({ message: "Yazar ID'si bulunamadı." });
-      }
-      data = { ...data, authorId: user?.id };
-    } else {
-      if (!data.authorId) {
-        throw new BadRequestError("Admin için yazar ID'si gereklidir.");
-      }
-    }
-    const novel = await this.novelService.create(data, req.file);
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
+    const novel = await this.novelService.create(
+      { ...req.body, authorId: req.user?.id },
+      isAdmin,
+      req.file,
+    );
     res.status(201).json(novel);
   };
 

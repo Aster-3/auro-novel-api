@@ -8,6 +8,9 @@ import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { chapterController } from "../container.js";
 import { createPublicationSchema } from "../schemas/publish.chapter.schema.js";
+import { PublicationStatus } from "../constants/chapter.constants.js";
+import z from "zod";
+import { createChapterPurchaseSchema } from "../schemas/create.chapter.purchase.schema.js";
 
 const router = Router();
 
@@ -51,6 +54,29 @@ router.delete(
   authMiddleware,
   validateSchema(deleteChapterSchema),
   chapterController.deleteChapter,
+);
+
+router.post(
+  "/:id/purchase",
+  authMiddleware,
+  validateSchema(createChapterPurchaseSchema),
+  chapterController.purchaseChapter,
+);
+
+router.patch(
+  "/:id/publication-status",
+  authMiddleware,
+  validateSchema(
+    z.object({
+      body: z.object({
+        publicationStatus: z.enum(
+          PublicationStatus,
+          "Geçersiz yayınlanma durumu",
+        ),
+      }),
+    }),
+  ),
+  chapterController.changePublicationStatus,
 );
 
 export default router;

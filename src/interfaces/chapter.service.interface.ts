@@ -1,5 +1,7 @@
+import { PublicationStatus } from "../constants/chapter.constants.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { Chapter } from "../entities/Chapter.js";
+import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.schema.js";
 import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
@@ -11,21 +13,37 @@ export interface IChapterService {
     authorId: string,
     isAdmin: boolean,
   ): Promise<void>;
+
   publishChapter(
     dto: CreatePublicationDTO,
     authorId: string,
     isAdmin: boolean,
   ): Promise<void>;
+
   updateChapter(
     dto: UpdateChapterDTO,
     authorId: string,
     isAdmin: boolean,
   ): Promise<void>;
+
   deleteChapter(
     chapterId: string,
     authorId: string,
     isAdmin: boolean,
   ): Promise<void>;
+
+  changePublicationStatus({
+    chapterId,
+    publicationStatus,
+    authorId,
+    isAdmin,
+  }: {
+    chapterId: string;
+    publicationStatus: PublicationStatus;
+    authorId: string;
+    isAdmin: boolean;
+  }): Promise<void>;
+
   getChapterForReading(
     id: string,
     userId: string,
@@ -34,15 +52,23 @@ export interface IChapterService {
     id: string;
     title: string;
     content: string;
-    chapterOrder: number;
-    volumeOrder: number;
-    volumeId: string;
+    isLocked: boolean;
+    nextChapterId: string | null;
+    previousChapterId: string | null;
+    isDiscountActive: boolean;
+    premiumPrice: number;
+    freemiumPrice: number;
+    discountedPremiumPrice: number;
+    discountRate: number;
+    discountEndDate: Date | null;
+    novelStatus: string;
   }>;
   getOneDraftChapter(
     id: string,
     authorId: string,
     isAdmin: boolean,
   ): Promise<Chapter | null>;
+
   getDraftChaptersByNovelId(
     dto: GetChaptersDto,
     userId: string,
@@ -66,4 +92,5 @@ export interface IChapterService {
       isUnpublished?: boolean;
     }>
   >;
+  purchaseChapter(dto: CreateChapterPurchaseDTO): Promise<void>;
 }

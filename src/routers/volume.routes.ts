@@ -5,6 +5,7 @@ import { deleteVolumeSchema } from "../schemas/delete.volume.schema.js";
 import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { volumeController } from "../container.js";
+import { updateVolumeSchema } from "../schemas/update.volume.schema.js";
 
 const router = Router();
 
@@ -22,8 +23,16 @@ router.post(
 );
 router.delete(
   "/:id",
+  authMiddleware,
   validateSchema(deleteVolumeSchema),
   volumeController.deleteVolume,
+);
+
+router.patch(
+  "/:id",
+  authMiddleware,
+  validateSchema(updateVolumeSchema),
+  volumeController.updateVolume,
 );
 
 export default router;

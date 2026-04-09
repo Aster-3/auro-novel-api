@@ -6,6 +6,13 @@ export class VolumeController {
   createVolume = async (req: any, res: any) => {
     const isAdmin = req.user?.role === "admin";
     const userId = req.user?.id || "";
+    console.log(
+      "Milestone: Volume found, proceeding with update checks.",
+      req.user,
+      req.body,
+      res.locals.validatedData,
+    );
+
     await this.volumeService.createVolume(
       res.locals.validatedData,
       isAdmin,
@@ -16,7 +23,9 @@ export class VolumeController {
 
   deleteVolume = async (req: any, res: any) => {
     const { id } = req.params;
-    await this.volumeService.deleteVolume(id);
+    const isAdmin = req.user?.role === "admin";
+    const userId = req.user?.id || "";
+    await this.volumeService.deleteVolume(id, isAdmin, userId);
     res.sendStatus(204);
   };
 
@@ -24,5 +33,19 @@ export class VolumeController {
     const { id } = req.params;
     const volumes = await this.volumeService.getVolumeByNovelId(id);
     res.json({ volumes });
+  };
+
+  updateVolume = async (req: any, res: any) => {
+    const { id } = req.params;
+    const isAdmin = req.user?.role === "admin";
+    const userId = req.user?.id || "";
+
+    await this.volumeService.updateVolume(
+      id,
+      res.locals.validatedData.name,
+      isAdmin,
+      userId,
+    );
+    res.json({ message: "Cilt başarıyla güncellendi." });
   };
 }

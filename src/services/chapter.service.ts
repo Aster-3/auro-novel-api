@@ -7,6 +7,16 @@ import { ForbiddenError } from "../errors/forbidden.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
 import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
+import { PublicationStatus } from "../constants/chapter.constants.js";
+import { truncateHtml } from "../utils/truncateHtml.js";
+import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.schema.js";
+import {
+  AuthorTransactionType,
+  CoinType,
+  Currency,
+  ReaderTransactionType,
+} from "../constants/transaction.contants.js";
+import { calculateFinalAmount } from "../utils/calculateFinalAmount.js";
 
 export class ChapterService implements IChapterService {
   constructor(private uow: IUnitOfWork) {}
@@ -238,7 +248,7 @@ export class ChapterService implements IChapterService {
       await this.uow.chapterPublicationRepository.getChapterForReading(id);
 
     if (!data) {
-      throw new NotFoundError("Bölüm mevcut değil veya yayında değil.");
+      throw new NotFoundError("Bölüm mevcut değil.");
     }
 
     const {
@@ -247,10 +257,39 @@ export class ChapterService implements IChapterService {
       authorId,
       volumeOrder,
       chapterOrder,
+      publicationStatus,
+      content,
     } = data;
 
-    let isLockedBySystem = volumeOrder === 0;
+    const isOwner = authorId === userId;
+    const [hasPurchased, nextChapter, previousChapterId, appConfig] =
+      await Promise.all([
+        this.uow.chapterPurchaseRepository.hasPurchasedChapterByUserId(
+          userId,
+          id,
+        ),
+        this.uow.chapterPublicationRepository.getNextChapter(
+          data.novelId,
+          chapterOrder,
+          volumeOrder,
+        ),
+        this.uow.chapterPublicationRepository.getPreviousChapter(
+          data.novelId,
+          chapterOrder,
+          volumeOrder,
+        ),
+        this.uow.appConfigRepository.getConfig(),
+      ]);
+    const privilegedUser = isAdmin || isOwner || hasPurchased;
 
+    if (
+      publicationStatus === PublicationStatus.UNPUBLISHED &&
+      !privilegedUser
+    ) {
+      throw new ForbiddenError("Bu bölüm yayından kaldırılmıştır.");
+    }
+
+    let isLockedBySystem = volumeOrder === 0;
     if (
       paywallStartVolume !== null &&
       paywallStartChapter !== null &&
@@ -262,29 +301,46 @@ export class ChapterService implements IChapterService {
           chapterOrder >= paywallStartChapter);
     }
 
-    const isOwner = authorId === userId;
+    const isLocked = isLockedBySystem && !privilegedUser;
 
-    const needsPurchaseCheck = isLockedBySystem && !isAdmin && !isOwner;
-    const hasPurchased = needsPurchaseCheck
-      ? await this.uow.chapterPurchaseRepository.hasPurchasedChapterByUserId(
-          userId,
-          id,
-        )
-      : false;
-
-    const canAccess = !isLockedBySystem || isAdmin || isOwner || hasPurchased;
-
-    if (!canAccess) {
-      throw new ForbiddenError("Bu bölüme erişmek için satın almalısınız.");
+    let finalContent = content;
+    if (isLocked) {
+      finalContent = truncateHtml(content, 75);
     }
+    const finalAmount = calculateFinalAmount(
+      {
+        premiumPrice: data.premiumPrice!,
+        freemiumPrice: data.freemiumPrice!,
+        discountRate: data.discountRate,
+        discountEndDate: data.discountEndDate,
+      },
+      {
+        percent: appConfig.seasonSalePercent,
+        endDate: appConfig.seasonSaleEndDate,
+      },
+      CoinType.MOON,
+    );
+
+    const isDiscountActive =
+      finalAmount < data.premiumPrice! && data.discountEndDate! > new Date();
 
     return {
       id: data.id,
       title: data.title,
-      content: data.content,
-      chapterOrder: data.chapterOrder,
+      content: finalContent,
       volumeOrder: data.volumeOrder,
-      volumeId: data.volumeId,
+      novelId: data.novelId,
+      volumeTitle: data.volumeTitle,
+      isLocked: isLocked,
+      nextChapterId: nextChapter || null,
+      previousChapterId: previousChapterId || null,
+      novelStatus: data.novelStatus,
+      isDiscountActive: isDiscountActive,
+      premiumPrice: data.premiumPrice!,
+      freemiumPrice: data.freemiumPrice!,
+      discountedPremiumPrice: finalAmount,
+      discountRate: data.discountRate!,
+      discountEndDate: data.discountEndDate,
     };
   }
 
@@ -313,8 +369,6 @@ export class ChapterService implements IChapterService {
       userId,
     );
 
-    console.log("Kullanıcı sahibi mi?", isOwner);
-
     if (!isAdmin && !isOwner) {
       console.log("Kullanıcı ne admin ne de sahibi, erişim reddediliyor.");
       throw new ConflictError(
@@ -342,6 +396,235 @@ export class ChapterService implements IChapterService {
     return chapters;
   }
 
+  async changePublicationStatus({
+    chapterId,
+    publicationStatus,
+    authorId,
+    isAdmin,
+  }: {
+    chapterId: string;
+    publicationStatus: PublicationStatus;
+    authorId: string;
+    isAdmin: boolean;
+  }) {
+    const chapterMeta =
+      await this.uow.chapterPublicationRepository.getChapterForMeta(chapterId);
+    if (!chapterMeta) {
+      throw new NotFoundError("Bölüm bulunamadı veya yayında değil.");
+    }
+    const isOwner = chapterMeta.authorId === authorId;
+    if (!isAdmin && !isOwner) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu bölüme erişim izniniz yok.",
+      );
+    }
+    await this.uow.chapterPublicationRepository.changePublicationStatus(
+      chapterId,
+      publicationStatus,
+    );
+  }
+
+  async purchaseChapter(dto: CreateChapterPurchaseDTO): Promise<void> {
+    // await this.uow.readerWalletRepository.addCoins(
+    //   dto.userId,
+    //   dto.coinType,
+    //   50,
+    // );
+    const chapter = await this.uow.chapterRepository.getChapterForPurchase(
+      dto.id,
+    );
+    console.log("Satın alınmaya çalışılan bölüm:", chapter);
+    // Erken
+
+    if (!chapter) {
+      throw new NotFoundError("Bölüm bulunamadı.");
+    }
+
+    if (dto.userId === chapter.userId) {
+      throw new ConflictError(
+        "invalid_purchase",
+        "Kendi bölümünüzü satın alamazsınız.",
+      );
+    }
+
+    if (chapter.isNovelBanned) {
+      throw new ConflictError(
+        "chapterId",
+        "Kitap yasaklanmış olduğu için bu bölümü satın alamazsınız.",
+      );
+    }
+
+    if (chapter.publicationStatus !== PublicationStatus.PUBLISHED) {
+      throw new ConflictError("chapterId", "Bu bölüm satın alınamaz.");
+    }
+
+    const isPurchased =
+      await this.uow.chapterPurchaseRepository.hasPurchasedChapterByUserId(
+        dto.userId,
+        dto.id,
+      );
+
+    if (isPurchased) {
+      throw new ConflictError("chapterId", "Bu bölümü zaten satın aldınız.");
+    }
+
+    console.log(
+      "Satın alma işlemi için gerekli kontroller tamamlandı, işleme devam ediliyor.",
+    );
+
+    // Nihai fiyatı hesaplamak için önce geçerli indirim oranını belirleyelim
+    const config = await this.uow.appConfigRepository.getConfig();
+
+    let amountToSubtract = calculateFinalAmount(
+      {
+        premiumPrice: chapter.premiumPrice,
+        freemiumPrice: chapter.freemiumPrice,
+        discountRate: chapter.discountRate,
+        discountEndDate: chapter.discountEndDate,
+      },
+      {
+        percent: config.seasonSalePercent,
+        endDate: config.seasonSaleEndDate,
+      },
+      dto.coinType,
+    );
+    console.log(
+      `Hesaplanan final fiyat: ${amountToSubtract} ${dto.coinType === CoinType.SUN ? "Güneş Parçası" : "Ay Parçası"}`,
+    );
+
+    await this.uow.startTransaction();
+
+    try {
+      // Bakiye Kontrolü
+
+      const balance = await this.uow.readerWalletRepository.getBalance(
+        dto.userId,
+      );
+      if (!balance) throw new ConflictError("balance", "Cüzdan bulunamadı.");
+      console.log(
+        "Bakiye kontrolü tamamlandı, satın alma işlemi gerçekleştiriliyor.",
+        balance,
+      );
+      const currentBalance =
+        dto.coinType === CoinType.SUN ? balance.sunCoins : balance.moonCoins;
+      if (currentBalance < amountToSubtract) {
+        const coinName =
+          dto.coinType === CoinType.SUN ? "Güneş Parçası" : "Ay Parçası";
+        throw new ConflictError("balance", `Yetersiz ${coinName}.`);
+      }
+
+      //  Alım işlemi
+
+      await this.uow.readerWalletRepository.subtractCoins(
+        dto.userId,
+        dto.coinType,
+        amountToSubtract,
+      );
+
+      const purchaseId =
+        await this.uow.chapterPurchaseRepository.createChapterPurchase({
+          chapterId: chapter.chapterId,
+          userId: dto.userId,
+          amount: amountToSubtract,
+          coinType: dto.coinType,
+        });
+
+      // Transaction Log
+
+      const chapterIdentifier = chapter.chapterTitle?.trim()
+        ? chapter.chapterTitle
+        : `Bölüm (ID: ${chapter.chapterId.slice(-4)})`;
+
+      await this.uow.readerWalletTransactionRepository.createTransaction({
+        walletId: balance.id,
+        amount: amountToSubtract,
+        coinType: dto.coinType,
+        transactionType: ReaderTransactionType.PURCHASE,
+        description: `${chapter.novelTitle}: ${chapterIdentifier} satın alındı`,
+      });
+
+      // 5. İstatistik: Satış sayısını artır
+      await this.uow.novelRepository.incrementTotalSales(chapter.novelId);
+
+      // --- KRİTİK AYRIM: YAZAR HAKEDİŞİ ---
+
+      if (dto.coinType === CoinType.MOON) {
+        const coinPrice = config.baseCoinPrice;
+
+        const authorWallet =
+          await this.uow.authorWalletRepository.getWalletByAuthorId(
+            chapter.authorId!,
+          );
+
+        if (!authorWallet) {
+          throw new NotFoundError("Yazar cüzdanı bulunamadı.");
+        }
+
+        // Moon Coin Hakedişi Hesaplama
+
+        const grossAmount = amountToSubtract * coinPrice;
+
+        const authorEarning = Math.floor(
+          grossAmount * (chapter.authorSharePercent / 100),
+        );
+
+        const platformEarning = grossAmount - authorEarning;
+
+        const earningId =
+          await this.uow.authorEarningRepository.createEarningRecord({
+            authorId: chapter.authorId!,
+            novelId: chapter.novelId,
+            chapterId: chapter.chapterId,
+            purchaseId: purchaseId,
+            coinAmount: amountToSubtract,
+            coinUnitPrice: coinPrice,
+            currency: Currency.TRY,
+            grossAmount: grossAmount,
+            authorSharePercent: chapter.authorSharePercent,
+            platformCommissionAmount: platformEarning,
+            netAmount: authorEarning,
+          });
+
+        const newBalance =
+          await this.uow.authorWalletRepository.incrementTotalEarningsAndBalance(
+            chapter.authorId!,
+            authorEarning,
+          );
+
+        await this.uow.authorWalletTransactionRepository.createTransaction({
+          walletId: authorWallet.id,
+          transactionType: AuthorTransactionType.EARNING,
+          amount: authorEarning,
+          balanceBeforeTransaction: newBalance - authorEarning,
+          balanceAfterTransaction: newBalance,
+          description: `[${chapter.novelTitle}]: ${chapterIdentifier}`,
+          referenceId: earningId,
+        });
+
+        await this.uow.platformEarningRepository.createEarningRecord({
+          authorId: chapter.authorId!,
+          novelId: chapter.novelId,
+          chapterId: chapter.chapterId,
+          purchaseId: purchaseId,
+          grossAmount: grossAmount,
+          platformCommissionRate: 100 - chapter.authorSharePercent,
+          coinAmount: amountToSubtract,
+          coinUnitPrice: coinPrice,
+          currency: Currency.TRY,
+          netAmount: platformEarning,
+        });
+
+        await this.uow.platformFinanceRepository.recordIncome(platformEarning);
+      }
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
+  }
   async createChapter2(
     dto: CreateChapterDTO,
     authorId: string,

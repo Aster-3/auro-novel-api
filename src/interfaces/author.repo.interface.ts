@@ -8,4 +8,6 @@ export interface IAuthorRepository {
   delete(id: string): Promise<void>;
   getAuthors(dto: GetAuthorsDto): Promise<FindAndCountType<Author>>;
   findByUserId(userId: string): Promise<Author | null>;
+  existControlAuthorId(authorId: string): Promise<Author | null>;
+  getAuthorWalletByUserId(userId: string): Promise<Author | null>;
 }

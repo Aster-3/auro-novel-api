@@ -12,6 +12,7 @@ export interface IUserRepository {
   findOneByEmail(email: string): Promise<User | null>;
   findOneByUsername(username: string): Promise<User | null>;
   findOneById(id: string): Promise<User | null>;
+  deleteUser(id: string): Promise<void>;
   activateUser(user: User, verification: UserVerification): Promise<User>;
   create(user: CreateUserDto, code: string, expiry: Date): Promise<User>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
@@ -22,4 +23,5 @@ export interface IUserRepository {
   getMe(dto: GetMeQuery): Promise<User | null>;
   updateRefreshToken(userId: string, refreshToken: string): Promise<void>;
   getUserForTokenRefresh(userId: string): Promise<User | null>;
+  getUserForPurchase(userId: string): Promise<User | null>;
 }

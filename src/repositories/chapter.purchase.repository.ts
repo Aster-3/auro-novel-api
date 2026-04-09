@@ -1,13 +1,10 @@
 import { DataSource, Repository } from "typeorm";
 import { ChapterPurchase, Novel } from "../entities/_index.js";
-import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.schema.js";
 import { IChapterPurchaseRepository } from "../interfaces/chapter.purchase.repo.interface.js";
+import { CoinType } from "../constants/transaction.contants.js";
 
 export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
-  constructor(
-    private chapterPurchaseRepo: Repository<ChapterPurchase>,
-    private dataSource: DataSource,
-  ) {}
+  constructor(private chapterPurchaseRepo: Repository<ChapterPurchase>) {}
 
   async getAllChapterPurchases() {
     return await this.chapterPurchaseRepo.find({
@@ -22,7 +19,6 @@ export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
         chapter: {
           id: true,
           title: true,
-          orderIndex: true,
           novel: {
             id: true,
             name: true,
@@ -38,31 +34,25 @@ export class ChapterPurchaseRepository implements IChapterPurchaseRepository {
     });
   }
 
-  async createChapterPurchase(dto: CreateChapterPurchaseDTO) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const result = await queryRunner.manager.save(ChapterPurchase, dto);
-
-      await queryRunner.manager
-        .createQueryBuilder()
-        .update(Novel)
-        .set({ purchaseCount: () => "purchaseCount + 1" })
-        .where('id = (SELECT "novelId" FROM chapter WHERE id = :chapterId)', {
-          chapterId: dto.chapterId,
-        })
-        .execute();
-
-      await queryRunner.commitTransaction();
-      return !!result;
-    } catch (err) {
-      await queryRunner.rollbackTransaction();
-      throw err;
-    } finally {
-      await queryRunner.release();
-    }
+  async createChapterPurchase({
+    userId,
+    chapterId,
+    amount,
+    coinType,
+  }: {
+    userId: string;
+    chapterId: string;
+    amount: number;
+    coinType: CoinType;
+  }) {
+    const newPurchase = this.chapterPurchaseRepo.create({
+      userId,
+      chapterId,
+      amount,
+      coinType,
+    });
+    const savedPurchase = await this.chapterPurchaseRepo.save(newPurchase);
+    return savedPurchase.id;
   }
 
   async hasPurchasedChapterByUserId(userId: string, chapterId: string) {

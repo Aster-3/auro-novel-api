@@ -6,7 +6,6 @@ import { NotFoundError } from "../errors/not.found.error.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
 import * as argon2 from "argon2";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
-import { IUserVerificationRepository } from "../interfaces/user.verification.repo.interface.js";
 import { ForbiddenError } from "../errors/forbidden.error.js";
 import { BadRequestError } from "../errors/bad.request.js";
 import { MailService } from "./mail.service.js";
@@ -16,49 +15,74 @@ import { User } from "../entities/User.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { GetMeQuery } from "../schemas/get.me.schema.js";
 import { UserLoginResponseDto } from "../dtos/login.dto.js";
-import { ref } from "node:process";
 import { UnauthenticatedError } from "../errors/unauthenticated.error.js";
+import { IUnitOfWork } from "../interfaces/unit.of.work.interface.js";
 
 export class UserService implements IUserService {
   constructor(
-    private userRepo: IUserRepository,
-    private userVerificationRepo: IUserVerificationRepository,
-    private mailService?: MailService,
-    private tokenService?: TokenService,
+    private uow: IUnitOfWork,
+    private mailService: MailService,
+    private tokenService: TokenService,
   ) {}
 
   create = async (dto: CreateUserDto) => {
-    const usernameAvailable = await this.userRepo.findOneByUsername(
+    const usernameAvailable = await this.uow.userRepository.findOneByUsername(
       dto.username,
     );
     if (usernameAvailable)
       throw new ConflictError("username", "Kullanıcı adı zaten alınmış.");
 
-    const emailAvailable = await this.userRepo.findOneByEmail(dto.email);
+    const emailAvailable = await this.uow.userRepository.findOneByEmail(
+      dto.email,
+    );
     if (emailAvailable)
-      throw new ConflictError("email", "Email zaten alınmış.");
+      throw new ConflictError("email", "Email zaten alınmış.");
 
     const hashedPassword = await argon2.hash(dto.password);
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 5 * 60000);
 
-    const user = await this.userRepo.create(
-      { ...dto, password: hashedPassword },
-      code,
-      expiry,
-    );
-    if (this.mailService) {
-      await this.mailService.sendVerificationCode(user.email, code);
+    await this.uow.startTransaction();
+
+    try {
+      const user = await this.uow.userRepository.create(
+        { ...dto, password: hashedPassword },
+        code,
+        expiry,
+      );
+
+      await this.uow.readerWalletRepository.create(user.id, {
+        sun: 0,
+        moon: 65,
+      });
+      await this.uow.commit();
+      try {
+        await this.mailService.sendVerificationCode(user.email, code);
+      } catch (err) {
+        console.error("Doğrulama kodu gönderilirken hata oluştu:", err);
+      }
+
+      return user;
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
     }
-    return user;
   };
 
+  deleteUser(id: string): Promise<void> {
+    return this.uow.userRepository.deleteUser(id);
+  }
+
   verifyUser = async (dto: VerifyUserDto) => {
-    const verification = await this.userVerificationRepo.findByEmail(dto.email);
+    const verification = await this.uow.userVerificationRepository.findByEmail(
+      dto.email,
+    );
 
     if (!verification) {
-      const user = await this.userRepo.findOneByEmail(dto.email);
+      const user = await this.uow.userRepository.findOneByEmail(dto.email);
 
       if (user && user.isVerified) {
         throw new ConflictError("user", "Bu hesap zaten onaylanmış.");
@@ -76,7 +100,9 @@ export class UserService implements IUserService {
     }
 
     if (verification.code !== dto.code) {
-      await this.userVerificationRepo.incrementAttempts(verification.id);
+      await this.uow.userVerificationRepository.incrementAttempts(
+        verification.id,
+      );
       throw new BadRequestError("E-posta adresi veya doğrulama kodu hatalı.");
     }
 
@@ -85,25 +111,25 @@ export class UserService implements IUserService {
     if (user.isVerified) {
       throw new ConflictError("user", "Bu hesap zaten doğrulanmış.");
     }
-    return await this.userRepo.activateUser(user, verification);
+    return await this.uow.userRepository.activateUser(user, verification);
   };
 
   getOneUser = async (id: string) => {
-    const user = await this.userRepo.findOneById(id);
+    const user = await this.uow.userRepository.findOneById(id);
     if (!user) throw new NotFoundError("Kullanıcı bulunamadı.");
     return user;
   };
 
   searchUsers = async (dto: GetUsersDto) => {
-    return await this.userRepo.searchUsers(dto);
+    return await this.uow.userRepository.searchUsers(dto);
   };
 
   getAllVerifications = async () => {
-    return await this.userVerificationRepo.getAll();
+    return await this.uow.userVerificationRepository.getAll();
   };
 
   resendCode = async (email: string) => {
-    const user = await this.userRepo.findOneByEmail(email);
+    const user = await this.uow.userRepository.findOneByEmail(email);
 
     if (!user) throw new NotFoundError("Kullanıcı bulunamadı.");
 
@@ -114,21 +140,19 @@ export class UserService implements IUserService {
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
     const newExpiry = new Date(Date.now() + 5 * 60000);
 
-    await this.userVerificationRepo.refreshVerificationCode(
+    await this.uow.userVerificationRepository.refreshVerificationCode(
       user.id,
       newCode,
       newExpiry,
     );
 
-    if (this.mailService) {
-      this.mailService.sendVerificationCode(user.email, newCode);
-    }
+    await this.mailService.sendVerificationCode(user.email, newCode);
 
     return { message: "Yeni doğrulama kodu e-posta adresinize gönderildi." };
   };
 
   login = async (dto: UserLoginDto) => {
-    const user = await this.userRepo.findForLogin(dto.email);
+    const user = await this.uow.userRepository.findForLogin(dto.email);
     if (!user) {
       throw new BadRequestError("E-posta adresi veya şifre hatalı.");
     }
@@ -144,15 +168,15 @@ export class UserService implements IUserService {
       );
     }
 
-    const accessToken = this.tokenService?.generateAccessToken({
+    const accessToken = this.tokenService.generateAccessToken({
       id: user.id,
       email: user.email,
       role: user.role,
     });
-    const refreshToken = this.tokenService?.generateRefreshToken({
+    const refreshToken = this.tokenService.generateRefreshToken({
       id: user.id,
     });
-    await this.userRepo.updateRefreshToken(user.id, refreshToken!);
+    await this.uow.userRepository.updateRefreshToken(user.id, refreshToken!);
 
     const parsedUser = new UserLoginResponseDto(user);
 
@@ -160,7 +184,7 @@ export class UserService implements IUserService {
   };
 
   async updateUser(dto: UpdateUserDto): Promise<User> {
-    const updated = await this.userRepo.updateUser(dto);
+    const updated = await this.uow.userRepository.updateUser(dto);
     if (!updated) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
@@ -168,7 +192,7 @@ export class UserService implements IUserService {
   }
 
   async getMe(dto: GetMeQuery): Promise<User> {
-    const user = await this.userRepo.getMe(dto);
+    const user = await this.uow.userRepository.getMe(dto);
     if (!user) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
@@ -177,17 +201,17 @@ export class UserService implements IUserService {
 
   refreshToken = async (refreshToken: string) => {
     try {
-      const payload: any = this.tokenService?.verifyRefreshToken(refreshToken);
+      const payload: any = this.tokenService.verifyRefreshToken(refreshToken);
 
       if (!payload) {
         throw new UnauthenticatedError("REFRESH_TOKEN_INVALID");
       }
-      const user = await this.userRepo.findOneById(payload.id);
+      const user = await this.uow.userRepository.findOneById(payload.id);
 
       if (!user || user.refreshToken !== refreshToken) {
         throw new UnauthenticatedError("REFRESH_TOKEN_INVALID");
       }
-      const newAccessToken = this.tokenService?.generateAccessToken({
+      const newAccessToken = this.tokenService.generateAccessToken({
         id: user.id,
         email: user.email,
         role: user.role,
@@ -200,4 +224,14 @@ export class UserService implements IUserService {
       throw new UnauthenticatedError("REFRESH_TOKEN_INVALID");
     }
   };
+
+  async getUserBalance(
+    userId: string,
+  ): Promise<{ moonCoins: number; sunCoins: number }> {
+    const balance = await this.uow.readerWalletRepository.getBalance(userId);
+    return {
+      moonCoins: balance.moonCoins,
+      sunCoins: balance.sunCoins,
+    };
+  }
 }

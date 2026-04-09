@@ -1,4 +1,6 @@
+import { PublicationStatus } from "../constants/chapter.constants.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
+import { SeriesStatus } from "../constants/series.constants.js";
 import { ChapterPublication } from "../entities/ChapterPublication.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
@@ -29,9 +31,17 @@ export interface IChapterPublicationRepository {
     chapterOrder: number;
     volumeOrder: number;
     volumeId: string;
+    volumeTitle: string | null;
     paywallStartChapter: number | null;
     paywallStartVolume: number | null;
+    premiumPrice: number | null;
+    freemiumPrice: number | null;
+    discountRate: number | null;
+    discountEndDate: Date | null;
     authorId: string | null;
+    publicationStatus: PublicationStatus;
+    novelId: string;
+    novelStatus: SeriesStatus;
   } | null>;
   getChapterForMeta(id: string): Promise<{
     id: string;
@@ -48,4 +58,18 @@ export interface IChapterPublicationRepository {
     volumeId: string,
   ): Promise<boolean>;
   closeGapInVolume(volumeId: string, from: number): Promise<void>;
+  changePublicationStatus(
+    chapterId: string,
+    publicationStatus: PublicationStatus,
+  ): Promise<void>;
+  getNextChapter(
+    novelId: string,
+    chapterOrder: number,
+    volumeOrder: number,
+  ): Promise<string | null>;
+  getPreviousChapter(
+    novelId: string,
+    chapterOrder: number,
+    volumeOrder: number,
+  ): Promise<string | null>;
 }

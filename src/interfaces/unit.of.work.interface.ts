@@ -14,6 +14,15 @@ import { ITagRepository } from "./tag.repo.interface.js";
 import { IUserRepository } from "./user.repo.interface.js";
 import { IUserVerificationRepository } from "./user.verification.repo.interface.js";
 import { IVolumeRepository } from "./volume.repo.interface.js";
+import { IReaderWalletRepository } from "./reader.wallet.repository.interface.js";
+import { IReaderWalletTransactionRepository } from "./reader.wallet.transaction.repo.interface.js";
+import { IAppConfigRepository } from "./app.config.repository.interface.js";
+import { IAuthorWalletRepository } from "./author.wallet.repo.interface.js";
+import { IAuthorWalletTransactionRepository } from "./author.wallet.transaction.repo.interface.js";
+import { IAuthorEarningRepository } from "./author.earning.repo.interface.js";
+import { IPlatformEarningRepository } from "./platform.earning.repo.interface.js";
+import { IPlatformFinanceRepository } from "./platform.finance.repo.interface.js";
+import { IPlatformWithdrawalRepository } from "./platform.withdrawal.repo.interface.js";
 
 export interface IUnitOfWork {
   authorRepository: IAuthorRepository;
@@ -32,6 +41,15 @@ export interface IUnitOfWork {
   userRepository: IUserRepository;
   userVerificationRepository: IUserVerificationRepository;
   volumeRepository: IVolumeRepository;
+  readerWalletRepository: IReaderWalletRepository;
+  readerWalletTransactionRepository: IReaderWalletTransactionRepository;
+  authorWalletRepository: IAuthorWalletRepository;
+  authorWalletTransactionRepository: IAuthorWalletTransactionRepository;
+  authorEarningRepository: IAuthorEarningRepository;
+  platformEarningRepository: IPlatformEarningRepository;
+  platformFinanceRepository: IPlatformFinanceRepository;
+  platformWithdrawalRepository: IPlatformWithdrawalRepository;
+  appConfigRepository: IAppConfigRepository;
 
   startTransaction(): Promise<void>;
   commit(): Promise<void>;

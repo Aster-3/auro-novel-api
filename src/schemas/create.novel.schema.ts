@@ -14,10 +14,10 @@ export const createNovelSchema = z.object({
         /^[a-z0-9-]+$/,
         "Slug sadece küçük harf, sayı ve tire (-) içerebilir",
       ),
-    authorId: reqUuid("Yazar id").optional(),
   }),
 });
 
 export type CreateNovelDTo = z.infer<typeof createNovelSchema>["body"] & {
   coverImage?: string;
+  authorId: string;
 };

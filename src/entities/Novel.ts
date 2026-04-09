@@ -24,6 +24,7 @@ import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
 import { Author } from "./Author.js";
 import { NovelDailyStats } from "./NovelDailyStats.js";
+import { AuthorEarning } from "./AuthorEarning.js";
 
 @Entity()
 export class Novel {
@@ -60,10 +61,22 @@ export class Novel {
   authorSharePercent!: number;
 
   @Column({ type: "int", default: 10 })
-  defaultChapterPrice!: number;
+  chapterPremiumPrice!: number;
+
+  @Column({ type: "int", default: 5 })
+  chapterFreemiumPrice!: number;
 
   @Column({ type: "int", default: 0 })
   chapterCount!: number;
+
+  @Column({ type: "int", default: 0 })
+  discountRate!: number;
+
+  @Column({ type: "timestamp", nullable: true, default: null })
+  discountEndDate!: Date | null;
+
+  @Column({ type: "int", default: 0 })
+  totalSales!: number;
 
   @Column({ type: "timestamp", nullable: true, default: null })
   lastChapterDate?: Date | null;
@@ -73,6 +86,12 @@ export class Novel {
 
   @Column({ type: "int", default: 31, nullable: true })
   paywallStartChapter!: number | null;
+
+  @Column({ type: "boolean", default: false })
+  isBanned!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isAdultContent!: boolean;
 
   @Index()
   @Column({ type: "uuid" })
@@ -90,9 +109,6 @@ export class Novel {
 
   @Column({ type: "int", default: 0 })
   totalReviewsCount!: number;
-
-  @Column({ type: "int", default: 0 })
-  purchaseCount!: number;
 
   @Column({ type: "float", default: 0, select: false })
   popularityScore!: number;
@@ -125,4 +141,7 @@ export class Novel {
 
   @OneToMany(() => NovelDailyStats, (stats) => stats.novel)
   dailyStats!: NovelDailyStats[];
+
+  @OneToMany(() => AuthorEarning, (earning) => earning.novel)
+  earnings!: AuthorEarning[];
 }

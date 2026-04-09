@@ -21,6 +21,8 @@ router.get(
 
 router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
+router.get("/me/wallet", authMiddleware, userController.getUserBalance);
+
 router.get("/", validateSchema(getUsersSchema), userController.getUsers);
 
 router.patch(
@@ -32,6 +34,12 @@ router.patch(
   ]),
   validateSchema(updateUserSchema),
   userController.updateUser,
+);
+
+router.delete(
+  "/:id",
+  validateSchema(paramsUuidSchema),
+  userController.deleteUser,
 );
 
 router.get("/verifications/all", userController.getAllVerifications);

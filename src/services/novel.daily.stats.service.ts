@@ -18,16 +18,15 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
     novelId: string,
     authorId: string,
   ): Promise<NovelStatsResponse> => {
-    // const novelExists = await this.novelRepository.isOwnerControl(
-    //   novelId,
-    //   authorId,
-    // );
-    // if (!novelExists) {
-    //   throw new NotFoundError(
-    //     "Novel bulunamadı veya bu novelin sahibi değilsiniz.",
-    //   );
-    // }
-    // Şimdilik
+    const novelExists = await this.novelRepository.isOwnerControl(
+      novelId,
+      authorId,
+    );
+    if (!novelExists) {
+      throw new NotFoundError(
+        "Novel bulunamadı veya bu novelin sahibi değilsiniz.",
+      );
+    }
     const snapshots = await this.novelDailyStatsRepo.getLatestSnapshots(
       novelId,
       2,
@@ -70,7 +69,7 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
         dayBefore?.totalReviews,
       ),
       totalSoldChapters: calculateTrend(
-        liveNovel.purchaseCount,
+        liveNovel.totalSales,
         yesterday?.totalPurchases,
         dayBefore?.totalPurchases,
       ),

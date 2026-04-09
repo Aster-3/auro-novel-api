@@ -1,4 +1,10 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Novel } from "./Novel.js";
 
 @Entity()
@@ -28,5 +34,6 @@ export class NovelDailyStats {
     nullable: false,
     onDelete: "CASCADE",
   })
+  @JoinColumn({ name: "novelId" })
   novel!: Novel;
 }

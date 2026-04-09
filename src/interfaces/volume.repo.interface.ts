@@ -4,11 +4,12 @@ import { CreateVolumeDTO } from "../schemas/create.volume.schema.js";
 
 export interface IVolumeRepository {
   create(dto: CreateVolumeDTO): Promise<string>;
+  update(volumeId: string, name: string): Promise<void>;
+  delete(id: string): Promise<void>;
   getOneById(id: string): Promise<Volume | null>;
   existControl(volumeId: string): Promise<boolean>;
   isOwnerControl(volumeId: string, authorId: string): Promise<boolean>;
   duplicateControl(novelId: string, order: number): Promise<boolean>;
-  delete(id: string): Promise<void>;
   getLastVolume(novelId: string): Promise<Volume | null>;
   getVolumeByNovelId(novelId: string): Promise<CreateVolumeDTO[]>;
   hasAnyEmptyPreviousVolume(
@@ -35,4 +36,6 @@ export interface IVolumeRepository {
     novelId: string,
     currentOrderIndex: number,
   ): Promise<boolean>;
+  isVolumeEmpty(volumeId: string): Promise<boolean>;
+  checkIfLastVolume(novelId: string, volumeId: string): Promise<boolean>;
 }

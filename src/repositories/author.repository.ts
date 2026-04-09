@@ -2,7 +2,6 @@ import { Repository } from "typeorm";
 import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { CreateAuthorDto } from "../schemas/create.author.schmea.js";
 import { Author } from "../entities/Author.js";
-import { UpdateUserDto } from "../schemas/update.user.schema.js";
 
 export class AuthorRepository implements IAuthorRepository {
   constructor(private authorRepo: Repository<Author>) {}
@@ -27,6 +26,7 @@ export class AuthorRepository implements IAuthorRepository {
           id: true,
           nickname: true,
         },
+        userId: true,
         isVerified: true,
       },
       take: limit,
@@ -51,4 +51,38 @@ export class AuthorRepository implements IAuthorRepository {
     }
     return author;
   };
+
+  async existControlAuthorId(authorId: string) {
+    const author = await this.authorRepo.findOne({
+      where: { id: authorId },
+    });
+    if (!author) {
+      return null;
+    }
+    return author;
+  }
+
+  async getAuthorWalletByUserId(userId: string): Promise<Author | null> {
+    const author = await this.authorRepo.findOne({
+      where: { userId },
+      select: {
+        id: true,
+        wallet: {
+          id: true,
+          totalEarnings: true,
+          withdrawableBalance: true,
+          pendingWithdrawalBalance: true,
+          canWithdrawAfter: true,
+        },
+      },
+      relations: {
+        wallet: true,
+        user: true,
+      },
+    });
+    if (!author) {
+      return null;
+    }
+    return author;
+  }
 }

@@ -12,6 +12,7 @@ import { VerifyUserDto } from "../schemas/verify.user.schema.js";
 export interface IUserService {
   create(dto: CreateUserDto): Promise<User | null>;
   getOneUser(id: string): Promise<User>;
+  deleteUser(id: string): Promise<void>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
   verifyUser(dto: VerifyUserDto): Promise<User>;
   getAllVerifications(): Promise<UserVerification[]>;
@@ -27,4 +28,7 @@ export interface IUserService {
     user: UserLoginResponseDto;
     accessToken?: string;
   }>;
+  getUserBalance(
+    userId: string,
+  ): Promise<{ moonCoins: number; sunCoins: number }>;
 }

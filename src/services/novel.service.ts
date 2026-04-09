@@ -14,23 +14,33 @@ export class NovelService implements INovelService {
     private authorRepo: IAuthorRepository,
   ) {}
 
-  async create(dto: CreateNovelDTo, file?: Express.Multer.File) {
+  async create(
+    dto: CreateNovelDTo,
+    isAdmin: boolean,
+    file?: Express.Multer.File,
+  ) {
     const isSlugTaken = await this.novelRepo.existControl({ slug: dto.slug });
+
     if (isSlugTaken)
       throw new ConflictError("slug", "Bu slug zaten kullanımda.");
 
     const novelData = { ...dto };
 
-    if (dto.authorId) {
-      let author = await this.authorRepo.findByUserId(dto.authorId);
+    if (!isAdmin) {
+      const author = await this.authorRepo.findByUserId(dto.authorId);
 
       if (!author) {
-        const newAuthorId = await this.authorRepo.create({
-          userId: dto.authorId,
-        });
-        novelData.authorId = newAuthorId;
-      } else {
-        novelData.authorId = author.id;
+        throw new NotFoundError("Yazar bulunamadı.");
+      }
+
+      novelData.authorId = author.id;
+    } else {
+      const isAuthorAvailable = await this.authorRepo.existControlAuthorId(
+        dto.authorId,
+      );
+
+      if (!isAuthorAvailable) {
+        throw new NotFoundError("Yazar bulunamadı.");
       }
     }
 
@@ -64,10 +74,6 @@ export class NovelService implements INovelService {
 
   async updateNovelTags(novelId: string, tagIds: string[]) {
     await this.novelRepo.updateNovelTags(novelId, tagIds);
-  }
-
-  async checkNovelExists(id: string): Promise<boolean> {
-    return await this.novelRepo.existControl({ id });
   }
 
   incrementViewCount(novelId: string) {

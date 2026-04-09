@@ -107,6 +107,7 @@ export class UserRepository implements IUserRepository {
         username: true,
         nickname: true,
         profileImageUrl: true,
+        email: true,
       },
       order: { createdAt: "ASC" },
       take: limit,
@@ -175,6 +176,28 @@ export class UserRepository implements IUserRepository {
         email: true,
         profileImageUrl: true,
         role: true,
+      },
+    });
+    if (!user) {
+      return null;
+    }
+    return user;
+  }
+
+  async deleteUser(id: string) {
+    await this.userRepo.delete(id);
+  }
+
+  async getUserForPurchase(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: {
+        id: true,
+        wallet: {
+          id: true,
+          moonCoins: true,
+          sunCoins: true,
+        },
       },
     });
     if (!user) {

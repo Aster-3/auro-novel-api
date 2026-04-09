@@ -7,6 +7,7 @@ import rootRouter from "./routers/_main.routes.js";
 import path from "path";
 import { Chapter } from "./entities/Chapter.js";
 import { ChapterPurchase } from "./entities/ChapterPurchase.js";
+import { AppConfig } from "./entities/AppConfig.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -27,6 +28,7 @@ async function startServer() {
   try {
     const ds = await AppDataSource.initialize();
     console.log("Database connected.");
+
     const server = app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}.`);
     });

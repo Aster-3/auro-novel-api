@@ -32,16 +32,11 @@ const uow = new UnitOfWork();
 const mailService = new MailService();
 const tokenService = new TokenService();
 
-const authorService = new AuthorService(
-  uow.authorRepository,
-  uow.userRepository,
-);
+const authorService = new AuthorService(uow);
 const categoryService = new CategoryService(uow.categoryRepository);
 const chapterService = new ChapterService(uow);
 const chapterPurchaseService = new ChapterPurchaseService(
   uow.chapterPurchaseRepository,
-  uow.userRepository,
-  uow.chapterRepository,
 );
 const commentService = new CommentService(
   uow.commentRepository,
@@ -63,13 +58,11 @@ const replyService = new ReplyService(
   uow.replyLikeRepository,
 );
 const tagService = new TagService(uow.tagRepository);
-const userService = new UserService(
-  uow.userRepository,
-  uow.userVerificationRepository,
-  mailService,
-  tokenService,
+const userService = new UserService(uow, mailService, tokenService);
+const volumeService = new VolumeService(
+  uow.volumeRepository,
+  uow.novelRepository,
 );
-const volumeService = new VolumeService(uow.volumeRepository);
 
 export const authController = new AuthController(userService);
 export const authorController = new AuthorController(authorService);

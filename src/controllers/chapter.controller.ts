@@ -6,7 +6,7 @@ export class ChapterController {
 
   getOneChapter = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    const userId = req.user?.id || "";
+    const userId = req.user?.id || null!;
     const isAdmin = req.user?.role === "admin";
     const chapter = await this.chapterService.getChapterForReading(
       id,
@@ -65,6 +65,31 @@ export class ChapterController {
       userId,
       isAdmin,
     );
+    res.sendStatus(204);
+  };
+
+  changePublicationStatus = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const { publicationStatus } = req.body;
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === "admin";
+    await this.chapterService.changePublicationStatus({
+      chapterId: id,
+      publicationStatus,
+      authorId: userId,
+      isAdmin,
+    });
+    res.sendStatus(204);
+  };
+
+  purchaseChapter = async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    const id = req.params.id;
+    await this.chapterService.purchaseChapter({
+      ...req.body,
+      userId,
+      id,
+    });
     res.sendStatus(204);
   };
 }

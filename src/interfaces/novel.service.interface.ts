@@ -5,12 +5,15 @@ import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export interface INovelService {
-  create(dto: CreateNovelDTo, file?: Express.Multer.File): Promise<Novel>;
+  create(
+    dto: CreateNovelDTo,
+    isAdmin: boolean,
+    file?: Express.Multer.File,
+  ): Promise<Novel>;
   getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<Novel>>;
   getNovelDetailWithId(id: string): Promise<Novel>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
-  checkNovelExists(id: string): Promise<boolean>;
   incrementViewCount(novelId: string): Promise<void>;
   updateNovel(dto: UpdateNovelDTO): Promise<void>;
   deleteNovel(novelId: string): Promise<void>;

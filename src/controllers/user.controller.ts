@@ -11,6 +11,12 @@ export class UserController {
     res.status(200).json(user);
   };
 
+  deleteUser = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    await this.userService.deleteUser(id);
+    res.status(204).send();
+  };
+
   getUsers = async (req: Request, res: Response) => {
     const users = await this.userService.searchUsers(res.locals.validatedData);
     res.status(200).json(users);
@@ -52,5 +58,11 @@ export class UserController {
       fields: res.locals.validatedData.fields,
     });
     res.status(200).json(user);
+  };
+
+  getUserBalance = async (req: Request, res: Response) => {
+    const id = req.user?.id!;
+    const balance = await this.userService.getUserBalance(id);
+    res.status(200).json(balance);
   };
 }

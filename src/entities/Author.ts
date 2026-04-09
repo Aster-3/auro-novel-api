@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   OneToMany,
   OneToOne,
@@ -8,6 +9,8 @@ import {
 } from "typeorm";
 import { Novel } from "./Novel.js";
 import { User } from "./User.js";
+import { AuthorWallet } from "./AuthorWallet.js";
+import { AuthorEarning } from "./AuthorEarning.js";
 
 @Entity()
 export class Author {
@@ -17,6 +20,7 @@ export class Author {
   @Column({ type: "varchar", length: 50, nullable: true })
   nickname?: string;
 
+  @Index()
   @Column({ type: "uuid", nullable: true })
   userId?: string;
 
@@ -32,4 +36,12 @@ export class Author {
 
   @OneToMany(() => Novel, (novel) => novel.author)
   novels!: Novel[];
+
+  @OneToOne(() => AuthorWallet, (wallet) => wallet.author, {
+    cascade: true,
+  })
+  wallet!: AuthorWallet;
+
+  @OneToMany(() => AuthorEarning, (earning) => earning.author)
+  earnings!: AuthorEarning[];
 }

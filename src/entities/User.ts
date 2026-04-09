@@ -18,6 +18,7 @@ import { ReplyLike } from "./ReplyLike.js";
 import { UserRoles, UserStatus } from "../constants/user.constants.js";
 import { Author, ChapterPurchase } from "./_index.js";
 import { UserVerification } from "./UserVerification.js";
+import { ReaderWallet } from "./ReaderWallet.js";
 
 @Entity()
 export class User {
@@ -92,6 +93,11 @@ export class User {
 
   @OneToMany(() => ChapterPurchase, (purchase) => purchase.user)
   purchases!: ChapterPurchase[];
+
+  @OneToOne(() => ReaderWallet, (wallet) => wallet.user, {
+    cascade: true,
+  })
+  wallet!: ReaderWallet;
 
   @OneToOne(() => UserVerification, (verification) => verification.user, {
     cascade: true,

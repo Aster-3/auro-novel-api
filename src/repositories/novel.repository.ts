@@ -83,8 +83,10 @@ export class NovelRepository implements INovelRepository {
         totalReviewsCount: true,
         viewCount: true,
         sourceType: true,
+        chapterFreemiumPrice: true,
+        chapterPremiumPrice: true,
         format: true,
-        purchaseCount: true,
+        totalSales: true,
         chapterCount: true,
         lastChapterDate: true,
         author: {
@@ -128,6 +130,10 @@ export class NovelRepository implements INovelRepository {
 
   async incrementViewCount(novelId: string) {
     await this.novelRepo.increment({ id: novelId }, "viewCount", 1);
+  }
+
+  async incrementTotalSales(novelId: string): Promise<void> {
+    await this.novelRepo.increment({ id: novelId }, "totalSales", 1);
   }
 
   async updateNovel(dto: UpdateNovelDTO) {
@@ -186,6 +192,7 @@ export class NovelRepository implements INovelRepository {
         paywallStartVolume: true,
         paywallStartChapter: true,
         author: {
+          id: true,
           user: { id: true },
         },
       },

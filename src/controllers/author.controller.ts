@@ -5,8 +5,9 @@ export class AuthorController {
   constructor(private authorService: IAuthorService) {}
 
   createAuthor = async (req: Request, res: Response) => {
-    const dto = req.body;
-    await this.authorService.createAuthor(dto);
+    const userId = req.user?.id;
+    const isAdmin = req.user?.role === "admin";
+    await this.authorService.createAuthor({ ...req.body, userId }, isAdmin);
     res.sendStatus(201);
   };
 
@@ -21,5 +22,20 @@ export class AuthorController {
       res.locals.validatedData,
     );
     res.json(result);
+  };
+
+  getAuthorWallet = async (req: Request, res: Response) => {
+    const { id } = req.user as any;
+    const walletInfo = await this.authorService.getAuthorWallet(id);
+    res.json(walletInfo);
+  };
+
+  getAuthorTransactions = async (req: Request, res: Response) => {
+    const { id } = req.user as any;
+    const transactions = await this.authorService.getAuthorTransactions(
+      res.locals.validatedData,
+      id,
+    );
+    res.json(transactions);
   };
 }

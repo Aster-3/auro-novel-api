@@ -132,14 +132,23 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
           title: true,
           content: true,
           novel: {
+            id: true,
             paywallStartChapter: true,
             paywallStartVolume: true,
+            chapterFreemiumPrice: true,
+            chapterPremiumPrice: true,
+            discountRate: true,
+            discountEndDate: true,
+            status: true,
             author: { userId: true },
           },
         },
         volume: {
           orderIndex: true,
+          id: true,
+          name: true,
         },
+        publicationStatus: true,
       },
       relations: { volume: true, chapter: { novel: { author: true } } },
     });
@@ -151,11 +160,19 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       title: publication.chapter.title,
       content: publication.chapter.content,
       chapterOrder: publication.orderIndex,
+      premiumPrice: publication.chapter.novel.chapterPremiumPrice,
+      freemiumPrice: publication.chapter.novel.chapterFreemiumPrice,
+      discountRate: publication.chapter.novel.discountRate,
+      discountEndDate: publication.chapter.novel.discountEndDate,
       volumeOrder: publication.volume.orderIndex,
       volumeId: publication.volumeId,
+      volumeTitle: publication.volume.name,
       paywallStartChapter: publication.chapter.novel.paywallStartChapter,
       paywallStartVolume: publication.chapter.novel.paywallStartVolume,
       authorId: publication.chapter.novel.author?.userId ?? null,
+      publicationStatus: publication.publicationStatus,
+      novelId: publication.chapter.novel.id,
+      novelStatus: publication.chapter.novel.status,
     };
   }
 
@@ -174,6 +191,7 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
         chapterId: true,
         orderIndex: true,
         volumeId: true,
+        publicationStatus: true,
         chapter: {
           title: true,
           novel: {
@@ -200,6 +218,7 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       volumeId: publication.volumeId,
       novelId: publication.chapter.novel.id,
       authorId: publication.chapter.novel?.author?.userId ?? null,
+      publicationStatus: publication.publicationStatus,
     };
   }
 
@@ -220,5 +239,80 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       .where("volumeId = :volumeId", { volumeId })
       .andWhere("orderIndex > :from", { from })
       .execute();
+  }
+
+  async changePublicationStatus(
+    chapterId: string,
+    publicationStatus: PublicationStatus,
+  ): Promise<void> {
+    await this.publicationRepo.update(chapterId, { publicationStatus });
+  }
+
+  async getNextChapter(
+    novelId: string,
+    currentOrderIndex: number, // chapterOrder yerine artık orderIndex kullanıyoruz
+    currentVolumeOrder: number, // Volume tablosundaki sıra
+  ) {
+    const nextChapter = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoin("pub.chapter", "chapter")
+      .innerJoin("pub.volume", "vol") // Volume tablosunu da bağlamalıyız ki sırasına bakalım
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere(
+        new Brackets((qb) => {
+          // Mantık: Ya bir sonraki volume'un ilk bölümleri, ya aynı volume'un sonraki bölümleri
+          qb.where("vol.orderIndex > :currentVolumeOrder", {
+            currentVolumeOrder,
+          }).orWhere(
+            "vol.orderIndex = :currentVolumeOrder AND pub.orderIndex > :currentOrderIndex",
+            { currentVolumeOrder, currentOrderIndex },
+          );
+        }),
+      )
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .orderBy("vol.orderIndex", "ASC")
+      .addOrderBy("pub.orderIndex", "ASC")
+      .select(["pub.chapterId", "chapter.title"])
+      .getOne();
+
+    if (!nextChapter) return null;
+
+    return nextChapter.chapterId;
+  }
+
+  async getPreviousChapter(
+    novelId: string,
+    currentOrderIndex: number, // chapterOrder yerine artık orderIndex kullanıyoruz
+    currentVolumeOrder: number, // Volume tablosundaki sıra
+  ) {
+    const previousChapter = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoin("pub.chapter", "chapter")
+      .innerJoin("pub.volume", "vol") // Volume tablosunu da bağlamalıyız ki sırasına bakalım
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere(
+        new Brackets((qb) => {
+          // Mantık: Ya bir önceki volume'un son bölümleri, ya aynı volume'un önceki bölümleri
+          qb.where("vol.orderIndex < :currentVolumeOrder", {
+            currentVolumeOrder,
+          }).orWhere(
+            "vol.orderIndex = :currentVolumeOrder AND pub.orderIndex < :currentOrderIndex",
+            { currentVolumeOrder, currentOrderIndex },
+          );
+        }),
+      )
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .orderBy("vol.orderIndex", "DESC")
+      .addOrderBy("pub.orderIndex", "DESC")
+      .select(["pub.chapterId", "chapter.title"])
+      .getOne();
+
+    if (!previousChapter) return null;
+
+    return previousChapter.chapterId;
   }
 }
