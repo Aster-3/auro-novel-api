@@ -129,7 +129,7 @@ export class ChapterService implements IChapterService {
       });
 
       await this.uow.novelRepository.refreshChapterStats(dto.novelId);
-      await this.uow.commit();
+      await await this.uow.commit();
     } catch (error) {
       await this.uow.rollback();
       throw error;

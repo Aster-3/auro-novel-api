@@ -78,8 +78,11 @@ export class Novel {
   @Column({ type: "int", default: 0 })
   totalSales!: number;
 
+  @Column({ type: "float", default: 0 })
+  rankingScore!: number;
+
   @Column({ type: "timestamp", nullable: true, default: null })
-  lastChapterDate?: Date | null;
+  lastChapterDate!: Date | null;
 
   @Column({ type: "int", default: 1, nullable: true })
   paywallStartVolume!: number | null;
@@ -110,8 +113,8 @@ export class Novel {
   @Column({ type: "int", default: 0 })
   totalReviewsCount!: number;
 
-  @Column({ type: "float", default: 0, select: false })
-  popularityScore!: number;
+  @Column({ type: "decimal", precision: 10, scale: 4, default: 0 })
+  weeklyRankingScore!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

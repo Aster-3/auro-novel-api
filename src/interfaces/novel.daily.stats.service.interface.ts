@@ -6,6 +6,15 @@ export interface INovelDailyStatsService {
     authorId: string,
   ): Promise<NovelStatsResponse>;
   createDailySnapshot(novelId: string): Promise<void>;
+  bulkCreateDailySnapshots(
+    snapshots: {
+      id: string;
+      viewCount: number;
+      totalReviewsCount: number;
+      positiveReviewsCount: number;
+      totalSales: number;
+    }[],
+  ): Promise<void>;
 }
 
 export interface DashboardStats {

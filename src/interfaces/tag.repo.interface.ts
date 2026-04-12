@@ -8,4 +8,5 @@ export interface ITagRepository {
   delete(id: string): Promise<void>;
   existBySlug(slug: string): Promise<boolean>;
   search(dto: SearchTagDto): Promise<FindAndCountType<Tags>>;
+  getRandomTags(limit: number): Promise<Tags[]>;
 }

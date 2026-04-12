@@ -13,4 +13,6 @@ router.post("/", validateSchema(createTagSchema), tagController.createTag);
 
 router.delete("/:id", validateSchema(deleteTagSchema), tagController.deleteTag);
 
+router.get("/random", tagController.getRandomTags);
+
 export default router;

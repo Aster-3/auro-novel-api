@@ -11,6 +11,30 @@ export interface INovelService {
     file?: Express.Multer.File,
   ): Promise<Novel>;
   getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<Novel>>;
+  getLastUpdatedNovels(limit?: number): Promise<
+    {
+      id: string;
+      name: string;
+      coverImage: string | null;
+      lastChapterDate: Date | null;
+      recommendRate: number | null;
+      chapterCount: number;
+      authorName: string;
+    }[]
+  >;
+  getWeeklyTrendingNovels(limit?: number): Promise<Novel[]>;
+  getNovelsWithTagId(tagId: string, limit?: number): Promise<Novel[]>;
+  getLastCreatedNovels(limit?: number): Promise<Novel[]>;
+  refreshWeeklyTrendData(): Promise<void>;
+  getAllNovelsWithStats(): Promise<
+    {
+      id: string;
+      viewCount: number;
+      totalReviewsCount: number;
+      positiveReviewsCount: number;
+      totalSales: number;
+    }[]
+  >;
   getNovelDetailWithId(id: string): Promise<Novel>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;

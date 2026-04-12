@@ -19,4 +19,10 @@ export class TagController {
     const tags = await this.tagService.searchTags(res.locals.validatedData);
     res.json(tags);
   };
+
+  getRandomTags = async (req: Request, res: Response) => {
+    const { limit } = req.query as any;
+    const tags = await this.tagService.getRandomTags(Number(limit) || 10);
+    res.json(tags);
+  };
 }

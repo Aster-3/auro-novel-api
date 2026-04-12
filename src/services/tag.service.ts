@@ -24,4 +24,9 @@ export class TagService implements ITagService {
   async searchTags(dto: SearchTagDto) {
     return await this.tagRepo.search(dto);
   }
+
+  async getRandomTags(limit: number = 10) {
+    if (limit > 20) limit = 20; // Maksimum 20 tag döndür
+    return await this.tagRepo.getRandomTags(limit);
+  }
 }

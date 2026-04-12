@@ -7,6 +7,8 @@ import { NotFoundError } from "../errors/not.found.error.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { uploadToS3 } from "./s3.service.js";
+import { Novel } from "../entities/_index.js";
+import { da } from "@faker-js/faker";
 
 export class NovelService implements INovelService {
   constructor(
@@ -66,6 +68,59 @@ export class NovelService implements INovelService {
           )
         : null;
     return { ...novel, recommendationRate };
+  }
+
+  async getLastUpdatedNovels(limit: number = 15) {
+    const novels = await this.novelRepo.getLastUpdatedNovels(Number(limit));
+    return novels.map((novel) => ({
+      id: novel.id,
+      name: novel.name,
+      coverImage: novel.coverImage ?? null,
+      lastChapterDate: novel.lastChapterDate ?? null,
+      recommendRate: novel.totalReviewsCount
+        ? Math.round(
+            (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+          )
+        : null,
+      chapterCount: novel.chapterCount,
+      authorName: novel.author.user
+        ? novel.author.user.nickname
+        : (novel.author.nickname ?? "Unknown Author"),
+    }));
+  }
+
+  async getWeeklyTrendingNovels(limit: number = 15) {
+    return await this.novelRepo.getWeeklyTrendingNovels(Number(limit));
+  }
+
+  async getAllNovelsWithStats() {
+    return await this.novelRepo.getAllNovelsWithStats();
+  }
+
+  async refreshWeeklyTrendData() {
+    const trendData = await this.novelRepo.getWeeklyTrendData();
+    const data = trendData.map((item) => {
+      const { totalReviewsCount, totalSales, totalReviews, totalPurchases } =
+        item;
+      const diffReviews = totalReviewsCount - (totalReviews || 0);
+      const diffSales = totalSales - (totalPurchases || 0);
+      const weeklyScore = diffReviews * 0.7 + diffSales * 0.3; // Basit bir ağırlıklı formül
+      return {
+        id: item.id,
+        weeklyScore,
+      };
+    });
+    await this.novelRepo.bulkUpdateWeeklyScores(data);
+  }
+
+  async getNovelsWithTagId(tagId: string, limit: number = 15) {
+    if (limit > 50) limit = 50;
+    console.log("Tag ID:", tagId); // Debug: Tag ID'yi kontrol et
+    return await this.novelRepo.getNovelsWithTagId(tagId, limit);
+  }
+
+  async getLastCreatedNovels(limit: number = 15) {
+    return await this.novelRepo.getLastCreatedNovels(limit);
   }
 
   async updateNovelCategories(novelId: string, categoryIds: number[]) {

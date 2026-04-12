@@ -41,4 +41,16 @@ export class TagRepository implements ITagRepository {
       lastPage: totalPage,
     };
   }
+
+  async getRandomTags(limit: number): Promise<Tags[]> {
+    return await this.tagRepo
+      .createQueryBuilder("tag")
+      .innerJoin("tag.novels", "novel")
+      .select(["tag.id", "tag.name"])
+      .groupBy("tag.id")
+      .having("COUNT(novel.id) >= 2")
+      .orderBy("RANDOM()")
+      .limit(limit)
+      .getMany();
+  }
 }

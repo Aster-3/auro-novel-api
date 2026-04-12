@@ -199,11 +199,23 @@ export class CommentRepository implements ICommentRepository {
     };
   }
 
-  async isOwner(commentId: number, userId: string): Promise<boolean> {
+  async isOwner(commentId: number, userId: string) {
     const comment = await this.commentRepo.findOne({
-      where: { id: commentId, userId },
+      where: { id: commentId },
+      select: {
+        id: true,
+        novelId: true,
+        isRecommend: true,
+        userId: true,
+      },
     });
-    return !!comment;
+
+    if (!comment) {
+      return null;
+    }
+    return comment.userId === userId
+      ? { novelId: comment.novelId, isRecommend: comment.isRecommend }
+      : null;
   }
 
   async getOneById(id: number): Promise<Comment | null> {

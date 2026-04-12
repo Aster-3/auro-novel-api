@@ -1,4 +1,4 @@
-import { FindOptionsWhere, ILike, Repository } from "typeorm";
+import { FindOptionsWhere, ILike, Not, Repository } from "typeorm";
 import { Novel } from "../entities/Novel.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
@@ -6,6 +6,8 @@ import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { Chapter, Volume } from "../entities/_index.js";
 import { PublicationStatus } from "../constants/chapter.constants.js";
+import { SeriesStatus } from "../constants/series.constants.js";
+import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -82,6 +84,7 @@ export class NovelRepository implements INovelRepository {
         positiveReviewsCount: true,
         totalReviewsCount: true,
         viewCount: true,
+        rankingScore: true,
         sourceType: true,
         chapterFreemiumPrice: true,
         chapterPremiumPrice: true,
@@ -105,6 +108,168 @@ export class NovelRepository implements INovelRepository {
         categories: true,
       },
     });
+  }
+
+  async getLastUpdatedNovels(limit: number): Promise<Novel[]> {
+    return this.novelRepo.find({
+      order: {
+        lastChapterDate: {
+          direction: "DESC",
+          nulls: "LAST",
+        },
+      },
+      take: limit,
+      where: {
+        status: Not(SeriesStatus.DRAFT),
+      },
+      select: {
+        id: true,
+        name: true,
+        coverImage: true,
+        author: {
+          id: true,
+          nickname: true,
+          user: { id: true, nickname: true },
+        },
+        rankingScore: true,
+        totalReviewsCount: true,
+        positiveReviewsCount: true,
+        chapterCount: true,
+        lastChapterDate: true,
+      },
+      relations: { author: { user: true } },
+    });
+  }
+
+  async getAllNovelsWithStats() {
+    return this.novelRepo.find({
+      select: {
+        id: true,
+        viewCount: true,
+        totalReviewsCount: true,
+        positiveReviewsCount: true,
+        totalSales: true,
+      },
+    });
+  }
+
+  async getWeeklyTrendingNovels(limit: number): Promise<Novel[]> {
+    return this.novelRepo.find({
+      select: {
+        id: true,
+        name: true,
+        coverImage: true,
+        weeklyRankingScore: true,
+      },
+      order: {
+        weeklyRankingScore: "DESC",
+      },
+    });
+  }
+
+  async getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]> {
+    return this.novelRepo.find({
+      where: {
+        tags: {
+          id: tagId,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        coverImage: true,
+        rankingScore: true,
+      },
+      order: {
+        rankingScore: "DESC",
+      },
+      take: limit,
+    });
+  }
+
+  async getLastCreatedNovels(limit: number): Promise<Novel[]> {
+    return this.novelRepo.find({
+      order: {
+        createdAt: "DESC",
+      },
+      take: limit,
+      where: {
+        status: Not(SeriesStatus.DRAFT),
+      },
+      select: {
+        id: true,
+        name: true,
+        coverImage: true,
+      },
+    });
+  }
+
+  async getWeeklyTrendData(): Promise<any[]> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const dateString = sevenDaysAgo.toISOString().split("T")[0];
+
+    return await this.novelRepo
+      .createQueryBuilder("novel")
+      .leftJoin(
+        "novel_daily_stats",
+        "stats",
+        "stats.novelId = novel.id AND stats.recordedAt = :dateString",
+        { dateString },
+      )
+      .select([
+        "novel.id",
+        "novel.totalReviewsCount",
+        "novel.totalSales",
+        "stats.totalReviews",
+        "stats.totalPurchases",
+      ])
+      .getRawMany();
+  }
+
+  async bulkUpdateWeeklyScores(data: { id: string; weeklyScore: number }[]) {
+    await this.novelRepo
+      .createQueryBuilder()
+      .insert()
+      .into(Novel)
+      .values(
+        data.map((item) => ({
+          id: item.id,
+          weeklyRankingScore: item.weeklyScore,
+        })),
+      )
+      .orUpdate(["weeklyRankingScore"], ["id"])
+      .execute();
+  }
+
+  async updateRankingScore(novelId: string, newRankingScore: number) {
+    await this.novelRepo.update(novelId, { rankingScore: newRankingScore });
+  }
+
+  async incrementAndDecrementReviewCount(
+    novelId: string,
+    isIncrement: boolean,
+    isPositive: boolean,
+  ) {
+    const change = isIncrement ? 1 : -1;
+
+    const updateSet: any = {
+      totalReviewsCount: () => `totalReviewsCount + ${change}`,
+    };
+
+    if (isPositive) {
+      updateSet.positiveReviewsCount = () => `positiveReviewsCount + ${change}`;
+    }
+
+    const result = await this.novelRepo
+      .createQueryBuilder()
+      .update(Novel)
+      .set(updateSet)
+      .where("id = :id", { id: novelId })
+      .returning(["totalReviewsCount", "positiveReviewsCount", "totalSales"])
+      .execute();
+
+    return result.raw[0];
   }
 
   async updateNovelCategories(novelId: string, categoryIds: number[]) {

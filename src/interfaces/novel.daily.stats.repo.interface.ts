@@ -7,4 +7,13 @@ export interface INovelDailyStatsRepository {
     novelId: string,
     limit: number,
   ): Promise<NovelDailyStats[]>;
+  bulkCreate(
+    snapshots: {
+      id: string;
+      viewCount: number;
+      totalReviewsCount: number;
+      positiveReviewsCount: number;
+      totalSales: number;
+    }[],
+  ): Promise<void>;
 }

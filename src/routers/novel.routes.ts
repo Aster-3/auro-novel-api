@@ -28,6 +28,18 @@ router.post(
   novelController.createNovel,
 ); ///OKEY
 
+router.get("/last-updated", novelController.getLastUpdatedNovels); ///OKEY
+
+router.get("/weekly-trending", novelController.getWeeklyTrendingNovels); ///OKEY
+
+router.get("/last-created", novelController.getLastCreatedNovels); ///OKEY
+
+router.get(
+  "/with-tag/:id",
+  validateSchema(paramsUuidSchema),
+  novelController.getNovelsWithTagId,
+); ///OKEY
+
 router.get(
   "/:id",
   validateSchema(paramsUuidSchema),

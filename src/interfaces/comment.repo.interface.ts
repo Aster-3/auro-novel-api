@@ -16,6 +16,9 @@ export interface ICommentRepository {
     novelId: string,
   ): Promise<{ items: Comment[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
-  isOwner(commentId: number, userId: string): Promise<boolean>;
+  isOwner(
+    commentId: number,
+    userId: string,
+  ): Promise<{ novelId: string; isRecommend: boolean } | null>;
   getOneById(id: number): Promise<Comment | null>;
 }

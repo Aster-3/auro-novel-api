@@ -7,4 +7,5 @@ export interface ITagService {
   createTag(dto: CreateTagDto): Promise<void>;
   deleteTag(id: string): Promise<void>;
   searchTags(dto: SearchTagDto): Promise<FindAndCountType<Tags>>;
+  getRandomTags(limit?: number): Promise<Tags[]>;
 }

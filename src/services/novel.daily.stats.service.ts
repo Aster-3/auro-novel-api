@@ -22,15 +22,16 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
       novelId,
       authorId,
     );
-    if (!novelExists) {
-      throw new NotFoundError(
-        "Novel bulunamadı veya bu novelin sahibi değilsiniz.",
-      );
-    }
+    // if (!novelExists) {
+    //   throw new NotFoundError(
+    //     "Novel bulunamadı veya bu novelin sahibi değilsiniz.",
+    //   );
+    // }
     const snapshots = await this.novelDailyStatsRepo.getLatestSnapshots(
       novelId,
       2,
     );
+    console.log("Snapshots:", snapshots); // Debug: Snapshots verilerini kontrol et
     const liveNovel = await this.novelRepository.findOneById(novelId);
 
     if (!liveNovel) throw new NotFoundError("Novel bulunamadı.");
@@ -86,5 +87,17 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
     // Bu metod, günlük istatistik kaydı oluşturmak için kullanılabilir.
     // Örneğin, her gün saat 00:00'da bu metodu çağırarak günlük istatistik kaydı oluşturabilirsiniz.
     await this.novelDailyStatsRepo.createDailySnapshot(novelId);
+  };
+
+  bulkCreateDailySnapshots = async (
+    snapshots: {
+      id: string;
+      viewCount: number;
+      totalReviewsCount: number;
+      positiveReviewsCount: number;
+      totalSales: number;
+    }[],
+  ) => {
+    await this.novelDailyStatsRepo.bulkCreate(snapshots);
   };
 }

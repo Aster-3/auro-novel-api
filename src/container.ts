@@ -26,6 +26,8 @@ import { TagService } from "./services/tag.service.js";
 import { TokenService } from "./services/token.service.js";
 import { UserService } from "./services/user.service.js";
 import { VolumeService } from "./services/volume.service.js";
+import { setupTrendingUpdateJob } from "./jobs/trending.update.job.js";
+import { JobLoader } from "./jobs/index.js";
 
 const uow = new UnitOfWork();
 
@@ -38,12 +40,7 @@ const chapterService = new ChapterService(uow);
 const chapterPurchaseService = new ChapterPurchaseService(
   uow.chapterPurchaseRepository,
 );
-const commentService = new CommentService(
-  uow.commentRepository,
-  uow.replyRepository,
-  uow.novelRepository,
-  uow.commentLikeRepository,
-);
+const commentService = new CommentService(uow);
 const libraryService = new LibraryService(uow.libraryRepository);
 const novelDailyStatsService = new NovelDailyStatsService(
   uow.novelDailyStatsRepository,
@@ -86,3 +83,7 @@ export const novelController = new NovelController(
   commentService,
   chapterService,
 );
+
+// Jobs
+
+JobLoader.init(novelService, novelDailyStatsService);

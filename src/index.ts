@@ -5,9 +5,7 @@ import { GlobalErrorHandler } from "./middlewares/error.handler.js";
 import helmet from "helmet";
 import rootRouter from "./routers/_main.routes.js";
 import path from "path";
-import { Chapter } from "./entities/Chapter.js";
-import { ChapterPurchase } from "./entities/ChapterPurchase.js";
-import { AppConfig } from "./entities/AppConfig.js";
+import "./container.js";
 
 const PORT = process.env.PORT || 3000;
 

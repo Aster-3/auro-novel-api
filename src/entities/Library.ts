@@ -18,9 +18,6 @@ export class Library {
   @PrimaryColumn({ type: "uuid" })
   novelId!: string;
 
-  @Column({ type: "float", default: 1 })
-  lastReadOrder!: number;
-
   @CreateDateColumn()
   createdAt!: Date;
 

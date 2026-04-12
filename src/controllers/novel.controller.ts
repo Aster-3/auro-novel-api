@@ -60,6 +60,40 @@ export class NovelController {
     res.status(200).json(comments);
   };
 
+  getLastUpdatedNovels = async (req: Request, res: Response) => {
+    const { limit } = req.query as any;
+    const novels = await this.novelService.getLastUpdatedNovels(
+      limit ? parseInt(limit) : undefined,
+    );
+    res.status(200).json(novels);
+  };
+
+  getWeeklyTrendingNovels = async (req: Request, res: Response) => {
+    const { limit } = req.query as any;
+    const novels = await this.novelService.getWeeklyTrendingNovels(
+      limit ? parseInt(limit) : undefined,
+    );
+    res.status(200).json(novels);
+  };
+
+  getNovelsWithTagId = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const { limit } = req.query as any;
+    const novels = await this.novelService.getNovelsWithTagId(
+      id,
+      limit ? parseInt(limit) : undefined,
+    );
+    res.status(200).json(novels);
+  };
+
+  getLastCreatedNovels = async (req: Request, res: Response) => {
+    const { limit } = req.query as any;
+    const novels = await this.novelService.getLastCreatedNovels(
+      limit ? parseInt(limit) : undefined,
+    );
+    res.status(200).json(novels);
+  };
+
   addNovelComment = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const dto = { ...res.locals.validatedData, userId };

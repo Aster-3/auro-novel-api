@@ -32,4 +32,24 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
       take: limit,
     });
   }
+
+  async bulkCreate(snapshots: any[]) {
+    const recordedAt = new Date().toISOString().split("T")[0];
+
+    const entities = snapshots.map((s) => ({
+      novelId: s.id,
+      recordedAt,
+      totalViews: s.viewCount,
+      totalReviews: s.totalReviewsCount,
+      totalPositiveReviews: s.positiveReviewsCount,
+      totalPurchases: s.totalSales,
+    }));
+
+    await this.novelDailyStatsRepo
+      .createQueryBuilder()
+      .insert()
+      .into(NovelDailyStats)
+      .values(entities)
+      .execute();
+  }
 }
