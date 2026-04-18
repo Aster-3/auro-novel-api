@@ -25,3 +25,9 @@ export enum SortType {
   ASC = "asc",
   DESC = "desc",
 }
+
+export enum LibrarySortOption {
+  LAST_READED = "lastRead",
+  LAST_ADDED = "lastAdded",
+  TITLE_ASC = "titleAsc",
+}

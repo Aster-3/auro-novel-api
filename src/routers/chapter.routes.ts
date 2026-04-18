@@ -24,14 +24,14 @@ router.post(
 router.get(
   "/:id",
   optionalAuthMiddleware,
-  validateSchema(uuidControlSchema),
+  validateSchema(uuidControlSchema("params", "id")),
   chapterController.getOneChapter,
 ); /// OKEY
 
 router.get(
   "/:id/draft",
   authMiddleware,
-  validateSchema(uuidControlSchema),
+  validateSchema(uuidControlSchema("params", "id")),
   chapterController.getOneDraftChapter,
 ); /// OKEY
 

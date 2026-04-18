@@ -1,9 +1,13 @@
 import { Request, Response } from "express";
 import { IUserService } from "../interfaces/user.service.interface.js";
 import { uploadToS3 } from "../services/s3.service.js";
+import { ILibraryService } from "../interfaces/library.service.interface.js";
 
 export class UserController {
-  constructor(private userService: IUserService) {}
+  constructor(
+    private userService: IUserService,
+    private libraryService: ILibraryService,
+  ) {}
 
   getOneUser = async (req: Request, res: Response) => {
     const { id } = req.params as any;
@@ -64,5 +68,28 @@ export class UserController {
     const id = req.user?.id!;
     const balance = await this.userService.getUserBalance(id);
     res.status(200).json(balance);
+  };
+
+  toggleNovelInLibrary = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const { novelId } = req.body as any;
+    await this.libraryService.toggleNovelInLibrary(novelId, userId);
+    res.status(200).json({ message: "Novel toggled in library" });
+  };
+
+  getMyLibrary = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const library = await this.libraryService.getMyLibrary({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(library);
+  };
+
+  isNovelInLibrary = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const { novelId } = req.params as any;
+    const exists = await this.libraryService.isNovelInLibrary(novelId, userId);
+    res.status(200).json({ exists });
   };
 }

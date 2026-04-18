@@ -19,6 +19,7 @@ import { UserRoles, UserStatus } from "../constants/user.constants.js";
 import { Author, ChapterPurchase } from "./_index.js";
 import { UserVerification } from "./UserVerification.js";
 import { ReaderWallet } from "./ReaderWallet.js";
+import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
 export class User {
@@ -87,6 +88,9 @@ export class User {
 
   @OneToMany(() => Library, (library) => library.user)
   library!: Library[];
+
+  @OneToMany(() => ReadingStats, (stats) => stats.user)
+  readingStats!: ReadingStats[];
 
   @OneToOne(() => Author, (author) => author.user)
   authorProfile?: Author;

@@ -25,6 +25,7 @@ import { Volume } from "./Volume.js";
 import { Author } from "./Author.js";
 import { NovelDailyStats } from "./NovelDailyStats.js";
 import { AuthorEarning } from "./AuthorEarning.js";
+import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
 export class Novel {
@@ -138,6 +139,9 @@ export class Novel {
 
   @OneToMany(() => Library, (library) => library.novel)
   library!: Library[];
+
+  @OneToMany(() => ReadingStats, (stats) => stats.novel)
+  readingStats!: ReadingStats[];
 
   @OneToMany(() => Volume, (volume) => volume.novel)
   volumes!: Volume[];

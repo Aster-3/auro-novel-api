@@ -7,6 +7,7 @@ import { getMeSchema } from "../schemas/get.me.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import multer from "multer";
 import { userController } from "../container.js";
+import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -22,6 +23,22 @@ router.get(
 router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
 router.get("/me/wallet", authMiddleware, userController.getUserBalance);
+
+router.get("/me/library", authMiddleware, userController.getMyLibrary);
+
+router.post(
+  "/me/library",
+  authMiddleware,
+  validateSchema(uuidControlSchema("body", "novelId")),
+  userController.toggleNovelInLibrary,
+);
+
+router.get(
+  "/me/library/:novelId",
+  authMiddleware,
+  validateSchema(uuidControlSchema("params", "novelId")),
+  userController.isNovelInLibrary,
+);
 
 router.get("/", validateSchema(getUsersSchema), userController.getUsers);
 

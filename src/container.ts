@@ -75,7 +75,7 @@ export const novelDailyStatsController = new NovelDailyStatsController(
 );
 export const replyController = new ReplyController(replyService);
 export const tagController = new TagController(tagService);
-export const userController = new UserController(userService);
+export const userController = new UserController(userService, libraryService);
 export const volumeController = new VolumeController(volumeService);
 
 export const novelController = new NovelController(

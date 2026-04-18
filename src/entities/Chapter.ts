@@ -12,6 +12,7 @@ import {
 import { Novel } from "./Novel.js";
 import { ChapterPublication } from "./ChapterPublication.js";
 import { ChapterPurchase } from "./ChapterPurchase.js";
+import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
 export class Chapter {
@@ -50,4 +51,7 @@ export class Chapter {
     nullable: true,
   })
   purchases?: ChapterPurchase[];
+
+  @OneToMany(() => ReadingStats, (stats) => stats.chapter)
+  readingStats!: ReadingStats[];
 }

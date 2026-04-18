@@ -3,14 +3,15 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from "typeorm";
 import { User } from "./User.js";
 import { Novel } from "./Novel.js";
 import { Chapter } from "./Chapter.js";
 
 @Entity()
+@Unique(["userId", "novelId"])
 export class ReadingStats {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

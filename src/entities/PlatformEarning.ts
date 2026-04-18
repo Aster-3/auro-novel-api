@@ -15,7 +15,7 @@ export class PlatformEarning {
 
   @Index()
   @Column({ type: "uuid" })
-  novelId!: string; // Hangi roman sana ne kadar kazandırıyor?
+  novelId!: string; // Hangi roman sana ne kadar kazandırıyor?0
 
   @Index()
   @Column({ type: "uuid" })
