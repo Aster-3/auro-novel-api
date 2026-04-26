@@ -8,10 +8,15 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 import multer from "multer";
 import { userController } from "../container.js";
 import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
+import { updateReadingStatsSchema } from "../schemas/update.reading.stats.schema.js";
+import { getMyLibrarySchema } from "../schemas/get.my.library.schema.js";
+import { getNotificationsSchema } from "../schemas/get.notifications.schema.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const router = Router();
+const router = Router({ strict: true });
+
+router.get("/", validateSchema(getUsersSchema), userController.getUsers);
 
 router.get(
   "/me",
@@ -22,9 +27,20 @@ router.get(
 
 router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
+router.delete(
+  "/:id",
+  validateSchema(paramsUuidSchema),
+  userController.deleteUser,
+);
+
 router.get("/me/wallet", authMiddleware, userController.getUserBalance);
 
-router.get("/me/library", authMiddleware, userController.getMyLibrary);
+router.get(
+  "/me/library",
+  authMiddleware,
+  validateSchema(getMyLibrarySchema),
+  userController.getMyLibrary,
+);
 
 router.post(
   "/me/library",
@@ -40,8 +56,6 @@ router.get(
   userController.isNovelInLibrary,
 );
 
-router.get("/", validateSchema(getUsersSchema), userController.getUsers);
-
 router.patch(
   "/me",
   authMiddleware,
@@ -53,10 +67,72 @@ router.patch(
   userController.updateUser,
 );
 
+router.get("/me/reading-stats", authMiddleware, userController.getReadingStats);
+
+router.get(
+  "/me/reading-stats/:novelId",
+  authMiddleware,
+  validateSchema(uuidControlSchema("params", "novelId")),
+  userController.getUserNovelStats,
+);
+
+router.patch(
+  "/me/reading-stats",
+  authMiddleware,
+  validateSchema(updateReadingStatsSchema),
+  userController.updateReadingStats,
+);
+
+router.get(
+  "/me/notifications/personal",
+  authMiddleware,
+  validateSchema(getNotificationsSchema),
+  userController.getPersonalNotifications,
+);
+
+router.get(
+  "/me/notifications/global",
+  authMiddleware,
+  validateSchema(getNotificationsSchema),
+  userController.getGlobalNotifications,
+);
+
+router.post(
+  "/me/notifications/personal",
+  authMiddleware,
+  userController.createPersonalNotification,
+);
+
 router.delete(
-  "/:id",
-  validateSchema(paramsUuidSchema),
-  userController.deleteUser,
+  "/me/notifications/personal/:notificationId",
+  authMiddleware,
+  validateSchema(uuidControlSchema("params", "notificationId")),
+  userController.deletePersonalNotification,
+);
+
+router.patch(
+  "/me/notifications/personal/:notificationId/read",
+  authMiddleware,
+  validateSchema(uuidControlSchema("params", "notificationId")),
+  userController.markPersonalNotificationAsRead,
+);
+
+router.patch(
+  "/me/notifications/personal/read",
+  authMiddleware,
+  userController.markAllPersonalNotificationsAsRead,
+);
+
+router.patch(
+  "/me/notifications/global/last-seen",
+  authMiddleware,
+  userController.setLastSeenNotificationDate,
+);
+
+router.get(
+  "/me/notifications/unread-count",
+  authMiddleware,
+  userController.getTotalUnreadNotificationCount,
 );
 
 router.get("/verifications/all", userController.getAllVerifications);

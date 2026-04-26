@@ -20,6 +20,7 @@ import { Author, ChapterPurchase } from "./_index.js";
 import { UserVerification } from "./UserVerification.js";
 import { ReaderWallet } from "./ReaderWallet.js";
 import { ReadingStats } from "./ReadingStats.js";
+import { PersonalNotification } from "./PersonalNotification.js";
 
 @Entity()
 export class User {
@@ -95,6 +96,9 @@ export class User {
   @OneToOne(() => Author, (author) => author.user)
   authorProfile?: Author;
 
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  lastNotificationSeenDate!: Date;
+
   @OneToMany(() => ChapterPurchase, (purchase) => purchase.user)
   purchases!: ChapterPurchase[];
 
@@ -107,4 +111,7 @@ export class User {
     cascade: true,
   })
   verification!: UserVerification;
+
+  @OneToMany(() => PersonalNotification, (notification) => notification.user)
+  notifications!: PersonalNotification[];
 }

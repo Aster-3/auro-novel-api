@@ -26,8 +26,9 @@ import { TagService } from "./services/tag.service.js";
 import { TokenService } from "./services/token.service.js";
 import { UserService } from "./services/user.service.js";
 import { VolumeService } from "./services/volume.service.js";
-import { setupTrendingUpdateJob } from "./jobs/trending.update.job.js";
 import { JobLoader } from "./jobs/index.js";
+import { AdminController } from "./controllers/admin.controller.js";
+import { AdminService } from "./services/admin.service.js";
 
 const uow = new UnitOfWork();
 
@@ -60,6 +61,7 @@ const volumeService = new VolumeService(
   uow.volumeRepository,
   uow.novelRepository,
 );
+const adminService = new AdminService(uow);
 
 export const authController = new AuthController(userService);
 export const authorController = new AuthorController(authorService);
@@ -83,6 +85,8 @@ export const novelController = new NovelController(
   commentService,
   chapterService,
 );
+
+export const adminController = new AdminController(adminService);
 
 // Jobs
 

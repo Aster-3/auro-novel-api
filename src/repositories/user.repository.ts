@@ -72,10 +72,10 @@ export class UserRepository implements IUserRepository {
         status: true,
         isVerified: true,
         refreshToken: true,
+        lastNotificationSeenDate: true,
       },
       relations: {
         verification: true,
-        replies: true,
       },
     });
   }
@@ -204,5 +204,20 @@ export class UserRepository implements IUserRepository {
       return null;
     }
     return user;
+  }
+
+  async getLastSeenNotificationDate(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: { lastNotificationSeenDate: true },
+    });
+    return user ? user.lastNotificationSeenDate : null;
+  }
+
+  async setLastSeenNotificationDate(userId: string, date: Date) {
+    await this.userRepo.update(
+      { id: userId },
+      { lastNotificationSeenDate: date },
+    );
   }
 }

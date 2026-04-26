@@ -140,9 +140,6 @@ export class Novel {
   @OneToMany(() => Library, (library) => library.novel)
   library!: Library[];
 
-  @OneToMany(() => ReadingStats, (stats) => stats.novel)
-  readingStats!: ReadingStats[];
-
   @OneToMany(() => Volume, (volume) => volume.novel)
   volumes!: Volume[];
 

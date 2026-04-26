@@ -24,4 +24,6 @@ export interface IUserRepository {
   updateRefreshToken(userId: string, refreshToken: string): Promise<void>;
   getUserForTokenRefresh(userId: string): Promise<User | null>;
   getUserForPurchase(userId: string): Promise<User | null>;
+  getLastSeenNotificationDate(userId: string): Promise<Date | null>;
+  setLastSeenNotificationDate(userId: string, date: Date): Promise<void>;
 }

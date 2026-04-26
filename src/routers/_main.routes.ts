@@ -12,6 +12,8 @@ import VolumeRoutes from "./volume.routes.js";
 import AuthorRoutes from "./author.routes.js";
 import ChapterPurchaseRoutes from "./chapter.purchase.routes.js";
 import NovelDailyStatsRoutes from "./novel.daily.stats.routes.js";
+import AdminRoutes from "./admin.routes.js";
+import { adminMiddleware } from "../middlewares/admin.middleware.js";
 
 const rootRouter = Router();
 
@@ -29,5 +31,6 @@ rootRouter.use("/chapters", ChapterRoutes);
 rootRouter.use("/volumes", VolumeRoutes);
 rootRouter.use("/purchases", ChapterPurchaseRoutes);
 rootRouter.use("/authors", NovelDailyStatsRoutes);
+rootRouter.use("/admin", AdminRoutes);
 
 export default rootRouter;

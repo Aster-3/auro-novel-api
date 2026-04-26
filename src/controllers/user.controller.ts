@@ -92,4 +92,79 @@ export class UserController {
     const exists = await this.libraryService.isNovelInLibrary(novelId, userId);
     res.status(200).json({ exists });
   };
+
+  getReadingStats = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const stats = await this.userService.getReadingStats(userId);
+    res.status(200).json(stats);
+  };
+
+  getUserNovelStats = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const { novelId } = req.params as any;
+    const stats = await this.userService.getUserNovelStats(userId, novelId);
+    res.status(200).json(stats);
+  };
+
+  updateReadingStats = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const dto = { userId, ...res.locals.validatedData };
+    await this.userService.updateReadingStats(dto);
+    res.status(200).json({ message: "Reading stats updated" });
+  };
+
+  getPersonalNotifications = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const notifications = await this.userService.getPersonalNotifications({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(notifications);
+  };
+
+  createPersonalNotification = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const dto = { userId, ...req.body };
+    await this.userService.createPersonalNotification(dto);
+    res.status(201).json({ message: "Notification created" });
+  };
+
+  deletePersonalNotification = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const { notificationId } = req.params as any;
+    await this.userService.deletePersonalNotification(notificationId, userId);
+    res.status(200).json({ message: "Notification deleted" });
+  };
+
+  markPersonalNotificationAsRead = async (req: Request, res: Response) => {
+    const { notificationId } = req.params as any;
+    await this.userService.markPersonalNotificationAsRead(notificationId);
+    res.status(200).json({ message: "Notification marked as read" });
+  };
+
+  markAllPersonalNotificationsAsRead = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    await this.userService.markAllPersonalNotificationsAsRead(userId);
+    res.status(200).json({ message: "All notifications marked as read" });
+  };
+
+  getTotalUnreadNotificationCount = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const count =
+      await this.userService.getTotalUnreadNotificationCount(userId);
+    res.status(200).json(count);
+  };
+
+  getGlobalNotifications = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const dto = { userId, ...res.locals.validatedData };
+    const notifications = await this.userService.getGlobalNotifications(dto);
+    res.status(200).json(notifications);
+  };
+
+  setLastSeenNotificationDate = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    await this.userService.setLastSeenNotificationDate(userId, new Date());
+    res.status(200).json({ message: "Last seen notification date updated" });
+  };
 }

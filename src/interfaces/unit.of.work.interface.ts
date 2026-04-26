@@ -23,6 +23,9 @@ import { IAuthorEarningRepository } from "./author.earning.repo.interface.js";
 import { IPlatformEarningRepository } from "./platform.earning.repo.interface.js";
 import { IPlatformFinanceRepository } from "./platform.finance.repo.interface.js";
 import { IPlatformWithdrawalRepository } from "./platform.withdrawal.repo.interface.js";
+import { IReadingStatsRepository } from "./reading.stats.repository.interface.js";
+import { IPersonalNotificationRepository } from "./personal.notification.repo.interface.js";
+import { IGlobalNotificationRepository } from "./global.notification.repo.interface.js";
 
 export interface IUnitOfWork {
   authorRepository: IAuthorRepository;
@@ -50,6 +53,9 @@ export interface IUnitOfWork {
   platformFinanceRepository: IPlatformFinanceRepository;
   platformWithdrawalRepository: IPlatformWithdrawalRepository;
   appConfigRepository: IAppConfigRepository;
+  readingStatsRepository: IReadingStatsRepository;
+  personalNotificationRepository: IPersonalNotificationRepository;
+  globalNotificationRepository: IGlobalNotificationRepository;
 
   startTransaction(): Promise<void>;
   commit(): Promise<void>;

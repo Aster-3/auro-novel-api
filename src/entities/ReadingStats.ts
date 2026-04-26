@@ -28,19 +28,16 @@ export class ReadingStats {
   @Column({ type: "uuid" })
   novelId!: string;
 
-  @ManyToOne(() => Novel, (novel) => novel.readingStats, {
-    onDelete: "CASCADE",
-  })
-  @JoinColumn({ name: "novelId" })
-  novel!: Novel;
-
   @Column({ type: "uuid" })
   lastReadChapterId!: string;
 
   @ManyToOne(() => Chapter, (chapter) => chapter.readingStats, {
     onDelete: "CASCADE",
   })
-  @JoinColumn({ name: "lastReadChapterId" })
+  @JoinColumn([
+    { name: "lastReadChapterId", referencedColumnName: "id" },
+    { name: "novelId", referencedColumnName: "novelId" },
+  ])
   chapter!: Chapter;
 
   @Column({ type: "float", default: 0 })

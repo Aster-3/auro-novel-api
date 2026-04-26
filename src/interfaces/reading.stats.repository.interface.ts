@@ -1,7 +1,13 @@
+import { ReadingStats } from "../entities/ReadingStats.js";
 import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js";
 
 export interface IReadingStatsRepository {
-  //   getNovelStats(novelId: string): Promise<{ totalReads: number; uniqueReaders: number }>;
-  //   getChapterStats(chapterId: string): Promise<{ totalReads: number; uniqueReaders: number }>;
+  getUserStats(userId: string): Promise<ReadingStats[]>;
+  getUserNovelStats(
+    userId: string,
+    novelId: string,
+  ): Promise<ReadingStats | null>;
+  updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
+  existControl(userId: string, novelId: string): Promise<boolean>;
   updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
 }

@@ -42,6 +42,9 @@ import {
   PlatformEarning,
   PlatformFinance,
   PlatformWithdrawal,
+  ReadingStats,
+  PersonalNotification,
+  GlobalNotification,
 } from "../entities/_index.js";
 
 import { AppDataSource } from "../database/data-source.js";
@@ -80,6 +83,12 @@ import { PlatformFinanceRepository } from "../repositories/platform.finance.repo
 import { IPlatformFinanceRepository } from "../interfaces/platform.finance.repo.interface.js";
 import { PlatformWithdrawalRepository } from "../repositories/platform.withdrawal.repo..js";
 import { IPlatformWithdrawalRepository } from "../interfaces/platform.withdrawal.repo.interface.js";
+import { IReadingStatsRepository } from "../interfaces/reading.stats.repository.interface.js";
+import { ReadingStatsRepository } from "../repositories/reading.stats.repository.js";
+import { IPersonalNotificationRepository } from "../interfaces/personal.notification.repo.interface.js";
+import { PersonalNotificationRepository } from "../repositories/personal.notification.repository.js";
+import { GlobalNotificationRepository } from "../repositories/global.notification.repository.js";
+import { IGlobalNotificationRepository } from "../interfaces/global.notification.repo.interface.js";
 
 export class UnitOfWork implements IUnitOfWork {
   private queryRunner = AppDataSource.createQueryRunner();
@@ -129,6 +138,30 @@ export class UnitOfWork implements IUnitOfWork {
       "category",
       CategoryRepository,
       Category,
+    );
+  }
+
+  get readingStatsRepository() {
+    return this.getRepo<IReadingStatsRepository>(
+      "readingStats",
+      ReadingStatsRepository,
+      ReadingStats,
+    );
+  }
+
+  get personalNotificationRepository() {
+    return this.getRepo<IPersonalNotificationRepository>(
+      "personalNotification",
+      PersonalNotificationRepository,
+      PersonalNotification,
+    );
+  }
+
+  get globalNotificationRepository() {
+    return this.getRepo<IGlobalNotificationRepository>(
+      "globalNotification",
+      GlobalNotificationRepository,
+      GlobalNotification,
     );
   }
 

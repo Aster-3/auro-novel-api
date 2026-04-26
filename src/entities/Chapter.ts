@@ -7,6 +7,7 @@ import {
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from "typeorm";
 import { Novel } from "./Novel.js";
@@ -15,6 +16,7 @@ import { ChapterPurchase } from "./ChapterPurchase.js";
 import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
+@Unique(["id", "novelId"])
 export class Chapter {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
