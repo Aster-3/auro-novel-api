@@ -92,7 +92,7 @@ export class CommentService implements ICommentService {
     }
   };
 
-  getCommentsByNovelId = async (dto: GetCommentsDto, userId?: string) => {
+  getCommentsByNovelId = async (dto: GetCommentsDto, userId: string) => {
     return await this.uow.commentRepository.getCommentsByNovelId(dto, userId);
   };
 

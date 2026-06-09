@@ -11,6 +11,7 @@ export interface ICommentRepository {
     dto: GetCommentsDto,
     userId?: string,
   ): Promise<FindAndCountType<Comment>>;
+  // getReviewsByUserId(dto: GetCommentsDto, userId: string): Promise<FindAndCountType<Comment>>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsWithCount(
     novelId: string,

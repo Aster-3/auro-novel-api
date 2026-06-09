@@ -35,6 +35,7 @@ export class NovelController {
 
   getNovelComments = async (req: Request, res: Response) => {
     const userId = req.user?.id;
+
     const comments = await this.commentService.getCommentsByNovelId(
       res.locals.validatedData,
       userId,

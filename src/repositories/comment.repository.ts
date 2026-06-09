@@ -6,6 +6,7 @@ import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 import { Novel } from "../entities/_index.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { FindAndCountType } from "../constants/findAndCountType.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
