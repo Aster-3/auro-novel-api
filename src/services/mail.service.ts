@@ -1,18 +1,19 @@
 import { Resend } from "resend";
 import { getMailTemplate } from "../mail.template.js";
+import { getEnv } from "../utils/getEnv.js";
 
 export class MailService {
   private resend: Resend;
 
   constructor() {
-    this.resend = new Resend("re_WowKReWr_BcWwKAGcDDdb3xK9qF9sPLXM");
+    this.resend = new Resend(getEnv("RESEND_API_KEY"));
   }
 
   async sendVerificationCode(email: string, code: string) {
     try {
       const { data, error } = await this.resend.emails.send({
         from: "Auro Novel <onboarding@resend.dev>",
-        to: ["emircanemre09@gmail.com"],
+        to: [email],
         subject: "Doğrulama Kodun: " + code,
         html: getMailTemplate(code),
       });
