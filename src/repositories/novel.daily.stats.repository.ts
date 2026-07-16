@@ -20,7 +20,7 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
       totalViews: 0,
       totalReviews: 0,
       totalPositiveReviews: 0,
-      totalPurchases: 0,
+      totalLibraryCount: 0,
     });
     return await this.novelDailyStatsRepo.save(stats);
   }
@@ -42,7 +42,7 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
       totalViews: s.viewCount,
       totalReviews: s.totalReviewsCount,
       totalPositiveReviews: s.positiveReviewsCount,
-      totalPurchases: s.totalSales,
+      totalLibraryCount: s.totalLibraryCount,
     }));
 
     await this.novelDailyStatsRepo

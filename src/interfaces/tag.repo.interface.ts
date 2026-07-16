@@ -1,6 +1,8 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
+import { Novel } from "../entities/Novel.js";
 import { Tags } from "../entities/Tags.js";
 import { CreateTagDto } from "../schemas/create.tag.schema.js";
+import { GetTagNovelsDto } from "../schemas/get.tag.novels.schema.js";
 import { SearchTagDto } from "../schemas/search.tag.schema.js";
 
 export interface ITagRepository {
@@ -9,4 +11,5 @@ export interface ITagRepository {
   existBySlug(slug: string): Promise<boolean>;
   search(dto: SearchTagDto): Promise<FindAndCountType<Tags>>;
   getRandomTags(limit: number): Promise<Tags[]>;
+  getNovelsByTagId(dto: GetTagNovelsDto): Promise<FindAndCountType<Novel>>;
 }

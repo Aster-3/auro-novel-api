@@ -3,9 +3,9 @@ import { reqString } from "../utils/zod.error.helper.js";
 
 export const createCategorySchema = z.object({
   body: z.object({
-    trName: reqString("Türkçe kategori adı"),
-    enName: reqString("İngilizce kategori adı"),
-    coverUrl: z.url("Geçerli bir URL giriniz").optional(),
+    title: reqString("Kategori basligi")
+      .min(1, "Kategori basligi bos birakilamaz")
+      .max(30, "Kategori basligi en fazla 30 karakter olabilir"),
   }),
 });
 

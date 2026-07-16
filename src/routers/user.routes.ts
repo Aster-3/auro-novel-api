@@ -5,14 +5,23 @@ import { getUsersSchema } from "../schemas/get.users.schema.js";
 import { updateUserSchema } from "../schemas/update.user.schema.js";
 import { getMeSchema } from "../schemas/get.me.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import multer from "multer";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
+import { adminMiddleware } from "../middlewares/admin.middleware.js";
 import { userController } from "../container.js";
 import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { updateReadingStatsSchema } from "../schemas/update.reading.stats.schema.js";
 import { getMyLibrarySchema } from "../schemas/get.my.library.schema.js";
 import { getNotificationsSchema } from "../schemas/get.notifications.schema.js";
-
-const upload = multer({ storage: multer.memoryStorage() });
+import {
+  registerUserDeviceSchema,
+  unregisterUserDeviceSchema,
+} from "../schemas/register.user.device.schema.js";
+import { getUserFollowsSchema } from "../schemas/get.user.follows.schema.js";
+import {
+  getUserLibraryShowcaseSchema,
+  getUserShowcaseSchema,
+} from "../schemas/get.user.showcase.schema.js";
+import { profileImageUpload } from "../middlewares/upload.middleware.js";
 
 const router = Router({ strict: true });
 
@@ -24,16 +33,6 @@ router.get(
   validateSchema(getMeSchema),
   userController.getMe,
 );
-
-router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
-
-router.delete(
-  "/:id",
-  validateSchema(paramsUuidSchema),
-  userController.deleteUser,
-);
-
-router.get("/me/wallet", authMiddleware, userController.getUserBalance);
 
 router.get(
   "/me/library",
@@ -59,7 +58,7 @@ router.get(
 router.patch(
   "/me",
   authMiddleware,
-  upload.fields([
+  profileImageUpload.fields([
     { name: "profileImageUrl", maxCount: 1 },
     { name: "profileBackgroundImageUrl", maxCount: 1 },
   ]),
@@ -97,12 +96,6 @@ router.get(
   userController.getGlobalNotifications,
 );
 
-router.post(
-  "/me/notifications/personal",
-  authMiddleware,
-  userController.createPersonalNotification,
-);
-
 router.delete(
   "/me/notifications/personal/:notificationId",
   authMiddleware,
@@ -126,7 +119,14 @@ router.patch(
 router.patch(
   "/me/notifications/global/last-seen",
   authMiddleware,
-  userController.setLastSeenNotificationDate,
+  userController.setLastGlobalNotificationSeenAt,
+);
+
+router.get(
+  "/me/notifications/global/:notificationId",
+  authMiddleware,
+  validateSchema(uuidControlSchema("params", "notificationId")),
+  userController.getGlobalNotificationById,
 );
 
 router.get(
@@ -135,6 +135,92 @@ router.get(
   userController.getTotalUnreadNotificationCount,
 );
 
-router.get("/verifications/all", userController.getAllVerifications);
+router.post(
+  "/me/devices",
+  authMiddleware,
+  validateSchema(registerUserDeviceSchema),
+  userController.registerDevice,
+);
+
+router.delete(
+  "/me/devices",
+  authMiddleware,
+  validateSchema(unregisterUserDeviceSchema),
+  userController.unregisterDevice,
+);
+
+router.get(
+  "/:id/reviews",
+  optionalAuthMiddleware,
+  validateSchema(getUserShowcaseSchema),
+  userController.getUserReviews,
+);
+
+router.get(
+  "/:id/replies",
+  optionalAuthMiddleware,
+  validateSchema(getUserShowcaseSchema),
+  userController.getUserReplies,
+);
+
+router.get(
+  "/:id/library",
+  validateSchema(getUserLibraryShowcaseSchema),
+  userController.getUserLibrary,
+);
+
+router.post(
+  "/:id/follow",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.followUser,
+);
+
+router.delete(
+  "/:id/follow",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.unfollowUser,
+);
+
+router.get(
+  "/:id/follow-status",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.getFollowStatus,
+);
+
+router.get(
+  "/:id/follow-counts",
+  validateSchema(paramsUuidSchema),
+  userController.getFollowCounts,
+);
+
+router.get(
+  "/:id/followers",
+  validateSchema(getUserFollowsSchema),
+  userController.getFollowers,
+);
+
+router.get(
+  "/:id/following",
+  validateSchema(getUserFollowsSchema),
+  userController.getFollowing,
+);
+
+router.get(
+  "/verifications/all",
+  adminMiddleware,
+  userController.getAllVerifications,
+);
+
+router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
+
+router.delete(
+  "/:id",
+  adminMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.deleteUser,
+);
 
 export default router;

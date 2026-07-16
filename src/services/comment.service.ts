@@ -9,9 +9,17 @@ import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 import { GetCommentRepliesDto } from "../schemas/get.comment.replies.schema.js";
 import { GetCommentsDto } from "../schemas/get.comments.schema.js";
 import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
+import {
+  NotificationTargetType,
+  PersonalNotificationType,
+} from "../constants/notification.constants.js";
+import { PushNotificationService } from "./push.notification.service.js";
 
 export class CommentService implements ICommentService {
-  constructor(private uow: IUnitOfWork) {}
+  constructor(
+    private uow: IUnitOfWork,
+    private pushNotificationService: PushNotificationService,
+  ) {}
 
   createComment = async (dto: CreateCommentDto) => {
     const novelExists = await this.uow.novelRepository.existControl({
@@ -35,7 +43,6 @@ export class CommentService implements ICommentService {
       const newScore = calculateRankingScore(
         novel.positiveReviewsCount,
         novel.totalReviewsCount,
-        novel.totalSales,
       );
       await this.uow.novelRepository.updateRankingScore(dto.novelId, newScore);
 
@@ -76,7 +83,6 @@ export class CommentService implements ICommentService {
       const newScore = calculateRankingScore(
         updatedStats.positiveReviewsCount,
         updatedStats.totalReviewsCount,
-        updatedStats.totalSales,
       );
       await this.uow.novelRepository.updateRankingScore(
         comment.novelId,
@@ -105,7 +111,16 @@ export class CommentService implements ICommentService {
   }
 
   async toggleLike(userId: string, commentId: number) {
-    return await this.uow.commentLikeRepository?.toggleLike(userId, commentId)!;
+    const liked = await this.uow.commentLikeRepository.toggleLike(
+      userId,
+      commentId,
+    );
+
+    if (liked) {
+      await this.notifyCommentOwnerForLike(userId, commentId);
+    }
+
+    return liked;
   }
 
   getLast3CommentsByNovelId(novelId: string) {
@@ -118,5 +133,50 @@ export class CommentService implements ICommentService {
 
   getOneCommentById(id: number) {
     return this.uow.commentRepository.getOneById(id);
+  }
+
+  private async notifyCommentOwnerForLike(userId: string, commentId: number) {
+    try {
+      const commentMeta =
+        await this.uow.commentRepository.getNotificationMetaById(commentId);
+
+      if (!commentMeta || commentMeta.userId === userId) {
+        return;
+      }
+
+      const actor = await this.uow.userRepository.findOneById(userId);
+      const actorName = actor?.nickname || "Bir kullanici";
+      const titleSnapshot = `${actorName} yorumunu begendi`;
+      const bodySnapshot = "Yorumun yeni bir begeni aldi.";
+
+      await this.uow.personalNotificationRepository.createNotification({
+        userId: commentMeta.userId,
+        actorUserId: userId,
+        type: PersonalNotificationType.COMMENT_LIKE,
+        targetType: NotificationTargetType.COMMENT,
+        targetId: String(commentMeta.id),
+        titleSnapshot,
+        bodySnapshot,
+        data: {
+          novelId: commentMeta.novelId,
+          commentId: commentMeta.id,
+        },
+      });
+
+      await this.pushNotificationService.sendToUser(commentMeta.userId, {
+        title: titleSnapshot,
+        body: bodySnapshot,
+        data: {
+          notificationType: "personal_notification",
+          type: PersonalNotificationType.COMMENT_LIKE,
+          targetType: NotificationTargetType.COMMENT,
+          targetId: String(commentMeta.id),
+          novelId: commentMeta.novelId,
+          commentId: commentMeta.id,
+        },
+      });
+    } catch (error) {
+      console.error("Yorum begeni bildirimi gonderilemedi:", error);
+    }
   }
 }

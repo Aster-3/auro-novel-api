@@ -21,8 +21,8 @@ export class NovelDailyStats {
   @Column({ type: "int" })
   totalPositiveReviews!: number;
 
-  @Column({ type: "int" })
-  totalPurchases!: number;
+  @Column({ type: "int", default: 0 })
+  totalLibraryCount!: number;
 
   @Column({ type: "uuid" })
   novelId!: string;

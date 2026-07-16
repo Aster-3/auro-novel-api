@@ -1,6 +1,9 @@
 import { ILike, Like, Repository } from "typeorm";
 import { User } from "../entities/User.js";
-import { IUserRepository } from "../interfaces/user.repo.interface.js";
+import {
+  IUserRepository,
+  PublicUserProfile,
+} from "../interfaces/user.repo.interface.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
@@ -29,6 +32,7 @@ export class UserRepository implements IUserRepository {
       const verification = manager.create(UserVerification, {
         code,
         expiry,
+        lastSentAt: new Date(),
         user: savedUser,
       });
       await manager.save(UserVerification, verification);
@@ -68,16 +72,62 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         profileBackgroundImageUrl: true,
         description: true,
+        gender: true,
         role: true,
         status: true,
         isVerified: true,
+        isPremium: true,
+        premiumUntil: true,
+        subscriptionTier: true,
+        subscriptionPeriod: true,
         refreshToken: true,
-        lastNotificationSeenDate: true,
+        lastGlobalNotificationSeenAt: true,
       },
       relations: {
         verification: true,
       },
     });
+  }
+
+  async findPublicProfileById(
+    id: string,
+  ): Promise<PublicUserProfile | null> {
+    const user = await this.userRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        profileImageUrl: true,
+        profileBackgroundImageUrl: true,
+        description: true,
+        gender: true,
+        role: true,
+        authorProfile: {
+          id: true,
+          isVerified: true,
+        },
+      },
+      relations: {
+        authorProfile: true,
+      },
+    });
+
+    if (!user) return null;
+
+    return {
+      id: user.id,
+      username: user.username,
+      nickname: user.nickname,
+      profileImageUrl: user.profileImageUrl,
+      profileBackgroundImageUrl: user.profileBackgroundImageUrl,
+      biography: user.description,
+      gender: user.gender,
+      role: user.role,
+      authorId: user.authorProfile?.id ?? null,
+      isAuthor: Boolean(user.authorProfile),
+      authorIsVerified: user.authorProfile?.isVerified ?? false,
+    };
   }
 
   async searchUsers(dto: GetUsersDto) {
@@ -138,6 +188,22 @@ export class UserRepository implements IUserRepository {
         password: true,
         refreshToken: true,
         isVerified: true,
+        isPremium: true,
+        premiumUntil: true,
+        subscriptionTier: true,
+        subscriptionPeriod: true,
+      },
+    });
+  }
+
+  async findWithPasswordById(id: string) {
+    return await this.userRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        refreshToken: true,
       },
     });
   }
@@ -166,6 +232,14 @@ export class UserRepository implements IUserRepository {
     await this.userRepo.update({ id: userId }, { refreshToken });
   };
 
+  async updatePasswordAndClearRefreshToken(userId: string, password: string) {
+    await this.userRepo.update({ id: userId }, { password, refreshToken: null });
+  }
+
+  async clearRefreshToken(userId: string) {
+    await this.userRepo.update({ id: userId }, { refreshToken: null });
+  }
+
   async getUserForTokenRefresh(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -176,6 +250,10 @@ export class UserRepository implements IUserRepository {
         email: true,
         profileImageUrl: true,
         role: true,
+        isPremium: true,
+        premiumUntil: true,
+        subscriptionTier: true,
+        subscriptionPeriod: true,
       },
     });
     if (!user) {
@@ -188,36 +266,18 @@ export class UserRepository implements IUserRepository {
     await this.userRepo.delete(id);
   }
 
-  async getUserForPurchase(userId: string) {
+  async getLastGlobalNotificationSeenAt(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: {
-        id: true,
-        wallet: {
-          id: true,
-          moonCoins: true,
-          sunCoins: true,
-        },
-      },
+      select: { lastGlobalNotificationSeenAt: true },
     });
-    if (!user) {
-      return null;
-    }
-    return user;
+    return user ? user.lastGlobalNotificationSeenAt : null;
   }
 
-  async getLastSeenNotificationDate(userId: string) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      select: { lastNotificationSeenDate: true },
-    });
-    return user ? user.lastNotificationSeenDate : null;
-  }
-
-  async setLastSeenNotificationDate(userId: string, date: Date) {
+  async setLastGlobalNotificationSeenAt(userId: string, date: Date) {
     await this.userRepo.update(
       { id: userId },
-      { lastNotificationSeenDate: date },
+      { lastGlobalNotificationSeenAt: date },
     );
   }
 }

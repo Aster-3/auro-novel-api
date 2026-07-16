@@ -91,56 +91,6 @@ export class ChapterRepository implements IChapterRepository {
     return chapter.novel?.author?.userId || null;
   }
 
-  async getChapterForPurchase(id: string) {
-    const chapter = await this.chapterRepo.findOne({
-      where: { id },
-      select: {
-        id: true,
-        title: true,
-        novel: {
-          id: true,
-          name: true,
-          chapterPremiumPrice: true,
-          chapterFreemiumPrice: true,
-          discountRate: true,
-          discountEndDate: true,
-          authorSharePercent: true,
-          isBanned: true,
-          author: {
-            id: true,
-            userId: true,
-          },
-        },
-        publication: {
-          publicationStatus: true,
-        },
-      },
-      relations: {
-        novel: { author: true },
-        publication: true,
-      },
-    });
-    if (!chapter) {
-      return null;
-    }
-    if (!chapter.novel?.id) return null;
-    return {
-      chapterId: chapter.id,
-      chapterTitle: chapter.title,
-      novelId: chapter.novel.id,
-      novelTitle: chapter.novel.name,
-      isNovelBanned: chapter.novel.isBanned,
-      premiumPrice: chapter.novel.chapterPremiumPrice,
-      freemiumPrice: chapter.novel.chapterFreemiumPrice,
-      discountRate: chapter.novel.discountRate,
-      discountEndDate: chapter.novel.discountEndDate,
-      authorSharePercent: chapter.novel.authorSharePercent,
-      publicationStatus: chapter.publication?.publicationStatus || null,
-      authorId: chapter.novel.author.id || null,
-      userId: chapter.novel.author.userId || null,
-    };
-  }
-
   // async existControl(id: string) {
   //   return await this.chapterRepo.exists({
   //     where: {
@@ -170,14 +120,6 @@ export class ChapterRepository implements IChapterRepository {
 
   // async updateChapter(dto: UpdateChapterDTO) {
   //   await this.chapterRepo.update({ id: dto.id }, dto);
-  // }
-
-  // async isPurchased(chapterId: string): Promise<boolean> {
-  //   return await this.chapterRepo
-  //     .createQueryBuilder("chapter")
-  //     .innerJoin("chapter.purchases", "purchase")
-  //     .where("chapter.id = :id", { id: chapterId })
-  //     .getExists();
   // }
 
   // async getLastPublishedChapterIndexInVolume(

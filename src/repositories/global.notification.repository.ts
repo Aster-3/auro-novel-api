@@ -1,4 +1,10 @@
-import { MoreThan, Repository } from "typeorm";
+import {
+  Brackets,
+  IsNull,
+  LessThanOrEqual,
+  MoreThan,
+  Repository,
+} from "typeorm";
 import {
   CreateGlobalNotificationDto,
   IGlobalNotificationRepository,
@@ -11,28 +17,48 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
 
   async createGlobalNotification(
     dto: CreateGlobalNotificationDto,
-  ): Promise<void> {
-    const notification = this.notificationRepo.create(dto);
-    await this.notificationRepo.save(notification);
+  ): Promise<GlobalNotification> {
+    const notification = this.notificationRepo.create({
+      ...dto,
+      isPublished: dto.isPublished ?? true,
+      priority: dto.priority ?? 0,
+      publishedAt:
+        dto.publishedAt ?? (dto.isPublished === false ? null : new Date()),
+    });
+
+    return await this.notificationRepo.save(notification);
   }
 
   async getGlobalNotifications(dto: GetNotificationsDto, lastSeenDate: Date) {
     const { page, limit } = dto;
     const skip = (page - 1) * limit;
+    const now = new Date();
 
-    const [notifications, totalCount] =
-      await this.notificationRepo.findAndCount({
-        order: { createdAt: "DESC" },
-        skip,
-        take: limit,
-      });
+    const query = this.notificationRepo
+      .createQueryBuilder("notification")
+      .where("notification.isPublished = :isPublished", { isPublished: true })
+      .andWhere("notification.publishedAt <= :now", { now })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("notification.expiresAt IS NULL").orWhere(
+            "notification.expiresAt > :now",
+            { now },
+          );
+        }),
+      )
+      .orderBy("notification.priority", "DESC")
+      .addOrderBy("notification.publishedAt", "DESC")
+      .addOrderBy("notification.createdAt", "DESC")
+      .skip(skip)
+      .take(limit);
 
+    const [notifications, totalCount] = await query.getManyAndCount();
     const totalPages = Math.ceil(totalCount / limit);
     const nextPage = page + 1;
 
     const itemsWithFlag = notifications.map((notification) => ({
       ...notification,
-      isNew: lastSeenDate ? notification.createdAt > lastSeenDate : true,
+      isNew: notification.createdAt > lastSeenDate,
     }));
 
     return {
@@ -44,6 +70,38 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
     };
   }
 
+  async getGlobalNotificationById(
+    notificationId: string,
+    lastSeenDate: Date,
+  ) {
+    const now = new Date();
+    const notification = await this.notificationRepo
+      .createQueryBuilder("notification")
+      .where("notification.id = :notificationId", { notificationId })
+      .andWhere("notification.isPublished = :isPublished", {
+        isPublished: true,
+      })
+      .andWhere("notification.publishedAt <= :now", { now })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("notification.expiresAt IS NULL").orWhere(
+            "notification.expiresAt > :now",
+            { now },
+          );
+        }),
+      )
+      .getOne();
+
+    if (!notification) {
+      return null;
+    }
+
+    return {
+      ...notification,
+      isNew: notification.createdAt > lastSeenDate,
+    };
+  }
+
   async deleteNotification(notificationId: string) {
     const deleteResult = await this.notificationRepo.delete({
       id: notificationId,
@@ -52,11 +110,23 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
   }
 
   async getTotalUnreadCount(lastSeenDate: Date): Promise<number> {
-    const count = await this.notificationRepo.count({
-      where: {
-        createdAt: MoreThan(lastSeenDate),
-      },
+    const now = new Date();
+
+    return await this.notificationRepo.count({
+      where: [
+        {
+          isPublished: true,
+          publishedAt: LessThanOrEqual(now),
+          expiresAt: MoreThan(now),
+          createdAt: MoreThan(lastSeenDate),
+        },
+        {
+          isPublished: true,
+          publishedAt: LessThanOrEqual(now),
+          expiresAt: IsNull(),
+          createdAt: MoreThan(lastSeenDate),
+        },
+      ],
     });
-    return count;
   }
 }

@@ -1,14 +1,13 @@
+import { ConflictError } from "../errors/conflict.error.js";
+import { ForbiddenError } from "../errors/forbidden.error.js";
+import { NotFoundError } from "../errors/not.found.error.js";
+import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { INovelService } from "../interfaces/novel.service.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
-import { ConflictError } from "../errors/conflict.error.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
-import { NotFoundError } from "../errors/not.found.error.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
-import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { uploadToS3 } from "./s3.service.js";
-import { Novel } from "../entities/_index.js";
-import { da } from "@faker-js/faker";
 
 export class NovelService implements INovelService {
   constructor(
@@ -22,33 +21,28 @@ export class NovelService implements INovelService {
     file?: Express.Multer.File,
   ) {
     const isSlugTaken = await this.novelRepo.existControl({ slug: dto.slug });
-
-    if (isSlugTaken)
-      throw new ConflictError("slug", "Bu slug zaten kullanımda.");
+    if (isSlugTaken) {
+      throw new ConflictError("slug", "Bu slug zaten kullanimda.");
+    }
 
     const novelData = { ...dto };
 
-    if (!isAdmin) {
-      const author = await this.authorRepo.findByUserId(dto.authorId);
-
-      if (!author) {
-        throw new NotFoundError("Yazar bulunamadı.");
-      }
-
+    const author = await this.authorRepo.findByUserId(dto.authorId);
+    if (author) {
       novelData.authorId = author.id;
-    } else {
-      const isAuthorAvailable = await this.authorRepo.existControlAuthorId(
+    } else if (isAdmin) {
+      const authorById = await this.authorRepo.existControlAuthorId(
         dto.authorId,
       );
-
-      if (!isAuthorAvailable) {
-        throw new NotFoundError("Yazar bulunamadı.");
+      if (!authorById) {
+        throw new NotFoundError("Yazar bulunamadi.");
       }
+    } else {
+      throw new NotFoundError("Yazar bulunamadi.");
     }
 
     if (file) {
-      const fileUrl = await uploadToS3(file, "novel-covers");
-      novelData.coverImage = fileUrl;
+      novelData.coverImage = await uploadToS3(file, "novel-covers");
     }
 
     return this.novelRepo.create(novelData);
@@ -60,14 +54,29 @@ export class NovelService implements INovelService {
 
   async getNovelDetailWithId(id: string) {
     const novel = await this.novelRepo.findOneById(id);
-    if (!novel) throw new NotFoundError("Aradığınız novel bulunamadı.");
+    if (!novel) throw new NotFoundError("Aradiginiz novel bulunamadi.");
+    const registeredUser = novel.author?.user;
+    const isRegisteredUser = Boolean(registeredUser?.id);
+    const firstPublishedChapterId =
+      await this.novelRepo.getFirstPublishedChapterId(id);
     const recommendationRate =
       novel.totalReviewsCount > 0
         ? Math.round(
             (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
           )
         : null;
-    return { ...novel, recommendationRate };
+    return {
+      ...novel,
+      author: {
+        id: registeredUser?.id ?? novel.author.id,
+        authorName:
+          registeredUser?.nickname ?? novel.author.nickname ?? "Unknown Author",
+        isRegisteredUser,
+        isVerified: novel.author.isVerified,
+      },
+      recommendationRate,
+      firstPublishedChapterId,
+    };
   }
 
   async getLastUpdatedNovels(limit: number = 15) {
@@ -100,14 +109,10 @@ export class NovelService implements INovelService {
   async refreshWeeklyTrendData() {
     const trendData = await this.novelRepo.getWeeklyTrendData();
     const data = trendData.map((item) => {
-      const { totalReviewsCount, totalSales, totalReviews, totalPurchases } =
-        item;
-      const diffReviews = totalReviewsCount - (totalReviews || 0);
-      const diffSales = totalSales - (totalPurchases || 0);
-      const weeklyScore = diffReviews * 0.7 + diffSales * 0.3; // Basit bir ağırlıklı formül
+      const { totalReviewsCount, totalReviews } = item;
       return {
         id: item.id,
-        weeklyScore,
+        weeklyScore: totalReviewsCount - (totalReviews || 0),
       };
     });
     await this.novelRepo.bulkUpdateWeeklyScores(data);
@@ -115,7 +120,6 @@ export class NovelService implements INovelService {
 
   async getNovelsWithTagId(tagId: string, limit: number = 15) {
     if (limit > 50) limit = 50;
-    console.log("Tag ID:", tagId); // Debug: Tag ID'yi kontrol et
     return await this.novelRepo.getNovelsWithTagId(tagId, limit);
   }
 
@@ -123,11 +127,23 @@ export class NovelService implements INovelService {
     return await this.novelRepo.getLastCreatedNovels(limit);
   }
 
-  async updateNovelCategories(novelId: string, categoryIds: number[]) {
+  async updateNovelCategories(
+    novelId: string,
+    categoryIds: number[],
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    await this.ensureNovelAccess(novelId, userId, isAdmin);
     await this.novelRepo.updateNovelCategories(novelId, categoryIds);
   }
 
-  async updateNovelTags(novelId: string, tagIds: string[]) {
+  async updateNovelTags(
+    novelId: string,
+    tagIds: string[],
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    await this.ensureNovelAccess(novelId, userId, isAdmin);
     await this.novelRepo.updateNovelTags(novelId, tagIds);
   }
 
@@ -135,11 +151,11 @@ export class NovelService implements INovelService {
     return this.novelRepo.incrementViewCount(novelId);
   }
 
-  async updateNovel(dto: UpdateNovelDTO) {
+  async updateNovel(dto: UpdateNovelDTO, userId: string, isAdmin: boolean) {
     const novelExists = await this.novelRepo.existControl({ id: dto.id });
     if (!novelExists) throw new NotFoundError("...");
+    await this.ensureNovelAccess(dto.id, userId, isAdmin);
 
-    // Yeni bir obje oluşturup alanları elle eşliyoruz (Mapping)
     const updateData = {
       ...dto,
       coverImage: dto.coverImage
@@ -150,11 +166,30 @@ export class NovelService implements INovelService {
     await this.novelRepo.updateNovel(updateData);
   }
 
-  async deleteNovel(novelId: string): Promise<void> {
+  async deleteNovel(
+    novelId: string,
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<void> {
+    const novelExists = await this.novelRepo.existControl({ id: novelId });
+    if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+    await this.ensureNovelAccess(novelId, userId, isAdmin);
     await this.novelRepo.deleteNovel(novelId);
   }
 
   async isOwnerControl(novelId: string, authorId: string): Promise<boolean> {
     return await this.novelRepo.isOwnerControl(novelId, authorId);
+  }
+
+  private async ensureNovelAccess(
+    novelId: string,
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    if (isAdmin) return;
+    const isOwner = await this.novelRepo.isOwnerControl(novelId, userId);
+    if (!isOwner) {
+      throw new ForbiddenError("Bu roman uzerinde islem yapma yetkiniz yok.");
+    }
   }
 }

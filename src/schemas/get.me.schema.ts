@@ -1,12 +1,18 @@
 import * as z from "zod";
 
 const UserFields = z.enum([
+  "id",
   "username",
   "nickname",
   "email",
   "profileImageUrl",
   "profileBackgroundImageUrl",
   "description",
+  "gender",
+  "isPremium",
+  "premiumUntil",
+  "subscriptionTier",
+  "subscriptionPeriod",
 ]);
 
 export const getMeSchema = z.object({
@@ -22,7 +28,18 @@ export const getMeSchema = z.object({
       .transform((arr) => {
         return arr.length > 0
           ? arr
-          : ["id", "username", "nickname", "email", "profileImageUrl"];
+          : [
+              "id",
+              "username",
+              "nickname",
+              "email",
+              "profileImageUrl",
+              "gender",
+              "isPremium",
+              "premiumUntil",
+              "subscriptionTier",
+              "subscriptionPeriod",
+            ];
       }),
   }),
 });

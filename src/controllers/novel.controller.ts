@@ -106,14 +106,28 @@ export class NovelController {
   updateNovelCategories = async (req: Request, res: Response) => {
     const { categories } = req.body;
     const { id } = req.params as any;
-    const novel = await this.novelService.updateNovelCategories(id, categories);
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
+    const novel = await this.novelService.updateNovelCategories(
+      id,
+      categories,
+      userId,
+      isAdmin,
+    );
     res.status(200).json({ novel });
   };
 
   updateNovelTags = async (req: Request, res: Response) => {
     const { tags } = req.body;
     const { id } = req.params as any;
-    const novel = await this.novelService.updateNovelTags(id, tags);
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
+    const novel = await this.novelService.updateNovelTags(
+      id,
+      tags,
+      userId,
+      isAdmin,
+    );
     res.status(200).json({ novel });
   };
 
@@ -125,11 +139,13 @@ export class NovelController {
 
   updateNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
     const novel = await this.novelService.updateNovel({
       id,
       ...req.body,
       coverImage: req.file,
-    });
+    }, userId, isAdmin);
     res.status(200).json({ novel });
   };
 
@@ -143,6 +159,26 @@ export class NovelController {
       isAdmin,
     );
     res.json(chapters);
+  };
+
+  getNovelDownloadPackage = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const downloadPackage =
+      await this.chapterService.getNovelDownloadPackage(id);
+    res.status(200).json(downloadPackage);
+  };
+
+  getOfflineManifest = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const manifest = await this.chapterService.getOfflineManifest(id);
+    res.status(200).json(manifest);
+  };
+
+  getOfflineChaptersPackage = async (req: Request, res: Response) => {
+    const { id, chapterIds } = res.locals.validatedData;
+    const downloadPackage =
+      await this.chapterService.getOfflineChaptersPackage(id, chapterIds);
+    res.status(200).json(downloadPackage);
   };
 
   getDraftChaptersByNovelId = async (req: Request, res: Response) => {
@@ -161,7 +197,9 @@ export class NovelController {
 
   deleteNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    await this.novelService.deleteNovel(id);
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === UserRoles.ADMIN;
+    await this.novelService.deleteNovel(id, userId, isAdmin);
     res.sendStatus(204);
   };
 }

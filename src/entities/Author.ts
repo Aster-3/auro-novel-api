@@ -9,8 +9,6 @@ import {
 } from "typeorm";
 import { Novel } from "./Novel.js";
 import { User } from "./User.js";
-import { AuthorWallet } from "./AuthorWallet.js";
-import { AuthorEarning } from "./AuthorEarning.js";
 
 @Entity()
 export class Author {
@@ -36,12 +34,4 @@ export class Author {
 
   @OneToMany(() => Novel, (novel) => novel.author)
   novels!: Novel[];
-
-  @OneToOne(() => AuthorWallet, (wallet) => wallet.author, {
-    cascade: true,
-  })
-  wallet!: AuthorWallet;
-
-  @OneToMany(() => AuthorEarning, (earning) => earning.author)
-  earnings!: AuthorEarning[];
 }

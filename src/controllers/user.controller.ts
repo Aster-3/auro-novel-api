@@ -11,8 +11,41 @@ export class UserController {
 
   getOneUser = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    const user = await this.userService.getOneUser(id);
+    const user = await this.userService.getUserProfile(id);
     res.status(200).json(user);
+  };
+
+  getUserReviews = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const reviews = await this.userService.getUserReviews(
+      {
+        userId,
+        ...res.locals.validatedData,
+      },
+      req.user?.id,
+    );
+    res.status(200).json(reviews);
+  };
+
+  getUserReplies = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const replies = await this.userService.getUserReplies(
+      {
+        userId,
+        ...res.locals.validatedData,
+      },
+      req.user?.id,
+    );
+    res.status(200).json(replies);
+  };
+
+  getUserLibrary = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const library = await this.userService.getUserLibrary({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(library);
   };
 
   deleteUser = async (req: Request, res: Response) => {
@@ -62,12 +95,6 @@ export class UserController {
       fields: res.locals.validatedData.fields,
     });
     res.status(200).json(user);
-  };
-
-  getUserBalance = async (req: Request, res: Response) => {
-    const id = req.user?.id!;
-    const balance = await this.userService.getUserBalance(id);
-    res.status(200).json(balance);
   };
 
   toggleNovelInLibrary = async (req: Request, res: Response) => {
@@ -122,13 +149,6 @@ export class UserController {
     res.status(200).json(notifications);
   };
 
-  createPersonalNotification = async (req: Request, res: Response) => {
-    const userId = req.user?.id!;
-    const dto = { userId, ...req.body };
-    await this.userService.createPersonalNotification(dto);
-    res.status(201).json({ message: "Notification created" });
-  };
-
   deletePersonalNotification = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
     const { notificationId } = req.params as any;
@@ -137,8 +157,12 @@ export class UserController {
   };
 
   markPersonalNotificationAsRead = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
     const { notificationId } = req.params as any;
-    await this.userService.markPersonalNotificationAsRead(notificationId);
+    await this.userService.markPersonalNotificationAsRead(
+      notificationId,
+      userId,
+    );
     res.status(200).json({ message: "Notification marked as read" });
   };
 
@@ -162,9 +186,98 @@ export class UserController {
     res.status(200).json(notifications);
   };
 
-  setLastSeenNotificationDate = async (req: Request, res: Response) => {
+  getGlobalNotificationById = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
-    await this.userService.setLastSeenNotificationDate(userId, new Date());
-    res.status(200).json({ message: "Last seen notification date updated" });
+    const { notificationId } = req.params as any;
+    const notification = await this.userService.getGlobalNotificationById(
+      notificationId,
+      userId,
+    );
+    res.status(200).json(notification);
+  };
+
+  setLastGlobalNotificationSeenAt = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    await this.userService.setLastGlobalNotificationSeenAt(userId, new Date());
+    res
+      .status(200)
+      .json({ message: "Last global notification seen date updated" });
+  };
+
+  registerDevice = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const device = await this.userService.registerDevice({
+      userId,
+      ...req.body,
+    });
+
+    res.status(200).json({
+      message: "Device registered",
+      item: device,
+    });
+  };
+
+  unregisterDevice = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    await this.userService.unregisterDevice({
+      userId,
+      ...req.body,
+    });
+
+    res.status(200).json({ message: "Device unregistered" });
+  };
+
+  followUser = async (req: Request, res: Response) => {
+    const followerId = req.user?.id!;
+    const { id: followingId } = req.params as any;
+    const result = await this.userService.followUser(followerId, followingId);
+    res.status(200).json({
+      message: result.created ? "User followed" : "User already followed",
+      ...result,
+    });
+  };
+
+  unfollowUser = async (req: Request, res: Response) => {
+    const followerId = req.user?.id!;
+    const { id: followingId } = req.params as any;
+    const result = await this.userService.unfollowUser(followerId, followingId);
+    res.status(200).json({
+      message: result.removed ? "User unfollowed" : "User was not followed",
+      ...result,
+    });
+  };
+
+  getFollowStatus = async (req: Request, res: Response) => {
+    const followerId = req.user?.id!;
+    const { id: followingId } = req.params as any;
+    const status = await this.userService.getFollowStatus(
+      followerId,
+      followingId,
+    );
+    res.status(200).json(status);
+  };
+
+  getFollowCounts = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const counts = await this.userService.getFollowCounts(userId);
+    res.status(200).json(counts);
+  };
+
+  getFollowers = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const followers = await this.userService.getFollowers({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(followers);
+  };
+
+  getFollowing = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const following = await this.userService.getFollowing({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(following);
   };
 }

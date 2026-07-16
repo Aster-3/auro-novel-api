@@ -4,6 +4,7 @@ import { SeriesStatus } from "../constants/series.constants.js";
 export const getNovelsSchema = z.object({
   query: z.object({
     name: z.string().optional(),
+    authorId: z.uuid("Geçersiz yazar ID formatı").optional(),
     limit: z.coerce
       .number()
       .min(1, "Limit en az 1 olmalı")

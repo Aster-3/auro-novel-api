@@ -3,14 +3,16 @@ import { validateSchema } from "../middlewares/validate.schema.js";
 import { createChapterSchema } from "../schemas/create.chapter.schema.js";
 import { deleteChapterSchema } from "../schemas/delete.chapter.schema.js";
 import { updateChapterSchema } from "../schemas/update.chapter.schema.js";
-import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { chapterController } from "../container.js";
 import { createPublicationSchema } from "../schemas/publish.chapter.schema.js";
 import { PublicationStatus } from "../constants/chapter.constants.js";
 import z from "zod";
-import { createChapterPurchaseSchema } from "../schemas/create.chapter.purchase.schema.js";
+import { createChapterCommentSchema } from "../schemas/create.chapter.comment.schema.js";
+import { getChapterCommentsSchema } from "../schemas/get.chapter.comments.schema.js";
+import { chapterCommentController } from "../container.js";
 
 const router = Router();
 
@@ -27,6 +29,26 @@ router.get(
   validateSchema(uuidControlSchema("params", "id")),
   chapterController.getOneChapter,
 ); /// OKEY
+
+router.get(
+  "/:id/offline",
+  validateSchema(uuidControlSchema("params", "id")),
+  chapterController.getOneOfflineChapter,
+);
+
+router.get(
+  "/:chapterId/comments",
+  optionalAuthMiddleware,
+  validateSchema(getChapterCommentsSchema),
+  chapterCommentController.getCommentsByChapterId,
+);
+
+router.post(
+  "/:chapterId/comments",
+  authMiddleware,
+  validateSchema(createChapterCommentSchema),
+  chapterCommentController.createComment,
+);
 
 router.get(
   "/:id/draft",
@@ -54,13 +76,6 @@ router.delete(
   authMiddleware,
   validateSchema(deleteChapterSchema),
   chapterController.deleteChapter,
-);
-
-router.post(
-  "/:id/purchase",
-  authMiddleware,
-  validateSchema(createChapterPurchaseSchema),
-  chapterController.purchaseChapter,
 );
 
 router.patch(

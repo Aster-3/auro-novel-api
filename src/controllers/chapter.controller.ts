@@ -16,6 +16,12 @@ export class ChapterController {
     res.status(200).json(chapter);
   };
 
+  getOneOfflineChapter = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const chapter = await this.chapterService.getChapterOfflinePackage(id);
+    res.status(200).json(chapter);
+  };
+
   getOneDraftChapter = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const userId = req.user?.id || "";
@@ -82,14 +88,4 @@ export class ChapterController {
     res.sendStatus(204);
   };
 
-  purchaseChapter = async (req: Request, res: Response) => {
-    const userId = req.user?.id;
-    const id = req.params.id;
-    await this.chapterService.purchaseChapter({
-      ...req.body,
-      userId,
-      id,
-    });
-    res.sendStatus(204);
-  };
 }

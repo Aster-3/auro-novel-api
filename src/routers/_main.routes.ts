@@ -10,14 +10,17 @@ import TagRouter from "./tag.routes.js";
 import ChapterRoutes from "./chapter.routes.js";
 import VolumeRoutes from "./volume.routes.js";
 import AuthorRoutes from "./author.routes.js";
-import ChapterPurchaseRoutes from "./chapter.purchase.routes.js";
 import NovelDailyStatsRoutes from "./novel.daily.stats.routes.js";
 import AdminRoutes from "./admin.routes.js";
 import { adminMiddleware } from "../middlewares/admin.middleware.js";
+import FeedbackRoutes from "./feedback.routes.js";
+import ChapterCommentRoutes from "./chapter.comment.routes.js";
+import BannerRoutes from "./banner.routes.js";
 
 const rootRouter = Router();
 
 rootRouter.get("/", (req, res) => res.send("Hello from Main Routes"));
+rootRouter.use("/", NovelDailyStatsRoutes);
 rootRouter.use("/authors", AuthorRoutes);
 rootRouter.use("/auth", AuthRoutes);
 rootRouter.use("/novels", NovelRoutes);
@@ -28,9 +31,10 @@ rootRouter.use("/categories", CategoryRoutes);
 rootRouter.use("/replies", ReplyRouter);
 rootRouter.use("/tags", TagRouter);
 rootRouter.use("/chapters", ChapterRoutes);
+rootRouter.use("/chapter-comments", ChapterCommentRoutes);
+rootRouter.use("/banners", BannerRoutes);
 rootRouter.use("/volumes", VolumeRoutes);
-rootRouter.use("/purchases", ChapterPurchaseRoutes);
-rootRouter.use("/authors", NovelDailyStatsRoutes);
-rootRouter.use("/admin", AdminRoutes);
+rootRouter.use("/feedback", FeedbackRoutes);
+rootRouter.use("/admin", adminMiddleware, AdminRoutes);
 
 export default rootRouter;

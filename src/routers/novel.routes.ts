@@ -10,19 +10,18 @@ import { updateTagsSchema } from "../schemas/update.tags.schema.js";
 import { updateNovelSchema } from "../schemas/update.novel.schema.js";
 import { getChaptersSchema } from "../schemas/get.chapters.schema.js";
 import { paramsNovelIdSchema } from "../schemas/params.novel.id.schema.js";
+import { offlineChaptersSchema } from "../schemas/offline.chapters.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
-import multer from "multer";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 import { novelController } from "../container.js";
+import { coverImageUpload } from "../middlewares/upload.middleware.js";
 const router = Router();
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/", validateSchema(getNovelsSchema), novelController.getNovels); ///OKEY
 
 router.post(
   "/",
-  upload.single("coverImage"),
+  coverImageUpload.single("coverImage"),
   authMiddleware,
   validateSchema(createNovelSchema),
   novelController.createNovel,
@@ -41,6 +40,24 @@ router.get(
 ); ///OKEY
 
 router.get(
+  "/:id/download",
+  validateSchema(paramsUuidSchema),
+  novelController.getNovelDownloadPackage,
+);
+
+router.get(
+  "/:id/offline-manifest",
+  validateSchema(paramsUuidSchema),
+  novelController.getOfflineManifest,
+);
+
+router.post(
+  "/:id/offline-chapters",
+  validateSchema(offlineChaptersSchema),
+  novelController.getOfflineChaptersPackage,
+);
+
+router.get(
   "/:id",
   validateSchema(paramsUuidSchema),
   novelController.getOneNovel,
@@ -48,7 +65,7 @@ router.get(
 
 router.patch(
   "/:id",
-  upload.single("coverImage"),
+  coverImageUpload.single("coverImage"),
   authMiddleware,
   validateSchema(updateNovelSchema),
   novelController.updateNovel,
@@ -56,6 +73,7 @@ router.patch(
 
 router.delete(
   "/:id",
+  authMiddleware,
   validateSchema(paramsUuidSchema),
   novelController.deleteNovel,
 );

@@ -9,9 +9,6 @@ export const authMiddleware = (
 ) => {
   try {
     const authHeader = req.headers.authorization;
-    if (authHeader) {
-      console.log("Kullanıcının tokeni var:", authHeader);
-    }
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new UnauthenticatedError("ACCESS_TOKEN_INVALID");
@@ -22,6 +19,7 @@ export const authMiddleware = (
     if (!token) {
       throw new UnauthenticatedError("ACCESS_TOKEN_INVALID");
     }
+
     let decoded;
 
     try {
@@ -30,7 +28,7 @@ export const authMiddleware = (
       throw new UnauthenticatedError("ACCESS_TOKEN_INVALID");
     }
 
-    (req as any).user = decoded;
+    req.user = decoded as Request["user"];
 
     next();
   } catch (error) {

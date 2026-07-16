@@ -7,13 +7,13 @@ export const updateCategorySchema = z.object({
   }),
   body: z
     .object({
-      trName: reqString("Türkçe kategori adı").optional(),
-      enName: reqString("İngilizce kategori adı").optional(),
-      coverUrl: z.string().url("Geçerli bir URL giriniz").optional(),
+      title: reqString("Kategori basligi")
+        .min(1, "Kategori basligi bos birakilamaz")
+        .max(30, "Kategori basligi en fazla 30 karakter olabilir")
+        .optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
-      message:
-        "En az bir alanı (trName, enName veya coverUrl) güncellemelisiniz.",
+      message: "En az bir alan guncellemelisiniz.",
     }),
 });
 

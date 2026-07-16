@@ -24,18 +24,18 @@ export class AuthorController {
     res.json(result);
   };
 
-  getAuthorWallet = async (req: Request, res: Response) => {
-    const { id } = req.user as any;
-    const walletInfo = await this.authorService.getAuthorWallet(id);
-    res.json(walletInfo);
+  getMe = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const result = await this.authorService.getAuthorStatus(userId);
+    res.status(200).json(result);
   };
 
-  getAuthorTransactions = async (req: Request, res: Response) => {
-    const { id } = req.user as any;
-    const transactions = await this.authorService.getAuthorTransactions(
+  getMyNovels = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const result = await this.authorService.getMyNovels(
+      userId,
       res.locals.validatedData,
-      id,
     );
-    res.json(transactions);
+    res.status(200).json(result);
   };
 }

@@ -3,6 +3,7 @@ import { Comment } from "../entities/Comment.js";
 import { CreateCommentDto } from "../schemas/create.comment.schema.js";
 import { CreateReplyDto } from "../schemas/create.reply.schema.js";
 import { GetCommentsDto } from "../schemas/get.comments.schema.js";
+import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 
 export interface ICommentRepository {
   create(comment: CreateCommentDto | CreateReplyDto): Promise<Comment | null>;
@@ -11,7 +12,10 @@ export interface ICommentRepository {
     dto: GetCommentsDto,
     userId?: string,
   ): Promise<FindAndCountType<Comment>>;
-  // getReviewsByUserId(dto: GetCommentsDto, userId: string): Promise<FindAndCountType<Comment>>;
+  getReviewsByUserId(
+    dto: GetUserShowcaseDto,
+    viewerId?: string,
+  ): Promise<FindAndCountType<any>>;
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsWithCount(
     novelId: string,
@@ -22,4 +26,7 @@ export interface ICommentRepository {
     userId: string,
   ): Promise<{ novelId: string; isRecommend: boolean } | null>;
   getOneById(id: number): Promise<Comment | null>;
+  getNotificationMetaById(
+    id: number,
+  ): Promise<{ id: number; userId: string; novelId: string } | null>;
 }

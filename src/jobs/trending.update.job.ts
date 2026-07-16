@@ -5,10 +5,10 @@ export const setupTrendingUpdateJob = (novelService: INovelService) => {
   cron.schedule(
     "0 0 * * *",
     async () => {
-      await novelService.refreshWeeklyTrendData();
       try {
+        await novelService.refreshWeeklyTrendData();
       } catch (error) {
-        console.error("Cron hatası:", error);
+        console.error("Cron hatasi:", error);
       }
     },
     {

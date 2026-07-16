@@ -2,21 +2,33 @@ import { Novel } from "../entities/Novel.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
+import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
+
+export type NovelListItem = Pick<
+  Novel,
+  "id" | "name" | "coverImage" | "status" | "chapterCount" | "viewCount"
+> & {
+  recommendationRate: number | null;
+};
 
 export interface INovelRepository {
   create(novel: CreateNovelDTo): Promise<Novel>;
-  getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<Novel>>;
+  getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<NovelListItem>>;
+  getNovelsByAuthorUserId(
+    userId: string,
+    dto: QueryPageAndLimitDto,
+  ): Promise<FindAndCountType<NovelListItem>>;
   getLastUpdatedNovels(limit: number): Promise<Novel[]>;
   getWeeklyTrendingNovels(limit: number): Promise<Novel[]>;
   getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]>;
   getLastCreatedNovels(limit: number): Promise<Novel[]>;
   findOneById(id: string): Promise<Novel | null>;
+  getFirstPublishedChapterId(novelId: string): Promise<string | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   incrementViewCount(novelId: string): Promise<void>;
-  incrementTotalSales(novelId: string): Promise<void>;
   incrementAndDecrementReviewCount(
     novelId: string,
     isIncrement: boolean,
@@ -28,9 +40,7 @@ export interface INovelRepository {
     {
       id: string;
       totalReviewsCount: number;
-      totalSales: number;
       totalReviews: number;
-      totalPurchases: number;
     }[]
   >;
   bulkUpdateWeeklyScores(
@@ -42,19 +52,10 @@ export interface INovelRepository {
       viewCount: number;
       totalReviewsCount: number;
       positiveReviewsCount: number;
-      totalSales: number;
+      totalLibraryCount: number;
     }[]
   >;
   isOwnerControl(novelId: string, authorId: string): Promise<boolean>;
   deleteNovel(novelId: string): Promise<void>;
   refreshChapterStats(novelId: string): Promise<void>;
-  getPaywallConfig(novelId: string): Promise<{
-    paywallStartVolume: number | null;
-    paywallStartChapter: number | null;
-    author: {
-      user: {
-        id: string | null;
-      };
-    };
-  } | null>;
 }

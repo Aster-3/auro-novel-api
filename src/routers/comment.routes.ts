@@ -4,10 +4,12 @@ import { deleteCommentSchema } from "../schemas/delete.comment.schema.js";
 import { getCommentRepliesSchema } from "../schemas/get.comment.replies.schema.js";
 import { toggleLikeSchema } from "../schemas/toggle.like.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware copy.js";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 import { commentController } from "../container.js";
 
 const router = Router();
+
+router.get("/top-week", commentController.getTopCommentsOfLastWeek); // OKEY
 
 router.get(
   "/:commentId",
@@ -35,7 +37,5 @@ router.post(
   authMiddleware,
   commentController.toggleLike,
 ); // OKEY
-
-router.get("/top-week", commentController.getTopCommentsOfLastWeek); // OKEY
 
 export default router;

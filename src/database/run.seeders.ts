@@ -1,18 +1,22 @@
-import { runSeeders } from "typeorm-extension";
 import { AppDataSource } from "./data-source.js";
+import MainSeeder from "./_main.seeder.js";
 
 async function run() {
   try {
-    console.log("🌱 Seed işlemi başlıyor...");
-    await runSeeders(AppDataSource);
+    console.log("Seed islemi basliyor...");
+    await AppDataSource.initialize();
+    await new MainSeeder().run(AppDataSource, null as never);
 
-    console.log("✨ Mock veriler başarıyla yüklendi!");
+    console.log("Mock veriler basariyla yuklendi!");
   } catch (error) {
-    console.error("❌ Seed sırasında bir hata oluştu:");
+    console.error("Seed sirasinda bir hata olustu:");
     console.error(error);
+    process.exitCode = 1;
   } finally {
-    await AppDataSource.destroy();
-    process.exit(0);
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
   }
 }
+
 run();

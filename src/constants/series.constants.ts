@@ -11,14 +11,11 @@ export enum LanguageType {
   TR = "tr",
 }
 
-export enum NovelFormat {
-  WEBNOVEL = "webnovel",
-  LIGHT_NOVEL = "light_novel",
-}
-
-export enum sourceType {
-  LOCAL = "local",
-  GLOBAL = "global",
+export enum NovelType {
+  CLASSIC = "CLASSIC",
+  USER_GENERATED = "USER_GENERATED",
+  WEB_NOVEL = "WEB_NOVEL",
+  LIGHT_NOVEL = "LIGHT_NOVEL",
 }
 
 export enum SortType {

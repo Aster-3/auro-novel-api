@@ -1,11 +1,19 @@
-export enum NotificationType {
+export enum PersonalNotificationType {
   NEW_CHAPTER = "new_chapter",
-  ANNOUCEMENT = "announcement",
-  REVIEW_REPLY = "review_reply",
-  REVIEW_LIKE = "review_like",
-  COMMENT_LIKE = "comment_like",
   COMMENT_REPLY = "comment_reply",
-  PAYMENT_REQUEST = "payment_request",
-  PAYMENT_SUCCESS = "payment_success",
-  PAYMENT_FAILURE = "payment_failure",
+  COMMENT_LIKE = "comment_like",
+  REPLY_REPLY = "reply_reply",
+  REPLY_LIKE = "reply_like",
+  FOLLOW = "follow",
+  MESSAGE = "message",
+}
+
+export enum NotificationTargetType {
+  NOVEL = "novel",
+  CHAPTER = "chapter",
+  COMMENT = "comment",
+  REPLY = "reply",
+  USER = "user",
+  CONVERSATION = "conversation",
+  URL = "url",
 }

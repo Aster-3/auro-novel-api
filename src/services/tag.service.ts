@@ -2,6 +2,7 @@ import { ConflictError } from "../errors/conflict.error.js";
 import { ITagRepository } from "../interfaces/tag.repo.interface.js";
 import { ITagService } from "../interfaces/tag.service.interface.js";
 import { CreateTagDto } from "../schemas/create.tag.schema.js";
+import { GetTagNovelsDto } from "../schemas/get.tag.novels.schema.js";
 import { SearchTagDto } from "../schemas/search.tag.schema.js";
 import { tagSlugify } from "../utils/tag.slugify.js";
 
@@ -28,5 +29,8 @@ export class TagService implements ITagService {
   async getRandomTags(limit: number = 10) {
     if (limit > 20) limit = 20; // Maksimum 20 tag döndür
     return await this.tagRepo.getRandomTags(limit);
+  }
+  async getNovelsByTagId(dto: GetTagNovelsDto) {
+    return await this.tagRepo.getNovelsByTagId(dto);
   }
 }

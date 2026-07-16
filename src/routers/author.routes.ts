@@ -5,11 +5,21 @@ import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { getAuthorsSchema } from "../schemas/get.authors.schema.js";
 import { authorController } from "../container.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { getAuthorTransactionsSchema } from "../schemas/get.author.transactions.schema.js";
+import { adminMiddleware } from "../middlewares/admin.middleware.js";
+import { queryPageAndLimitSchema } from "../schemas/queryPageAndLimitSchema.js";
 
 const router = Router();
 
 router.get("/", validateSchema(getAuthorsSchema), authorController.getAuthors);
+
+router.get(
+  "/me/novels",
+  authMiddleware,
+  validateSchema(queryPageAndLimitSchema),
+  authorController.getMyNovels,
+);
+
+router.get("/me", authMiddleware, authorController.getMe);
 
 router.post(
   "/",
@@ -20,17 +30,9 @@ router.post(
 
 router.delete(
   "/:id",
-  validateSchema(uuidControlSchema),
+  adminMiddleware,
+  validateSchema(uuidControlSchema()),
   authorController.deleteAuthor,
-);
-
-router.get("/my-wallet", authMiddleware, authorController.getAuthorWallet);
-
-router.get(
-  "/my-wallet/transactions",
-  authMiddleware,
-  validateSchema(getAuthorTransactionsSchema),
-  authorController.getAuthorTransactions,
 );
 
 export default router;

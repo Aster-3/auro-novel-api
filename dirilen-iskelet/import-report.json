@@ -1,0 +1,651 @@
+{
+  "pdfType": "text-based",
+  "importSummary": {
+    "totalChapters": 37,
+    "successfullyExtracted": 36,
+    "failedToExtract": 1
+  },
+  "chapterStatus": [
+    {
+      "chapterNumber": 1,
+      "title": "Direklerarası'nda İki Gölge",
+      "status": "success",
+      "txtFile": "output/chapters-text/001.txt",
+      "htmlFile": "output/chapters-html/001.html",
+      "paraCount": 114,
+      "charCount": 13396
+    },
+    {
+      "chapterNumber": 2,
+      "title": "Bekleyiş ve Müezzinin Sırrı",
+      "status": "success",
+      "txtFile": "output/chapters-text/002.txt",
+      "htmlFile": "output/chapters-html/002.html",
+      "paraCount": 133,
+      "charCount": 21015
+    },
+    {
+      "chapterNumber": 3,
+      "title": "Mezarlık Yolcuları",
+      "status": "success",
+      "txtFile": "output/chapters-text/003.txt",
+      "htmlFile": "output/chapters-html/003.html",
+      "paraCount": 45,
+      "charCount": 7460
+    },
+    {
+      "chapterNumber": 4,
+      "title": "Karanlıktaki Hırıltı",
+      "status": "success",
+      "txtFile": "output/chapters-text/004.txt",
+      "htmlFile": "output/chapters-html/004.html",
+      "paraCount": 62,
+      "charCount": 8801
+    },
+    {
+      "chapterNumber": 5,
+      "title": "İz Peşinde",
+      "status": "success",
+      "txtFile": "output/chapters-text/005.txt",
+      "htmlFile": "output/chapters-html/005.html",
+      "paraCount": 82,
+      "charCount": 8923
+    },
+    {
+      "chapterNumber": 6,
+      "title": "Açılan Mezar",
+      "status": "success",
+      "txtFile": "output/chapters-text/006.txt",
+      "htmlFile": "output/chapters-html/006.html",
+      "paraCount": 74,
+      "charCount": 9242
+    },
+    {
+      "chapterNumber": 7,
+      "title": "Üç Kefenli",
+      "status": "success",
+      "txtFile": "output/chapters-text/007.txt",
+      "htmlFile": "output/chapters-html/007.html",
+      "paraCount": 79,
+      "charCount": 10369
+    },
+    {
+      "chapterNumber": 8,
+      "title": "Ertesi Günün Yankıları",
+      "status": "success",
+      "txtFile": "output/chapters-text/008.txt",
+      "htmlFile": "output/chapters-html/008.html",
+      "paraCount": 58,
+      "charCount": 11355
+    },
+    {
+      "chapterNumber": 9,
+      "title": "Evdeki Ziyaret",
+      "status": "success",
+      "txtFile": "output/chapters-text/009.txt",
+      "htmlFile": "output/chapters-html/009.html",
+      "paraCount": 54,
+      "charCount": 14385
+    },
+    {
+      "chapterNumber": 10,
+      "title": "Felsefe ve İtiraf",
+      "status": "success",
+      "txtFile": "output/chapters-text/010.txt",
+      "htmlFile": "output/chapters-html/010.html",
+      "paraCount": 61,
+      "charCount": 15103
+    },
+    {
+      "chapterNumber": 11,
+      "title": "Nasıra'nın Acısı",
+      "status": "success",
+      "txtFile": "output/chapters-text/011.txt",
+      "htmlFile": "output/chapters-html/011.html",
+      "paraCount": 87,
+      "charCount": 11178
+    },
+    {
+      "chapterNumber": 12,
+      "title": "İkinci Sefer",
+      "status": "failed",
+      "reason": "Missing references: endText",
+      "details": "Could not find endText references in page range 122-127."
+    },
+    {
+      "chapterNumber": 13,
+      "title": "Defineciler ve Hurafe",
+      "status": "success",
+      "txtFile": "output/chapters-text/013.txt",
+      "htmlFile": "output/chapters-html/013.html",
+      "paraCount": 85,
+      "charCount": 11103
+    },
+    {
+      "chapterNumber": 14,
+      "title": "Cuma Gecesi Hazırlığı",
+      "status": "success",
+      "txtFile": "output/chapters-text/014.txt",
+      "htmlFile": "output/chapters-html/014.html",
+      "paraCount": 75,
+      "charCount": 8945
+    },
+    {
+      "chapterNumber": 15,
+      "title": "Tıkanan Nefesler",
+      "status": "success",
+      "txtFile": "output/chapters-text/015.txt",
+      "htmlFile": "output/chapters-html/015.html",
+      "paraCount": 80,
+      "charCount": 8426
+    },
+    {
+      "chapterNumber": 16,
+      "title": "Feryat",
+      "status": "success",
+      "txtFile": "output/chapters-text/016.txt",
+      "htmlFile": "output/chapters-html/016.html",
+      "paraCount": 73,
+      "charCount": 8159
+    },
+    {
+      "chapterNumber": 17,
+      "title": "Çevirme Harekâtı",
+      "status": "success",
+      "txtFile": "output/chapters-text/017.txt",
+      "htmlFile": "output/chapters-html/017.html",
+      "paraCount": 92,
+      "charCount": 11093
+    },
+    {
+      "chapterNumber": 18,
+      "title": "Karanlıktaki Kaçış",
+      "status": "success",
+      "txtFile": "output/chapters-text/018.txt",
+      "htmlFile": "output/chapters-html/018.html",
+      "paraCount": 101,
+      "charCount": 12768
+    },
+    {
+      "chapterNumber": 19,
+      "title": "Sabah Tahkikatı",
+      "status": "success",
+      "txtFile": "output/chapters-text/019.txt",
+      "htmlFile": "output/chapters-html/019.html",
+      "paraCount": 78,
+      "charCount": 11071
+    },
+    {
+      "chapterNumber": 20,
+      "title": "İngilizce Yazılı Örtü",
+      "status": "success",
+      "txtFile": "output/chapters-text/020.txt",
+      "htmlFile": "output/chapters-html/020.html",
+      "paraCount": 93,
+      "charCount": 9358
+    },
+    {
+      "chapterNumber": 21,
+      "title": "Paşa Kızı Banu",
+      "status": "success",
+      "txtFile": "output/chapters-text/021.txt",
+      "htmlFile": "output/chapters-html/021.html",
+      "paraCount": 129,
+      "charCount": 10450
+    },
+    {
+      "chapterNumber": 22,
+      "title": "İskelet Kurma Kararı",
+      "status": "success",
+      "txtFile": "output/chapters-text/022.txt",
+      "htmlFile": "output/chapters-html/022.html",
+      "paraCount": 83,
+      "charCount": 9579
+    },
+    {
+      "chapterNumber": 23,
+      "title": "Kömürlükteki Kafatasları",
+      "status": "success",
+      "txtFile": "output/chapters-text/023.txt",
+      "htmlFile": "output/chapters-html/023.html",
+      "paraCount": 95,
+      "charCount": 12040
+    },
+    {
+      "chapterNumber": 24,
+      "title": "Yırtık Kartpostal",
+      "status": "success",
+      "txtFile": "output/chapters-text/024.txt",
+      "htmlFile": "output/chapters-html/024.html",
+      "paraCount": 34,
+      "charCount": 9911
+    },
+    {
+      "chapterNumber": 25,
+      "title": "Karanlıkta Yüzleşme",
+      "status": "success",
+      "txtFile": "output/chapters-text/025.txt",
+      "htmlFile": "output/chapters-html/025.html",
+      "paraCount": 63,
+      "charCount": 10244
+    },
+    {
+      "chapterNumber": 26,
+      "title": "Fal ve Kehanet",
+      "status": "success",
+      "txtFile": "output/chapters-text/026.txt",
+      "htmlFile": "output/chapters-html/026.html",
+      "paraCount": 112,
+      "charCount": 17402
+    },
+    {
+      "chapterNumber": 27,
+      "title": "Gözyaşı ve Sabır",
+      "status": "success",
+      "txtFile": "output/chapters-text/027.txt",
+      "htmlFile": "output/chapters-html/027.html",
+      "paraCount": 78,
+      "charCount": 13065
+    },
+    {
+      "chapterNumber": 28,
+      "title": "Cevri Bey'in Varlığı",
+      "status": "success",
+      "txtFile": "output/chapters-text/028.txt",
+      "htmlFile": "output/chapters-html/028.html",
+      "paraCount": 63,
+      "charCount": 13199
+    },
+    {
+      "chapterNumber": 29,
+      "title": "Ruhların Dili",
+      "status": "success",
+      "txtFile": "output/chapters-text/029.txt",
+      "htmlFile": "output/chapters-html/029.html",
+      "paraCount": 166,
+      "charCount": 21074
+    },
+    {
+      "chapterNumber": 30,
+      "title": "Beklenen Davet",
+      "status": "success",
+      "txtFile": "output/chapters-text/030.txt",
+      "htmlFile": "output/chapters-html/030.html",
+      "paraCount": 81,
+      "charCount": 14803
+    },
+    {
+      "chapterNumber": 31,
+      "title": "Banu'nun Ziyareti",
+      "status": "success",
+      "txtFile": "output/chapters-text/031.txt",
+      "htmlFile": "output/chapters-html/031.html",
+      "paraCount": 78,
+      "charCount": 10114
+    },
+    {
+      "chapterNumber": 32,
+      "title": "Kadın ve Hakları",
+      "status": "success",
+      "txtFile": "output/chapters-text/032.txt",
+      "htmlFile": "output/chapters-html/032.html",
+      "paraCount": 117,
+      "charCount": 20795
+    },
+    {
+      "chapterNumber": 33,
+      "title": "Nöbetçi İskelet",
+      "status": "success",
+      "txtFile": "output/chapters-text/033.txt",
+      "htmlFile": "output/chapters-html/033.html",
+      "paraCount": 201,
+      "charCount": 23748
+    },
+    {
+      "chapterNumber": 34,
+      "title": "Arabadaki Tartışma",
+      "status": "success",
+      "txtFile": "output/chapters-text/034.txt",
+      "htmlFile": "output/chapters-html/034.html",
+      "paraCount": 58,
+      "charCount": 10375
+    },
+    {
+      "chapterNumber": 35,
+      "title": "Gerçek Niyetler",
+      "status": "success",
+      "txtFile": "output/chapters-text/035.txt",
+      "htmlFile": "output/chapters-html/035.html",
+      "paraCount": 140,
+      "charCount": 17258
+    },
+    {
+      "chapterNumber": 36,
+      "title": "Zehirli Balayı",
+      "status": "success",
+      "txtFile": "output/chapters-text/036.txt",
+      "htmlFile": "output/chapters-html/036.html",
+      "paraCount": 79,
+      "charCount": 10151
+    },
+    {
+      "chapterNumber": 37,
+      "title": "İskeletin Hükmü",
+      "status": "success",
+      "txtFile": "output/chapters-text/037.txt",
+      "htmlFile": "output/chapters-html/037.html",
+      "paraCount": 91,
+      "charCount": 10142
+    }
+  ],
+  "gapsAndOverlaps": [
+    {
+      "type": "gap",
+      "betweenChapters": [
+        11,
+        13
+      ],
+      "normCharCount": 5865,
+      "originalTextSample": "XII Tayfur ile Doktor Ferhat’ın incikleri bir haftada iyileşti. Bu defa beş arkadaş pürsilah, küçük bir çete hâlinde, mezarlık hortlaklarıyla vuruşmak için karanlık bir gecede bir otomobil ile yola çı..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        15,
+        16
+      ],
+      "normCharCount": 319,
+      "originalTextSample": "Ağır ağır arkadaşlarının yanına indi. Hemen yere uzanarak:\n\n— Müsaade ediniz. Birinizin dizine başımı koyayım… Sonra Allah rızası için iki yudum su…\n\nTayfur telaşla:\n\n— Ne gördün? Ne oldun?\n\nFeyzi ezi..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        16,
+        17
+      ],
+      "normCharCount": 210,
+      "originalTextSample": "Çok yürümeden kefiyelilerden birine tesadüf ettiler. Fakat ne garip! Serpuşunun altında acayip bir manzara alan Hacivatvari sakalıyla dönüp dönüp arkadakilere bakarak ve daima fenerlerin ışıklarından ..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        18,
+        19
+      ],
+      "normCharCount": 471,
+      "originalTextSample": "Tayfur — Topu kiminle oynuyor?\n\nKocakarı — Dedim ya… Mektep arkadaşları mıdır nedir?\n\nKendi gibi hoppa kızlar, buraya misafir geliyorlar… Bazı defa genç oğlanlar da geliyor. Kimine “ağabeyimin kaynı” ..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        20,
+        21
+      ],
+      "normCharCount": 57,
+      "originalTextSample": "Banu — Haydi dadı haydi, sen beyefendiye bir kahve pişir…\n\nArap yürür.\n\nXXI"
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        29,
+        30
+      ],
+      "normCharCount": 1047,
+      "originalTextSample": "— Peki Nasıra… Evde mutfaktan girilir bir kömürlük olduğunu söyledin…\n\n— Evet…\n\n— Bu kömürlüğün sağ köşesinde üstü eski keçelerle örtülü bir gaz sandığı duruyor…\n\nNasıra titreyerek:\n\n— Evet…\n\n— Bu san..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        31,
+        32
+      ],
+      "normCharCount": 630,
+      "originalTextSample": "— Ben, bir misafir kabulünde yapacağımı bilmeyerek vesayete muhtaç olacak kadar budalalaştım mı?\n\n— Henüz tamamıyla budala değil fakat pek şaşkın bir hâldesin.\n\nSöyle misafirlerini nereden istikbal ed..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        33,
+        34
+      ],
+      "normCharCount": 249,
+      "originalTextSample": "Vakıa ne doktor ne de ötekiler bundan ötesini değil, berisini de hiç anlayamadılar… Nasıra’nın hep bu sözleri, zavallının cinneti hakkındaki kanaatlerini kuvvetlendirmekten başka bir şeye yaramadı. Çü..."
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        34,
+        35
+      ],
+      "normCharCount": 133,
+      "originalTextSample": "— Banu… Yüreğim çarpıyor. Başım dönüyor. Gözlerim kararıyor… Söyleme… Sözüne bile tahammül edemiyorum… Böyle bir şeyin hakikatte vukuu beni deli eder. Öldürür.\n\nXXXV"
+    },
+    {
+      "type": "gap",
+      "betweenChapters": [
+        35,
+        36
+      ],
+      "normCharCount": 335,
+      "originalTextSample": "Banu’nun şiddetli nazarları altında süt biraderinin teessür ve sersemliğini gören Tayfur’un yüzündeki tebessüm, saffet ve saadet zail olur. Bu hâllere ne mana vereceğini bilemez.\n\nTekrar üçü taraçanın..."
+    }
+  ],
+  "verificationChecks": {
+    "001": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "002": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "003": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "004": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "005": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "006": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "007": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "008": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "009": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "010": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "011": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "013": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "014": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "015": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "016": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "017": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "018": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "019": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "020": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "021": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "022": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "023": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "024": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "025": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "026": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "027": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "028": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "029": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "030": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "031": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "032": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "033": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "034": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "035": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "036": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    },
+    "037": {
+      "hasHyphenRemnants": false,
+      "hasFootnoteRemnants": false,
+      "hasInternalNewlines": false,
+      "hasEmptyParagraphs": false
+    }
+  }
+}

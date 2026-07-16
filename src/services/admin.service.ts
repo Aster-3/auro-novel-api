@@ -1,15 +1,780 @@
 import { IAdminService } from "../interfaces/admin.service.interface.js";
 import { CreateGlobalNotificationDto } from "../interfaces/global.notification.repo.interface.js";
 import { UnitOfWork } from "../unit-of-work/unit.of.work.js";
+import { NotFoundError } from "../errors/not.found.error.js";
+import { ConflictError } from "../errors/conflict.error.js";
+import { AppDataSource } from "../database/data-source.js";
+import {
+  Author,
+  Chapter,
+  ChapterPublication,
+  Comment,
+  GlobalNotification,
+  Novel,
+  Reply,
+  User,
+  Volume,
+} from "../entities/_index.js";
+import { SeriesStatus } from "../constants/series.constants.js";
+import { UserRoles, UserStatus } from "../constants/user.constants.js";
+import { PublicationStatus } from "../constants/chapter.constants.js";
+import {
+  AdminListChaptersDto,
+  AdminListCommentsDto,
+  AdminListNotificationsDto,
+  AdminListNovelsDto,
+  AdminListRepliesDto,
+  AdminListUsersDto,
+  AdminCreateAuthorDto,
+  AdminCreateChapterDto,
+  AdminCreateNovelDto,
+  AdminCreateVolumeDto,
+  AdminPublishChapterDto,
+  AdminUpdateChapterDto,
+  AdminUpdateNotificationDto,
+  AdminUpdateNovelDto,
+  AdminUpdateUserDto,
+} from "../schemas/admin.schema.js";
+import {
+  PushDispatchResult,
+  PushNotificationService,
+} from "./push.notification.service.js";
+import { uploadToS3 } from "./s3.service.js";
 
 export class AdminService implements IAdminService {
-  constructor(private uow: UnitOfWork) {}
+  constructor(
+    private uow: UnitOfWork,
+    private pushNotificationService: PushNotificationService,
+  ) {}
 
-  async createAnnouncement(dto: CreateGlobalNotificationDto): Promise<void> {
-    await this.uow.globalNotificationRepository.createGlobalNotification(dto);
+  private paginate<T>(items: T[], total: number, page: number, limit: number) {
+    const lastPage = Math.ceil(total / limit);
+    return {
+      items,
+      total,
+      currentPage: page,
+      nextPage: page < lastPage ? page + 1 : null,
+      lastPage,
+    };
+  }
+
+  async getDashboard() {
+    const userRepo = AppDataSource.getRepository(User);
+    const novelRepo = AppDataSource.getRepository(Novel);
+    const chapterRepo = AppDataSource.getRepository(Chapter);
+    const commentRepo = AppDataSource.getRepository(Comment);
+    const replyRepo = AppDataSource.getRepository(Reply);
+
+    const [
+      totalUsers,
+      activeUsers,
+      pendingUsers,
+      bannedUsers,
+      premiumUsers,
+      totalNovels,
+      publishedNovels,
+      draftNovels,
+      bannedNovels,
+      totalChapters,
+      publishedChapters,
+      totalComments,
+      totalReplies,
+      recentUsers,
+      recentNovels,
+      recentComments,
+    ] = await Promise.all([
+      userRepo.count(),
+      userRepo.count({ where: { status: UserStatus.ACTIVE } }),
+      userRepo.count({ where: { status: UserStatus.PENDING } }),
+      userRepo.count({ where: { status: UserStatus.BANNED } }),
+      userRepo.count({ where: { isPremium: true } }),
+      novelRepo.count(),
+      novelRepo.count({ where: { status: SeriesStatus.ONGOING } }),
+      novelRepo.count({ where: { status: SeriesStatus.DRAFT } }),
+      novelRepo.count({ where: { isBanned: true } }),
+      chapterRepo.count(),
+      AppDataSource.getRepository(ChapterPublication).count({
+        where: { publicationStatus: PublicationStatus.PUBLISHED },
+      }),
+      commentRepo.count(),
+      replyRepo.count(),
+      userRepo.find({
+        select: {
+          id: true,
+          username: true,
+          nickname: true,
+          email: true,
+          role: true,
+          status: true,
+          createdAt: true,
+        },
+        order: { createdAt: "DESC" },
+        take: 5,
+      }),
+      novelRepo.find({
+        select: {
+          id: true,
+          name: true,
+          coverImage: true,
+          status: true,
+          isBanned: true,
+          createdAt: true,
+        },
+        order: { createdAt: "DESC" },
+        take: 5,
+      }),
+      commentRepo.find({
+        select: {
+          id: true,
+          content: true,
+          isRecommend: true,
+          createdAt: true,
+          user: { id: true, nickname: true },
+          novel: { id: true, name: true },
+        },
+        relations: { user: true, novel: true },
+        order: { createdAt: "DESC" },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      stats: {
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          pending: pendingUsers,
+          banned: bannedUsers,
+          premium: premiumUsers,
+        },
+        novels: {
+          total: totalNovels,
+          ongoing: publishedNovels,
+          draft: draftNovels,
+          banned: bannedNovels,
+        },
+        chapters: {
+          total: totalChapters,
+          published: publishedChapters,
+        },
+        community: {
+          comments: totalComments,
+          replies: totalReplies,
+        },
+      },
+      recent: {
+        users: recentUsers,
+        novels: recentNovels,
+        comments: recentComments,
+      },
+    };
+  }
+
+  async createIndependentAuthor(dto: AdminCreateAuthorDto) {
+    const author = AppDataSource.getRepository(Author).create({
+      nickname: dto.nickname,
+      isVerified: dto.isVerified,
+      userId: undefined,
+    });
+
+    return await AppDataSource.getRepository(Author).save(author);
+  }
+
+  async getUsers(dto: AdminListUsersDto) {
+    const { page, limit, sort, search, role, status, isVerified, isPremium } =
+      dto;
+    const query = AppDataSource.getRepository(User)
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.authorProfile", "author")
+      .loadRelationCountAndMap("user.novelCount", "user.novels")
+      .loadRelationCountAndMap("user.commentCount", "user.comments");
+
+    if (search) {
+      query.andWhere(
+        "(user.username ILIKE :search OR user.nickname ILIKE :search OR user.email ILIKE :search)",
+        { search: `%${search}%` },
+      );
+    }
+    if (role) query.andWhere("user.role = :role", { role });
+    if (status) query.andWhere("user.status = :status", { status });
+    if (isVerified !== undefined) {
+      query.andWhere("user.isVerified = :isVerified", { isVerified });
+    }
+    if (isPremium !== undefined) {
+      query.andWhere("user.isPremium = :isPremium", { isPremium });
+    }
+
+    query
+      .orderBy("user.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async getUserById(id: string) {
+    const user = await AppDataSource.getRepository(User)
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.authorProfile", "author")
+      .loadRelationCountAndMap("user.novelCount", "user.novels")
+      .loadRelationCountAndMap("user.commentCount", "user.comments")
+      .loadRelationCountAndMap("user.replyCount", "user.replies")
+      .loadRelationCountAndMap("user.libraryCount", "user.library")
+      .where("user.id = :id", { id })
+      .getOne();
+
+    if (!user) throw new NotFoundError("Kullanici bulunamadi.");
+    return user;
+  }
+
+  async updateUser(id: string, dto: AdminUpdateUserDto) {
+    const repo = AppDataSource.getRepository(User);
+    const result = await repo.update(id, dto);
+    if (!result.affected) throw new NotFoundError("Kullanici bulunamadi.");
+    return this.getUserById(id);
+  }
+
+  async deleteUser(id: string) {
+    const result = await AppDataSource.getRepository(User).delete(id);
+    if (!result.affected) throw new NotFoundError("Kullanici bulunamadi.");
+  }
+
+  async createNovel(dto: AdminCreateNovelDto, file?: Express.Multer.File) {
+    const author = await AppDataSource.getRepository(Author).findOne({
+      where: { id: dto.authorId },
+      select: { id: true, nickname: true, userId: true },
+    });
+
+    if (!author) {
+      throw new NotFoundError("Yazar bulunamadi.");
+    }
+
+    const slugTaken = await AppDataSource.getRepository(Novel).exists({
+      where: { slug: dto.slug },
+    });
+    if (slugTaken) {
+      throw new ConflictError("slug", "Bu slug zaten kullanimda.");
+    }
+
+    const coverImage = file ? await uploadToS3(file, "novel-covers") : null;
+    const novel = await this.uow.novelRepository.create({
+      ...dto,
+      coverImage: coverImage ?? undefined,
+      authorId: author.id,
+    });
+
+    return this.getNovelById(novel.id);
+  }
+
+  async getNovels(dto: AdminListNovelsDto) {
+    const {
+      page,
+      limit,
+      sort,
+      search,
+      authorId,
+      status,
+      type,
+      isBanned,
+      isAdultContent,
+    } = dto;
+    const query = AppDataSource.getRepository(Novel)
+      .createQueryBuilder("novel")
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .loadRelationCountAndMap("novel.commentCount", "novel.comments");
+
+    if (search) {
+      query.andWhere("(novel.name ILIKE :search OR novel.slug ILIKE :search)", {
+        search: `%${search}%`,
+      });
+    }
+    if (authorId) query.andWhere("novel.authorId = :authorId", { authorId });
+    if (status) query.andWhere("novel.status = :status", { status });
+    if (type) {
+      query.andWhere("novel.type = :type", { type });
+    }
+    if (isBanned !== undefined) {
+      query.andWhere("novel.isBanned = :isBanned", { isBanned });
+    }
+    if (isAdultContent !== undefined) {
+      query.andWhere("novel.isAdultContent = :isAdultContent", {
+        isAdultContent,
+      });
+    }
+
+    query
+      .orderBy("novel.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async getNovelById(id: string) {
+    const novel = await AppDataSource.getRepository(Novel)
+      .createQueryBuilder("novel")
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .leftJoinAndSelect("novel.categories", "categories")
+      .leftJoinAndSelect("novel.tags", "tags")
+      .loadRelationCountAndMap("novel.commentCount", "novel.comments")
+      .loadRelationCountAndMap("novel.libraryEntryCount", "novel.library")
+      .where("novel.id = :id", { id })
+      .getOne();
+
+    if (!novel) throw new NotFoundError("Roman bulunamadi.");
+    return novel;
+  }
+
+  async updateNovel(id: string, dto: AdminUpdateNovelDto) {
+    const result = await AppDataSource.getRepository(Novel).update(id, dto);
+    if (!result.affected) throw new NotFoundError("Roman bulunamadi.");
+    return this.getNovelById(id);
+  }
+
+  async deleteNovel(id: string) {
+    const exists = await AppDataSource.getRepository(Novel).exists({
+      where: { id },
+    });
+    if (!exists) throw new NotFoundError("Roman bulunamadi.");
+    await this.uow.novelRepository.deleteNovel(id);
+  }
+
+  async updateNovelCategories(novelId: string, categoryIds: number[]) {
+    const exists = await AppDataSource.getRepository(Novel).exists({
+      where: { id: novelId },
+    });
+    if (!exists) throw new NotFoundError("Roman bulunamadi.");
+
+    await this.uow.novelRepository.updateNovelCategories(novelId, categoryIds);
+    return this.getNovelById(novelId);
+  }
+
+  async updateNovelTags(novelId: string, tagIds: string[]) {
+    const exists = await AppDataSource.getRepository(Novel).exists({
+      where: { id: novelId },
+    });
+    if (!exists) throw new NotFoundError("Roman bulunamadi.");
+
+    await this.uow.novelRepository.updateNovelTags(novelId, tagIds);
+    return this.getNovelById(novelId);
+  }
+
+  async getVolumesByNovelId(novelId: string) {
+    const novelExists = await AppDataSource.getRepository(Novel).exists({
+      where: { id: novelId },
+    });
+    if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+
+    return await this.uow.volumeRepository.getVolumeByNovelId(novelId);
+  }
+
+  async createVolume(novelId: string, dto: AdminCreateVolumeDto) {
+    const novelExists = await AppDataSource.getRepository(Novel).exists({
+      where: { id: novelId },
+    });
+    if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+
+    const lastVolume = await this.uow.volumeRepository.getLastVolume(novelId);
+    const currentMaxInteger = Math.floor(lastVolume?.orderIndex ?? 0);
+    const orderIndex = dto.orderIndex ?? currentMaxInteger + 1;
+
+    if (orderIndex > currentMaxInteger + 1) {
+      throw new ConflictError(
+        "orderIndex",
+        `Siradaki cilt en fazla ${currentMaxInteger + 1} olabilir.`,
+      );
+    }
+
+    const exists = await this.uow.volumeRepository.duplicateControl(
+      novelId,
+      orderIndex,
+    );
+    if (exists) {
+      throw new ConflictError(
+        "orderIndex",
+        `${orderIndex} numarali cilt zaten mevcut.`,
+      );
+    }
+
+    const id = await this.uow.volumeRepository.create({
+      novelId,
+      orderIndex,
+      name: dto.name ?? null,
+    });
+
+    return AppDataSource.getRepository(Volume).findOne({ where: { id } });
+  }
+
+  async updateVolume(volumeId: string, name: string | null) {
+    const volume = await this.uow.volumeRepository.getOneById(volumeId);
+    if (!volume) {
+      throw new NotFoundError("Cilt bulunamadi.");
+    }
+
+    await this.uow.volumeRepository.update(volumeId, name);
+    return AppDataSource.getRepository(Volume).findOne({
+      where: { id: volumeId },
+    });
+  }
+
+  async deleteVolume(volumeId: string) {
+    const volume = await this.uow.volumeRepository.getOneById(volumeId);
+    if (!volume) {
+      throw new NotFoundError("Cilt bulunamadi.");
+    }
+
+    const isEmpty = await this.uow.volumeRepository.isVolumeEmpty(volumeId);
+    if (!isEmpty) {
+      throw new ConflictError(
+        "volume_not_empty",
+        "Bu cilt bos degil, silmeden once icindeki bolumleri silmeniz gerekiyor.",
+      );
+    }
+
+    await this.uow.volumeRepository.deleteAndCloseGap(
+      volumeId,
+      volume.novelId,
+      volume.orderIndex,
+    );
+  }
+
+  async createChapter(novelId: string, dto: AdminCreateChapterDto) {
+    const novelExists = await AppDataSource.getRepository(Novel).exists({
+      where: { id: novelId },
+    });
+    if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+
+    const chapter = AppDataSource.getRepository(Chapter).create({
+      novelId,
+      title: dto.title,
+      content: dto.content,
+    });
+
+    return await AppDataSource.getRepository(Chapter).save(chapter);
+  }
+
+  async publishChapter(chapterId: string, dto: AdminPublishChapterDto) {
+    const chapter = await AppDataSource.getRepository(Chapter).findOne({
+      where: { id: chapterId },
+      select: { id: true, novelId: true },
+    });
+
+    if (!chapter) throw new NotFoundError("Bolum bulunamadi.");
+
+    if (chapter.novelId !== dto.novelId) {
+      throw new ConflictError("novelId", "Bolum bu romana ait degil.");
+    }
+
+    const alreadyPublished = await AppDataSource.getRepository(
+      ChapterPublication,
+    ).exists({ where: { chapterId } });
+
+    if (alreadyPublished) {
+      throw new ConflictError("chapterId", "Bolum zaten yayinlanmis.");
+    }
+
+    let volumeId = dto.volumeId;
+    if (!volumeId) {
+      const suggestedVolume =
+        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
+          dto.novelId,
+        );
+      if (!suggestedVolume) {
+        throw new ConflictError(
+          "volumeId",
+          "Bolum yayinlamak icin en az bir cilt olusturmalisiniz.",
+        );
+      }
+      volumeId = suggestedVolume.id;
+    }
+
+    const volume = await this.uow.volumeRepository.getOneById(volumeId);
+    if (!volume || volume.novelId !== dto.novelId) {
+      throw new ConflictError("volumeId", "Gecersiz cilt ID.");
+    }
+
+    const lastOrder =
+      await this.uow.chapterPublicationRepository.getLastChapterOrderInVolume(
+        volumeId,
+      );
+    const orderIndex = dto.orderIndex ?? lastOrder + 1;
+
+    if (orderIndex > lastOrder + 1 || orderIndex <= lastOrder) {
+      throw new ConflictError(
+        "orderIndex",
+        "Bolum siralamasi gecersiz. Mevcut son siradan sonra gelmelidir.",
+      );
+    }
+
+    await this.uow.startTransaction();
+    try {
+      await this.uow.chapterPublicationRepository.create({
+        chapterId,
+        volumeId,
+        orderIndex,
+        publicationStatus: dto.publicationStatus,
+        publishedAt: new Date(),
+      });
+      await this.uow.novelRepository.refreshChapterStats(dto.novelId);
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
+
+    return this.getChapterById(chapterId);
+  }
+
+  async getChapters(dto: AdminListChaptersDto) {
+    const {
+      page,
+      limit,
+      sort,
+      search,
+      novelId,
+      publicationStatus,
+      hasPublication,
+    } = dto;
+    const query = AppDataSource.getRepository(Chapter)
+      .createQueryBuilder("chapter")
+      .leftJoinAndSelect("chapter.novel", "novel")
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .leftJoinAndSelect("chapter.publication", "publication")
+      .leftJoinAndSelect("publication.volume", "volume");
+
+    if (search) {
+      query.andWhere("chapter.title ILIKE :search", { search: `%${search}%` });
+    }
+    if (novelId) query.andWhere("chapter.novelId = :novelId", { novelId });
+    if (publicationStatus) {
+      query.andWhere("publication.publicationStatus = :publicationStatus", {
+        publicationStatus,
+      });
+    }
+    if (hasPublication === true) {
+      query.andWhere("publication.chapterId IS NOT NULL");
+    } else if (hasPublication === false) {
+      query.andWhere("publication.chapterId IS NULL");
+    }
+
+    query
+      .orderBy("chapter.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async getChapterById(id: string) {
+    const chapter = await AppDataSource.getRepository(Chapter)
+      .createQueryBuilder("chapter")
+      .leftJoinAndSelect("chapter.novel", "novel")
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .leftJoinAndSelect("chapter.publication", "publication")
+      .leftJoinAndSelect("publication.volume", "volume")
+      .where("chapter.id = :id", { id })
+      .getOne();
+
+    if (!chapter) throw new NotFoundError("Bolum bulunamadi.");
+    return chapter;
+  }
+
+  async updateChapter(id: string, dto: AdminUpdateChapterDto) {
+    const result = await AppDataSource.getRepository(Chapter).update(id, dto);
+    if (!result.affected) throw new NotFoundError("Bolum bulunamadi.");
+    return this.getChapterById(id);
+  }
+
+  async updateChapterPublicationStatus(
+    id: string,
+    publicationStatus: PublicationStatus,
+  ) {
+    const publication = await AppDataSource.getRepository(
+      ChapterPublication,
+    ).findOne({ where: { chapterId: id }, relations: { chapter: true } });
+    if (!publication) {
+      throw new NotFoundError("Bolum yayini bulunamadi.");
+    }
+    await this.uow.chapterPublicationRepository.changePublicationStatus(
+      id,
+      publicationStatus,
+    );
+    await this.uow.novelRepository.refreshChapterStats(
+      publication.chapter.novelId,
+    );
+  }
+
+  async deleteChapter(id: string) {
+    const chapter = await AppDataSource.getRepository(Chapter).findOne({
+      where: { id },
+      select: { id: true, novelId: true },
+    });
+    if (!chapter) throw new NotFoundError("Bolum bulunamadi.");
+    await this.uow.chapterRepository.deleteChapter(id);
+    await this.uow.novelRepository.refreshChapterStats(chapter.novelId);
+  }
+
+  async getComments(dto: AdminListCommentsDto) {
+    const { page, limit, sort, search, novelId, userId, isRecommend } = dto;
+    const query = AppDataSource.getRepository(Comment)
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .leftJoinAndSelect("comment.novel", "novel");
+
+    if (search) {
+      query.andWhere("comment.content ILIKE :search", {
+        search: `%${search}%`,
+      });
+    }
+    if (novelId) query.andWhere("comment.novelId = :novelId", { novelId });
+    if (userId) query.andWhere("comment.userId = :userId", { userId });
+    if (isRecommend !== undefined) {
+      query.andWhere("comment.isRecommend = :isRecommend", { isRecommend });
+    }
+
+    query
+      .orderBy("comment.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async deleteComment(id: number) {
+    await this.uow.commentRepository.delete(id);
+  }
+
+  async getReplies(dto: AdminListRepliesDto) {
+    const {
+      page,
+      limit,
+      sort,
+      search,
+      userId,
+      rootCommentId,
+      includeDeleted,
+    } = dto;
+    const query = AppDataSource.getRepository(Reply)
+      .createQueryBuilder("reply")
+      .leftJoinAndSelect("reply.user", "user")
+      .leftJoinAndSelect("reply.comment", "comment")
+      .leftJoinAndSelect("comment.novel", "novel")
+      .leftJoinAndSelect("reply.parentReply", "parentReply");
+
+    if (includeDeleted) query.withDeleted();
+    if (search) {
+      query.andWhere("reply.content ILIKE :search", { search: `%${search}%` });
+    }
+    if (userId) query.andWhere("reply.userId = :userId", { userId });
+    if (rootCommentId) {
+      query.andWhere("reply.rootCommentId = :rootCommentId", {
+        rootCommentId,
+      });
+    }
+
+    query
+      .orderBy("reply.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async deleteReply(id: number) {
+    await this.uow.replyRepository.delete(id);
+  }
+
+  async getAnnouncements(dto: AdminListNotificationsDto) {
+    const { page, limit, sort, search, isPublished } = dto;
+    const query = AppDataSource.getRepository(GlobalNotification)
+      .createQueryBuilder("notification")
+      .orderBy("notification.createdAt", sort.toUpperCase() as "ASC" | "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (search) {
+      query.andWhere(
+        "(notification.title ILIKE :search OR notification.summary ILIKE :search OR notification.content ILIKE :search)",
+        { search: `%${search}%` },
+      );
+    }
+    if (isPublished !== undefined) {
+      query.andWhere("notification.isPublished = :isPublished", {
+        isPublished,
+      });
+    }
+
+    const [items, total] = await query.getManyAndCount();
+    return this.paginate(items, total, page, limit);
+  }
+
+  async getAnnouncementById(id: string) {
+    const notification = await AppDataSource.getRepository(
+      GlobalNotification,
+    ).findOne({ where: { id } });
+    if (!notification) throw new NotFoundError("Duyuru bulunamadi.");
+    return notification;
+  }
+
+  async createAnnouncement(dto: CreateGlobalNotificationDto) {
+    const announcement =
+      await this.uow.globalNotificationRepository.createGlobalNotification(
+        dto,
+      );
+
+    let push: PushDispatchResult | null = null;
+    const shouldSendPushNow =
+      announcement.isPublished &&
+      announcement.publishedAt &&
+      announcement.publishedAt <= new Date();
+
+    if (shouldSendPushNow) {
+      try {
+        push = await this.pushNotificationService.sendGlobal({
+          title: announcement.title,
+          body: announcement.summary,
+          data: {
+            notificationType: "global_notification",
+            notificationId: announcement.id,
+          },
+        });
+      } catch (error) {
+        console.error("Global duyuru push gonderimi basarisiz:", error);
+      }
+    }
+
+    return {
+      item: announcement,
+      push,
+    };
+  }
+
+  async updateAnnouncement(id: string, dto: AdminUpdateNotificationDto) {
+    const result = await AppDataSource.getRepository(GlobalNotification).update(
+      id,
+      dto as any,
+    );
+    if (!result.affected) throw new NotFoundError("Duyuru bulunamadi.");
+    return this.getAnnouncementById(id);
   }
 
   async deleteAnnouncement(id: string) {
-    await this.uow.globalNotificationRepository.deleteNotification(id);
+    const affectedRows =
+      await this.uow.globalNotificationRepository.deleteNotification(id);
+
+    if (affectedRows === 0) {
+      throw new NotFoundError("Duyuru bulunamadi.");
+    }
   }
 }

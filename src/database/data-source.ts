@@ -3,24 +3,45 @@ import { DataSource } from "typeorm";
 import { getEnv } from "../utils/getEnv.js";
 import * as Entities from "../entities/_index.js";
 import MainSeeder from "./_main.seeder.js";
-import { DataSourceOptions } from "typeorm/browser";
+import type { DataSourceOptions } from "typeorm";
 import { SeederOptions } from "typeorm-extension";
 import userFactory from "./factories/user.factory.js";
 import categoryFactory from "./factories/category.factory.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+const shouldSynchronize =
+  !isProduction && process.env.TYPEORM_SYNCHRONIZE === "true";
+
+const databaseUrl = process.env.DATABASE_URL;
+const ssl =
+  process.env.DATABASE_SSL === "true"
+    ? { rejectUnauthorized: false }
+    : undefined;
+
+const connectionOptions: DataSourceOptions = databaseUrl
+  ? {
+      type: "postgres",
+      url: databaseUrl,
+      ssl,
+    }
+  : {
+      type: "postgres",
+      host: getEnv("DB_HOST"),
+      port: parseInt(getEnv("DB_PORT")),
+      username: getEnv("DB_USER"),
+      password: getEnv("DB_PASSWORD"),
+      database: getEnv("DB_NAME"),
+      ssl,
+    };
+
 const options: DataSourceOptions & SeederOptions = {
-  type: "postgres",
-  host: getEnv("DB_HOST"),
-  port: parseInt(getEnv("DB_PORT")),
-  username: getEnv("DB_USER"),
-  password: getEnv("DB_PASSWORD"),
-  database: getEnv("DB_NAME"),
-  synchronize: true,
+  ...connectionOptions,
+  synchronize: shouldSynchronize,
   logging: false,
   seeds: [MainSeeder],
   factories: [userFactory, categoryFactory],
   entities: Object.values(Entities),
-  migrations: ["src/migrations/*.ts"],
+  migrations: [isProduction ? "dist/migrations/*.js" : "src/migrations/*.ts"],
   subscribers: [],
 };
 export const AppDataSource = new DataSource(options);

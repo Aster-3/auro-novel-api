@@ -7,6 +7,8 @@ import { Novel } from "../entities/_index.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
+import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
+import { CommentSortType } from "../constants/comment.constants.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -117,16 +119,35 @@ export class CommentRepository implements ICommentRepository {
   }
 
   async getCommentsByNovelId(dto: GetCommentsDto, userId?: string) {
-    const { novelId, page = 1, limit = 10 } = dto;
+    const {
+      novelId,
+      page = 1,
+      limit = 10,
+      sort = CommentSortType.NEWEST,
+    } = dto;
     const skip = (page - 1) * limit;
 
     const query = this.commentRepo
       .createQueryBuilder("comment")
       .leftJoinAndSelect("comment.user", "user")
       .where("comment.novelId = :novelId", { novelId })
-      .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);
+
+    if (sort === CommentSortType.OLDEST) {
+      query.orderBy("comment.createdAt", "ASC");
+    } else if (sort === CommentSortType.POPULAR) {
+      query
+        .orderBy("comment.likeCount", "DESC")
+        .addOrderBy("comment.replyCount", "DESC")
+        .addOrderBy("comment.createdAt", "DESC");
+    } else if (sort === CommentSortType.MOST_LIKED) {
+      query
+        .orderBy("comment.likeCount", "DESC")
+        .addOrderBy("comment.createdAt", "DESC");
+    } else {
+      query.orderBy("comment.createdAt", "DESC");
+    }
 
     if (userId) {
       query.andWhere("comment.userId != :userId", { userId });
@@ -236,5 +257,84 @@ export class CommentRepository implements ICommentRepository {
         user: true,
       },
     });
+  }
+
+  async getReviewsByUserId(dto: GetUserShowcaseDto, viewerId?: string) {
+    const { userId, page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+
+    const query = this.commentRepo
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.novel", "novel")
+      .where("comment.userId = :userId", { userId })
+      .orderBy("comment.createdAt", "DESC")
+      .skip(skip)
+      .take(limit);
+
+    if (viewerId) {
+      query.addSelect((subQuery) => {
+        return subQuery
+          .select("COUNT(like.userId)", "cnt")
+          .from("comment_like", "like")
+          .where("like.commentId = comment.id")
+          .andWhere("like.userId = :viewerId", { viewerId });
+      }, "viewerHasLiked");
+    }
+
+    const { entities, raw } = await query.getRawAndEntities();
+    const total = await query.getCount();
+
+    const items = entities.map((comment, index) => {
+      const hasLiked = viewerId
+        ? parseInt(raw[index].viewerHasLiked) > 0
+        : false;
+
+      return {
+        id: comment.id,
+        content: comment.content,
+        isRecommend: comment.isRecommend,
+        createdAt: comment.createdAt,
+        likeCount: comment.likeCount,
+        replyCount: comment.replyCount,
+        novel: {
+          id: comment.novel?.id,
+          name: comment.novel?.name,
+          slug: comment.novel?.slug,
+          coverImageUrl: comment.novel?.coverImage,
+        },
+        viewerHasLiked: hasLiked,
+      };
+    });
+
+    const totalPage = Math.ceil(total / limit);
+
+    return {
+      items,
+      total,
+      currentPage: page,
+      nextPage: page < totalPage ? page + 1 : null,
+      lastPage: totalPage,
+    };
+  }
+
+  async getNotificationMetaById(id: number) {
+    const comment = await this.commentRepo.findOne({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        novelId: true,
+      },
+    });
+
+    if (!comment) {
+      return null;
+    }
+
+    return {
+      id: comment.id,
+      userId: comment.userId,
+      novelId: comment.novelId,
+    };
   }
 }

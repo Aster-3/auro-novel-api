@@ -11,7 +11,7 @@ const router = Router();
 
 router.get(
   "/novel/:id",
-  validateSchema(uuidControlSchema),
+  validateSchema(uuidControlSchema()),
   volumeController.getVolumeByNovelId,
 );
 

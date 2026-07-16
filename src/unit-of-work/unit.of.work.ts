@@ -1,9 +1,10 @@
 import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
 import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
+import { IChapterCommentLikeRepository } from "../interfaces/chapter.comment.like.repo.interface.js";
+import { IChapterCommentRepository } from "../interfaces/chapter.comment.repo.interface.js";
 import { ICategoryRepository } from "../interfaces/categories.repo.interface.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { IChapterPublicationRepository } from "../interfaces/chapter.publication.repo.interface.js";
-import { IChapterPurchaseRepository } from "../interfaces/chapter.purchase.repo.interface.js";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
 import { ICommentLikeRepository } from "../interfaces/comment.like.repo.interface.js";
 import { IUnitOfWork } from "../interfaces/unit.of.work.interface.js";
@@ -20,8 +21,9 @@ import {
   Author,
   Category,
   Chapter,
+  ChapterComment,
+  ChapterCommentLike,
   ChapterPublication,
-  ChapterPurchase,
   Comment,
   CommentLike,
   Library,
@@ -33,18 +35,14 @@ import {
   User,
   UserVerification,
   Volume,
-  ReaderWallet,
-  ReaderWalletTransaction,
-  AppConfig,
-  AuthorWallet,
-  AuthorWalletTransaction,
-  AuthorEarning,
-  PlatformEarning,
-  PlatformFinance,
-  PlatformWithdrawal,
   ReadingStats,
   PersonalNotification,
   GlobalNotification,
+  UserDevice,
+  UserFollow,
+  PasswordReset,
+  FeedbackSubmission,
+  Banner,
 } from "../entities/_index.js";
 
 import { AppDataSource } from "../database/data-source.js";
@@ -52,7 +50,8 @@ import { AppDataSource } from "../database/data-source.js";
 import { AuthorRepository } from "../repositories/author.repository.js";
 import { CategoryRepository } from "../repositories/category.repository.js";
 import { ChapterPublicationRepository } from "../repositories/chapter.publication.repository.js";
-import { ChapterPurchaseRepository } from "../repositories/chapter.purchase.repository.js";
+import { ChapterCommentLikeRepository } from "../repositories/chapter.comment.like.repository.js";
+import { ChapterCommentRepository } from "../repositories/chapter.comment.repository.js";
 import { ChapterRepository } from "../repositories/chapter.repository.js";
 import { CommentLikeRepository } from "../repositories/comment.like.repository.js";
 import { CommentRepository } from "../repositories/comment.repository.js";
@@ -65,30 +64,22 @@ import { TagRepository } from "../repositories/tag.repository.js";
 import { UserRepository } from "../repositories/user.repository.js";
 import { UserVerificationRepository } from "../repositories/user.verification.repository.js";
 import { VolumeRepository } from "../repositories/volume.repository.js";
-import { IReaderWalletRepository } from "../interfaces/reader.wallet.repository.interface.js";
-import { ReaderWalletRepository } from "../repositories/reader.wallet.repository.js";
-import { IReaderWalletTransactionRepository } from "../interfaces/reader.wallet.transaction.repo.interface.js";
-import { ReaderWalletTransactionRepository } from "../repositories/reader.wallet.transaction.repository.js";
-import { AppConfigRepository } from "../repositories/app.config.repository.js";
-import { IAppConfigRepository } from "../interfaces/app.config.repository.interface.js";
-import { AuthorWalletRepository } from "../repositories/author.wallet.repository.js";
-import { IAuthorWalletRepository } from "../interfaces/author.wallet.repo.interface.js";
-import { AuthorWalletTransactionRepository } from "../repositories/author.wallet.transaction.repository.js";
-import { IAuthorWalletTransactionRepository } from "../interfaces/author.wallet.transaction.repo.interface.js";
-import { IAuthorEarningRepository } from "../interfaces/author.earning.repo.interface.js";
-import { AuthorEarningRepository } from "../repositories/author.earning.repository.js";
-import { IPlatformEarningRepository } from "../interfaces/platform.earning.repo.interface.js";
-import { PlatformEarningRepository } from "../repositories/platform.earning.repository.js";
-import { PlatformFinanceRepository } from "../repositories/platform.finance.repository.js";
-import { IPlatformFinanceRepository } from "../interfaces/platform.finance.repo.interface.js";
-import { PlatformWithdrawalRepository } from "../repositories/platform.withdrawal.repo..js";
-import { IPlatformWithdrawalRepository } from "../interfaces/platform.withdrawal.repo.interface.js";
 import { IReadingStatsRepository } from "../interfaces/reading.stats.repository.interface.js";
 import { ReadingStatsRepository } from "../repositories/reading.stats.repository.js";
 import { IPersonalNotificationRepository } from "../interfaces/personal.notification.repo.interface.js";
 import { PersonalNotificationRepository } from "../repositories/personal.notification.repository.js";
 import { GlobalNotificationRepository } from "../repositories/global.notification.repository.js";
 import { IGlobalNotificationRepository } from "../interfaces/global.notification.repo.interface.js";
+import { IUserDeviceRepository } from "../interfaces/user.device.repo.interface.js";
+import { UserDeviceRepository } from "../repositories/user.device.repository.js";
+import { IUserFollowRepository } from "../interfaces/user.follow.repo.interface.js";
+import { UserFollowRepository } from "../repositories/user.follow.repository.js";
+import { IPasswordResetRepository } from "../interfaces/password.reset.repo.interface.js";
+import { PasswordResetRepository } from "../repositories/password.reset.repository.js";
+import { IFeedbackSubmissionRepository } from "../interfaces/feedback.submission.repo.interface.js";
+import { FeedbackSubmissionRepository } from "../repositories/feedback.submission.repository.js";
+import { IBannerRepository } from "../interfaces/banner.repo.interface.js";
+import { BannerRepository } from "../repositories/banner.repository.js";
 
 export class UnitOfWork implements IUnitOfWork {
   private queryRunner = AppDataSource.createQueryRunner();
@@ -120,14 +111,6 @@ export class UnitOfWork implements IUnitOfWork {
       this._instances.set(key, repoInstance);
     }
     return this._instances.get(key);
-  }
-
-  get appConfigRepository() {
-    return this.getRepo<IAppConfigRepository>(
-      "appConfig",
-      AppConfigRepository,
-      AppConfig,
-    );
   }
 
   get authorRepository() {
@@ -165,52 +148,40 @@ export class UnitOfWork implements IUnitOfWork {
     );
   }
 
-  get authorWalletRepository() {
-    return this.getRepo<IAuthorWalletRepository>(
-      "authorWallet",
-      AuthorWalletRepository,
-      AuthorWallet,
+  get userDeviceRepository() {
+    return this.getRepo<IUserDeviceRepository>(
+      "userDevice",
+      UserDeviceRepository,
+      UserDevice,
     );
   }
 
-  get authorWalletTransactionRepository() {
-    return this.getRepo<IAuthorWalletTransactionRepository>(
-      "authorWalletTransaction",
-      AuthorWalletTransactionRepository,
-      AuthorWalletTransaction,
+  get userFollowRepository() {
+    return this.getRepo<IUserFollowRepository>(
+      "userFollow",
+      UserFollowRepository,
+      UserFollow,
     );
   }
 
-  get authorEarningRepository() {
-    return this.getRepo<IAuthorEarningRepository>(
-      "authorEarning",
-      AuthorEarningRepository,
-      AuthorEarning,
+  get passwordResetRepository() {
+    return this.getRepo<IPasswordResetRepository>(
+      "passwordReset",
+      PasswordResetRepository,
+      PasswordReset,
     );
   }
 
-  get platformEarningRepository() {
-    return this.getRepo<IPlatformEarningRepository>(
-      "platformEarning",
-      PlatformEarningRepository,
-      PlatformEarning,
+  get feedbackSubmissionRepository() {
+    return this.getRepo<IFeedbackSubmissionRepository>(
+      "feedbackSubmission",
+      FeedbackSubmissionRepository,
+      FeedbackSubmission,
     );
   }
 
-  get platformFinanceRepository() {
-    return this.getRepo<IPlatformFinanceRepository>(
-      "platformFinance",
-      PlatformFinanceRepository,
-      PlatformFinance,
-    );
-  }
-
-  get platformWithdrawalRepository() {
-    return this.getRepo<IPlatformWithdrawalRepository>(
-      "platformWithdrawal",
-      PlatformWithdrawalRepository,
-      PlatformWithdrawal,
-    );
+  get bannerRepository() {
+    return this.getRepo<IBannerRepository>("banner", BannerRepository, Banner);
   }
 
   get chapterRepository() {
@@ -218,6 +189,20 @@ export class UnitOfWork implements IUnitOfWork {
       "chapter",
       ChapterRepository,
       Chapter,
+    );
+  }
+  get chapterCommentRepository() {
+    return this.getRepo<IChapterCommentRepository>(
+      "chapterComment",
+      ChapterCommentRepository,
+      ChapterComment,
+    );
+  }
+  get chapterCommentLikeRepository() {
+    return this.getRepo<IChapterCommentLikeRepository>(
+      "chapterCommentLike",
+      ChapterCommentLikeRepository,
+      ChapterCommentLike,
     );
   }
   get novelRepository() {
@@ -231,33 +216,6 @@ export class UnitOfWork implements IUnitOfWork {
       this.novelRepository,
     );
   }
-  get chapterPurchaseRepository() {
-    return this.getRepo<IChapterPurchaseRepository>(
-      "purchase",
-      ChapterPurchaseRepository,
-      ChapterPurchase,
-      AppDataSource,
-    );
-  }
-
-  get readerWalletRepository() {
-    return this.getRepo<IReaderWalletRepository>(
-      "readerWallet",
-      ReaderWalletRepository,
-      ReaderWallet,
-      AppDataSource,
-    );
-  }
-
-  get readerWalletTransactionRepository() {
-    return this.getRepo<IReaderWalletTransactionRepository>(
-      "readerWalletTransaction",
-      ReaderWalletTransactionRepository,
-      ReaderWalletTransaction,
-      AppDataSource,
-    );
-  }
-
   get commentRepository() {
     return this.getRepo<ICommentRepository>(
       "comment",

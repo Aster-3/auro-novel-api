@@ -1,5 +1,8 @@
 import { Repository } from "typeorm";
-import { IAuthorRepository } from "../interfaces/author.repo.interface.js";
+import {
+  AuthorStatus,
+  IAuthorRepository,
+} from "../interfaces/author.repo.interface.js";
 import { CreateAuthorDto } from "../schemas/create.author.schmea.js";
 import { Author } from "../entities/Author.js";
 
@@ -52,33 +55,27 @@ export class AuthorRepository implements IAuthorRepository {
     return author;
   };
 
-  async existControlAuthorId(authorId: string) {
-    const author = await this.authorRepo.findOne({
-      where: { id: authorId },
-    });
-    if (!author) {
-      return null;
-    }
-    return author;
-  }
-
-  async getAuthorWalletByUserId(userId: string): Promise<Author | null> {
+  async getStatusByUserId(userId: string): Promise<AuthorStatus> {
     const author = await this.authorRepo.findOne({
       where: { userId },
       select: {
         id: true,
-        wallet: {
-          id: true,
-          totalEarnings: true,
-          withdrawableBalance: true,
-          pendingWithdrawalBalance: true,
-          canWithdrawAfter: true,
-        },
+        nickname: true,
+        isVerified: true,
       },
-      relations: {
-        wallet: true,
-        user: true,
-      },
+    });
+
+    return {
+      isAuthor: Boolean(author),
+      authorId: author?.id ?? null,
+      nickname: author?.nickname ?? null,
+      isVerified: author?.isVerified ?? false,
+    };
+  }
+
+  async existControlAuthorId(authorId: string) {
+    const author = await this.authorRepo.findOne({
+      where: { id: authorId },
     });
     if (!author) {
       return null;

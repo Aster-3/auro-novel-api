@@ -5,8 +5,8 @@ export class TagController {
   constructor(private tagService: ITagService) {}
 
   createTag = async (req: Request, res: Response) => {
-    await this.tagService.createTag(req.body);
-    res.sendStatus(201);
+    await this.tagService.createTag({ ...req.body, userId: req.user?.id });
+    res.status(201).json({ message: "Etiket basariyla olusturuldu." });
   };
 
   deleteTag = async (req: Request, res: Response) => {
@@ -24,5 +24,12 @@ export class TagController {
     const { limit } = req.query as any;
     const tags = await this.tagService.getRandomTags(Number(limit) || 10);
     res.json(tags);
+  };
+
+  getNovelsByTagId = async (req: Request, res: Response) => {
+    const novels = await this.tagService.getNovelsByTagId(
+      res.locals.validatedData,
+    );
+    res.json(novels);
   };
 }

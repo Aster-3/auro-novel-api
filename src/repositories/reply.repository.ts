@@ -4,11 +4,12 @@ import { CreateReplyDto } from "../schemas/create.reply.schema.js";
 import { Reply } from "../entities/Reply.js";
 import { GetCommentRepliesDto } from "../schemas/get.comment.replies.schema.js";
 import { Comment } from "../entities/Comment.js";
+import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 
 export class ReplyRepository implements IReplyRepository {
   constructor(private replyRepo: Repository<Reply>) {}
 
-  create = async (replyDto: CreateReplyDto) => {
+  create = async (replyDto: CreateReplyDto & { userId: string }) => {
     return await this.replyRepo.manager.transaction(
       async (transactionalEntityManager) => {
         const newReply = await transactionalEntityManager.save(
@@ -60,6 +61,30 @@ export class ReplyRepository implements IReplyRepository {
       where: { id: replyId, userId },
     });
     return !!reply;
+  };
+
+  getNotificationMetaById = async (id: number) => {
+    const reply = await this.replyRepo.findOne({
+      where: { id },
+      withDeleted: true,
+      select: {
+        id: true,
+        userId: true,
+        rootCommentId: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!reply) {
+      return null;
+    }
+
+    return {
+      id: reply.id,
+      userId: reply.userId,
+      rootCommentId: reply.rootCommentId,
+      deletedAt: reply.deletedAt,
+    };
   };
 
   getCommentReplies = async (dto: GetCommentRepliesDto) => {
@@ -130,6 +155,89 @@ export class ReplyRepository implements IReplyRepository {
 
     return {
       items: items as any[],
+      total,
+      currentPage: page,
+      nextPage: page < totalPage ? page + 1 : null,
+      lastPage: totalPage,
+    };
+  };
+
+  getRepliesByUserId = async (
+    dto: GetUserShowcaseDto,
+    viewerId?: string,
+  ) => {
+    const { userId, page = 1, limit = 10 } = dto;
+    const skip = (page - 1) * limit;
+
+    const query = this.replyRepo
+      .createQueryBuilder("reply")
+      .withDeleted()
+      .leftJoinAndSelect("reply.comment", "comment")
+      .leftJoinAndSelect("comment.novel", "novel")
+      .leftJoinAndSelect("reply.parentReply", "parentReply")
+      .leftJoinAndSelect("parentReply.user", "parentUser")
+      .where("reply.userId = :userId", { userId })
+      .andWhere("reply.deletedAt IS NULL")
+      .orderBy("reply.createdAt", "DESC")
+      .skip(skip)
+      .take(limit);
+
+    if (viewerId) {
+      query.addSelect((subQuery) => {
+        return subQuery
+          .select("COUNT(like.userId)", "cnt")
+          .from("reply_like", "like")
+          .where("like.replyId = reply.id")
+          .andWhere("like.userId = :viewerId", { viewerId });
+      }, "viewerHasLiked");
+    }
+
+    const { entities, raw } = await query.getRawAndEntities();
+    const total = await query.getCount();
+
+    const items = entities.map((reply, index) => {
+      const hasLiked = viewerId
+        ? parseInt(raw[index].viewerHasLiked) > 0
+        : false;
+
+      return {
+        id: reply.id,
+        content: reply.content,
+        likeCount: reply.likeCount,
+        createdAt: reply.createdAt,
+        rootComment: {
+          id: reply.comment?.id,
+          content: reply.comment?.content,
+          userId: reply.comment?.userId,
+        },
+        novel: {
+          id: reply.comment?.novel?.id,
+          name: reply.comment?.novel?.name,
+          slug: reply.comment?.novel?.slug,
+          coverImageUrl: reply.comment?.novel?.coverImage,
+        },
+        parentReply: reply.parentReply
+          ? {
+              id: reply.parentReply.id,
+              content: reply.parentReply.deletedAt
+                ? null
+                : reply.parentReply.content,
+              isDeleted: !!reply.parentReply.deletedAt,
+              user: {
+                id: reply.parentReply.user?.id,
+                nickname: reply.parentReply.user?.nickname || "deleted",
+                profileImageUrl: reply.parentReply.user?.profileImageUrl,
+              },
+            }
+          : null,
+        viewerHasLiked: hasLiked,
+      };
+    });
+
+    const totalPage = Math.ceil(total / limit);
+
+    return {
+      items,
       total,
       currentPage: page,
       nextPage: page < totalPage ? page + 1 : null,

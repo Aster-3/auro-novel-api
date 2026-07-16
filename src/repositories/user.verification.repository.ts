@@ -46,6 +46,7 @@ export class UserVerificationRepository implements IUserVerificationRepository {
         const newVerification = manager.create(UserVerification, {
           code: newCode,
           expiry: newExpiry,
+          lastSentAt: new Date(),
           user: { id: userId },
           attempts: 0,
         });

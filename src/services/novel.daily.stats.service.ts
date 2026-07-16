@@ -22,6 +22,12 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
       novelId,
       authorId,
     );
+    if (!novelExists) {
+      throw new NotFoundError(
+        "Novel bulunamadi veya bu novelin sahibi degilsiniz.",
+      );
+    }
+
     // if (!novelExists) {
     //   throw new NotFoundError(
     //     "Novel bulunamadı veya bu novelin sahibi değilsiniz.",
@@ -69,12 +75,11 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
         yesterday?.totalReviews,
         dayBefore?.totalReviews,
       ),
-      totalSoldChapters: calculateTrend(
-        liveNovel.totalSales,
-        yesterday?.totalPurchases,
-        dayBefore?.totalPurchases,
+      totalLibraryCount: calculateTrend(
+        liveNovel.totalLibraryCount,
+        yesterday?.totalLibraryCount,
+        dayBefore?.totalLibraryCount,
       ),
-
       totalRecommendations: {
         current: parseFloat(currentRate.toFixed(1)),
         change: parseFloat(rateChange.toFixed(1)),
@@ -95,7 +100,7 @@ export class NovelDailyStatsService implements INovelDailyStatsService {
       viewCount: number;
       totalReviewsCount: number;
       positiveReviewsCount: number;
-      totalSales: number;
+      totalLibraryCount: number;
     }[],
   ) => {
     await this.novelDailyStatsRepo.bulkCreate(snapshots);

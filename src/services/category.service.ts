@@ -3,6 +3,7 @@ import { ICategoryRepository } from "../interfaces/categories.repo.interface.js"
 import { ICategoryService } from "../interfaces/categories.service.interface.js";
 import { SearchCategoryDto } from "../schemas/search.category.schema.js";
 import { CreateCategoryDto } from "../schemas/create.category.schema.js";
+import { UpdateCategoryDto } from "../schemas/update.category.schema.js";
 
 export class CategoryService implements ICategoryService {
   constructor(private categoryRepository: ICategoryRepository) {}
@@ -19,7 +20,7 @@ export class CategoryService implements ICategoryService {
     await this.categoryRepository.delete(id);
   }
 
-  async updateCategory(id: number, dto: CreateCategoryDto): Promise<void> {
+  async updateCategory(id: number, dto: UpdateCategoryDto): Promise<void> {
     const result = await this.categoryRepository.update(id, dto);
     if (result.affected === 0) {
       throw new NotFoundError("Güncellenmek istenen kategori bulunamadı.");

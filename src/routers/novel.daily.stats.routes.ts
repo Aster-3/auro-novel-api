@@ -8,7 +8,7 @@ const router = Router();
 
 router.get(
   "/novels/:novelId/stats",
-  // authMiddleware,
+  authMiddleware,
   validateSchema(getNovelStatsSchema),
   novelDailyStatsController.getDashboardStats,
 );

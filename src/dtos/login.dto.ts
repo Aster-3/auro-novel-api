@@ -5,6 +5,10 @@ export class UserLoginResponseDto {
   email!: string;
   profileImageUrl!: string | null;
   role!: string;
+  isPremium!: boolean;
+  premiumUntil!: Date | null;
+  subscriptionTier!: string | null;
+  subscriptionPeriod!: string | null;
 
   constructor(data?: Partial<UserLoginResponseDto>) {
     if (data) {
@@ -14,6 +18,10 @@ export class UserLoginResponseDto {
       this.email! = data.email || "";
       this.profileImageUrl = data.profileImageUrl || null;
       this.role = data.role || "user";
+      this.isPremium = data.isPremium || false;
+      this.premiumUntil = data.premiumUntil || null;
+      this.subscriptionTier = data.subscriptionTier || null;
+      this.subscriptionPeriod = data.subscriptionPeriod || null;
     }
   }
 }

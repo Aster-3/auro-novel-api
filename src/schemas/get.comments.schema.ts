@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { CommentSortType } from "../constants/comment.constants.js";
 
 export const getCommentsSchema = z.object({
   params: z.object({
@@ -16,6 +17,13 @@ export const getCommentsSchema = z.object({
       .max(100, "Tek seferde en fazla 100 kayıt çekebilirsiniz")
       .optional()
       .default(20),
+    sort: z
+      .enum(CommentSortType, {
+        message:
+          "Gecersiz siralama turu. 'newest', 'oldest' veya 'popular' olmalidir.",
+      })
+      .optional()
+      .default(CommentSortType.NEWEST),
   }),
 });
 

@@ -18,7 +18,10 @@ const s3Client = new S3Client({
  */
 
 export const uploadToS3 = async (file: Express.Multer.File, folder: string) => {
-  const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+  const safeOriginalName = file.originalname
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-");
+  const fileName = `${folder}/${Date.now()}-${safeOriginalName}`;
   const params = {
     Bucket: getEnv("R2_BUCKET_NAME"),
     Key: fileName,

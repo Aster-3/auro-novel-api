@@ -11,12 +11,29 @@ export class VolumeRepository implements IVolumeRepository {
     return volume.id;
   }
 
-  async update(volumeId: string, name: string) {
+  async update(volumeId: string, name: string | null) {
     await this.volumeRepo.update({ id: volumeId }, { name });
   }
 
   async delete(id: string) {
     await this.volumeRepo.delete(id);
+  }
+
+  async deleteAndCloseGap(
+    volumeId: string,
+    novelId: string,
+    orderIndex: number,
+  ) {
+    await this.volumeRepo.manager.transaction(async (manager) => {
+      await manager.delete(Volume, { id: volumeId });
+      await manager
+        .createQueryBuilder()
+        .update(Volume)
+        .set({ orderIndex: () => '"orderIndex" - 1' })
+        .where('"novelId" = :novelId', { novelId })
+        .andWhere('"orderIndex" > :orderIndex', { orderIndex })
+        .execute();
+    });
   }
 
   async getOneById(id: string) {

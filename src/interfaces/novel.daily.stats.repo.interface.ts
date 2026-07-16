@@ -13,7 +13,7 @@ export interface INovelDailyStatsRepository {
       viewCount: number;
       totalReviewsCount: number;
       positiveReviewsCount: number;
-      totalSales: number;
+      totalLibraryCount: number;
     }[],
   ): Promise<void>;
 }

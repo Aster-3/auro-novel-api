@@ -4,3 +4,4 @@ dist
 Dockerfile
 .gitignore
 .gitattributes
+.env

@@ -18,6 +18,9 @@ export class UserVerification {
   @Column({ type: "timestamp" })
   expiry!: Date;
 
+  @Column({ type: "timestamp", nullable: true })
+  lastSentAt?: Date | null;
+
   @Column({ type: "int", default: 0 })
   attempts!: number;
 

@@ -1,8 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
+import type { ZodType } from "zod";
 import { ValidationError } from "../errors/validation.error.js";
 
 export const validateSchema =
-  (schema: any) => async (req: Request, res: Response, next: NextFunction) => {
+  (schema: ZodType) =>
+  async (req: Request, res: Response, next: NextFunction) => {
     const result = await schema.safeParseAsync({
       body: req.body,
       query: req.query,
@@ -28,12 +30,18 @@ export const validateSchema =
       return next(new ValidationError({ errors }));
     }
 
-    res.locals.validatedData = {
-      ...result.data.query,
-      ...result.data.params,
-      ...result.data.body,
+    const validated = result.data as {
+      body?: Record<string, unknown>;
+      query?: Record<string, unknown>;
+      params?: Record<string, unknown>;
     };
 
-    req.body = result.data.body;
+    res.locals.validatedData = {
+      ...validated.query,
+      ...validated.params,
+      ...validated.body,
+    };
+
+    req.body = validated.body;
     next();
   };

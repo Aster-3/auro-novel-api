@@ -1,14 +1,17 @@
 import {
-  BeforeInsert,
-  BeforeUpdate,
   Column,
+  CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { User } from "./User.js";
-import { NotificationType } from "../constants/notification.constants.js";
+import {
+  NotificationTargetType,
+  PersonalNotificationType,
+} from "../constants/notification.constants.js";
 
 @Entity()
 export class PersonalNotification {
@@ -23,6 +26,28 @@ export class PersonalNotification {
   })
   @JoinColumn({ name: "userId" })
   user!: User;
+
+  @Column({ type: "uuid", nullable: true })
+  actorUserId?: string | null;
+
+  @ManyToOne(() => User, {
+    nullable: true,
+    onDelete: "SET NULL",
+  })
+  @JoinColumn({ name: "actorUserId" })
+  actorUser?: User | null;
+
+  @Column({ type: "enum", enum: PersonalNotificationType })
+  type!: PersonalNotificationType;
+
+  @Column({ type: "enum", enum: NotificationTargetType })
+  targetType!: NotificationTargetType;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  targetId?: string | null;
+
+  @Column({ type: "text", nullable: true })
+  targetUrl?: string | null;
 
   @Column({
     type: "jsonb",
@@ -43,18 +68,21 @@ export class PersonalNotification {
   })
   data?: any;
 
-  @Column({ type: "enum", enum: NotificationType })
-  type!: NotificationType;
+  @Column({ type: "varchar", length: 255, nullable: true })
+  titleSnapshot?: string | null;
 
-  @Column({ type: "varchar", length: 255 })
-  title!: string;
-
-  @Column({ type: "varchar", length: 255 })
-  body!: string;
+  @Column({ type: "varchar", length: 500, nullable: true })
+  bodySnapshot?: string | null;
 
   @Column({ type: "boolean", default: false })
   isRead!: boolean;
 
-  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @Column({ type: "timestamp", nullable: true })
+  readAt?: Date | null;
+
+  @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt?: Date | null;
 }

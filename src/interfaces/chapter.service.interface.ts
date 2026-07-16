@@ -1,7 +1,6 @@
 import { PublicationStatus } from "../constants/chapter.constants.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { Chapter } from "../entities/Chapter.js";
-import { CreateChapterPurchaseDTO } from "../schemas/create.chapter.purchase.schema.js";
 import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
@@ -52,15 +51,8 @@ export interface IChapterService {
     id: string;
     title: string;
     content: string;
-    isLocked: boolean;
     nextChapterId: string | null;
     previousChapterId: string | null;
-    isDiscountActive: boolean;
-    premiumPrice: number;
-    freemiumPrice: number;
-    discountedPremiumPrice: number;
-    discountRate: number;
-    discountEndDate: Date | null;
     novelStatus: string;
   }>;
   getOneDraftChapter(
@@ -87,10 +79,107 @@ export interface IChapterService {
       volumeOrder: number;
       volumeName: string | null;
       volumeId: string;
-      isLocked: boolean;
       createdAt: Date;
       isUnpublished?: boolean;
     }>
   >;
-  purchaseChapter(dto: CreateChapterPurchaseDTO): Promise<void>;
+
+  getNovelDownloadPackage(novelId: string): Promise<{
+    novel: {
+      id: string;
+      name: string;
+      coverImage: string | null;
+      synopsis: string | null;
+      status: string;
+      chapterCount: number;
+      lastChapterDate: Date | null;
+    };
+    generatedAt: string;
+    chapters: {
+      id: string;
+      title: string;
+      content: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+    }[];
+  }>;
+
+  getOfflineManifest(novelId: string): Promise<{
+    novel: {
+      id: string;
+      name: string;
+      slug: string;
+      coverImage: string | null;
+      synopsis: string | null;
+      status: string;
+      chapterCount: number;
+      lastChapterDate: Date | null;
+      updatedAt: Date;
+    };
+    generatedAt: string;
+    totalPublishedChapters: number;
+    chapters: {
+      id: string;
+      title: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+      wordCount: number;
+    }[];
+  }>;
+
+  getChapterOfflinePackage(chapterId: string): Promise<{
+    id: string;
+    novelId: string;
+    title: string;
+    content: string;
+    chapterOrder: number;
+    volumeId: string;
+    volumeName: string | null;
+    volumeOrder: number;
+    publishedAt: Date;
+    updatedAt: Date;
+    wordCount: number;
+  }>;
+
+  getOfflineChaptersPackage(
+    novelId: string,
+    chapterIds: string[],
+  ): Promise<{
+    novel: {
+      id: string;
+      name: string;
+      slug: string;
+      coverImage: string | null;
+      synopsis: string | null;
+      status: string;
+      chapterCount: number;
+      lastChapterDate: Date | null;
+      updatedAt: Date;
+    };
+    requestedChapterCount: number;
+    returnedChapterCount: number;
+    skippedChapterIds: string[];
+    generatedAt: string;
+    chapters: {
+      id: string;
+      novelId: string;
+      title: string;
+      content: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+      wordCount: number;
+    }[];
+  }>;
 }

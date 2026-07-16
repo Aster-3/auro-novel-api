@@ -13,11 +13,42 @@ import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { UserLoginDto } from "../schemas/user.login.shema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
-import { CreateNotificationDto } from "./personal.notification.repo.interface.js";
+import { UserDevice } from "../entities/UserDevice.js";
+import {
+  RegisterUserDeviceDto,
+  UnregisterUserDeviceDto,
+} from "../schemas/register.user.device.schema.js";
+import {
+  GetUserFollowsDto,
+  UserFollowCounts,
+} from "./user.follow.repo.interface.js";
+import {
+  GetUserShowcaseDto,
+  GetUserLibraryShowcaseDto,
+} from "../schemas/get.user.showcase.schema.js";
+import { PublicUserProfile } from "./user.repo.interface.js";
+import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
+import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
+import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 
 export interface IUserService {
-  create(dto: CreateUserDto): Promise<User | null>;
+  create(dto: CreateUserDto): Promise<{
+    user: User;
+    verificationEmailSent: boolean;
+  }>;
   getOneUser(id: string): Promise<User>;
+  getUserProfile(id: string): Promise<PublicUserProfile>;
+  getUserReviews(
+    dto: GetUserShowcaseDto,
+    viewerId?: string,
+  ): Promise<FindAndCountType<any>>;
+  getUserReplies(
+    dto: GetUserShowcaseDto,
+    viewerId?: string,
+  ): Promise<FindAndCountType<any>>;
+  getUserLibrary(
+    dto: GetUserLibraryShowcaseDto,
+  ): Promise<FindAndCountType<any>>;
   deleteUser(id: string): Promise<void>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
   verifyUser(dto: VerifyUserDto): Promise<User>;
@@ -34,16 +65,18 @@ export interface IUserService {
     user: UserLoginResponseDto;
     accessToken?: string;
   }>;
-  getUserBalance(
+  forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }>;
+  resetPassword(dto: ResetPasswordDto): Promise<{ message: string }>;
+  changePassword(
     userId: string,
-  ): Promise<{ moonCoins: number; sunCoins: number }>;
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }>;
   getReadingStats(userId: string): Promise<ReadingStats[]>;
   getUserNovelStats(
     userId: string,
     novelId: string,
   ): Promise<ReadingStats | null>;
   updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
-  createPersonalNotification(dto: CreateNotificationDto): Promise<void>;
   getPersonalNotifications(
     dto: GetNotificationsDto,
   ): Promise<FindAndCountType<PersonalNotification>>;
@@ -51,7 +84,10 @@ export interface IUserService {
     notificationId: string,
     userId: string,
   ): Promise<void>;
-  markPersonalNotificationAsRead(notificationId: string): Promise<void>;
+  markPersonalNotificationAsRead(
+    notificationId: string,
+    userId: string,
+  ): Promise<void>;
   markAllPersonalNotificationsAsRead(userId: string): Promise<void>;
   getTotalUnreadNotificationCount(userId: string): Promise<{
     personalUnreadCount: number;
@@ -61,5 +97,26 @@ export interface IUserService {
   getGlobalNotifications(
     dto: GetNotificationsDto,
   ): Promise<FindAndCountType<GlobalNotification>>;
-  setLastSeenNotificationDate(userId: string, date: Date): Promise<void>;
+  getGlobalNotificationById(
+    notificationId: string,
+    userId: string,
+  ): Promise<GlobalNotification & { isNew: boolean }>;
+  setLastGlobalNotificationSeenAt(userId: string, date: Date): Promise<void>;
+  registerDevice(dto: RegisterUserDeviceDto): Promise<UserDevice>;
+  unregisterDevice(dto: UnregisterUserDeviceDto): Promise<void>;
+  followUser(
+    followerId: string,
+    followingId: string,
+  ): Promise<{ isFollowing: boolean; created: boolean }>;
+  unfollowUser(
+    followerId: string,
+    followingId: string,
+  ): Promise<{ isFollowing: boolean; removed: boolean }>;
+  getFollowStatus(
+    followerId: string,
+    followingId: string,
+  ): Promise<UserFollowCounts & { isFollowing: boolean }>;
+  getFollowCounts(userId: string): Promise<UserFollowCounts>;
+  getFollowers(dto: GetUserFollowsDto): Promise<FindAndCountType<User>>;
+  getFollowing(dto: GetUserFollowsDto): Promise<FindAndCountType<User>>;
 }

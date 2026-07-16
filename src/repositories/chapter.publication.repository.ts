@@ -1,11 +1,12 @@
-import { Brackets, Not, Repository } from "typeorm";
-import { ChapterPublication } from "../entities/ChapterPublication.js";
-import { IChapterPublicationRepository } from "../interfaces/chapter.publication.repo.interface.js";
-import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
-import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
-import { NotFoundError } from "../errors/not.found.error.js";
+import { Brackets, In, Not, Repository } from "typeorm";
 import { PublicationStatus } from "../constants/chapter.constants.js";
+import { ChapterPublication } from "../entities/ChapterPublication.js";
+import { NotFoundError } from "../errors/not.found.error.js";
+import { IChapterPublicationRepository } from "../interfaces/chapter.publication.repo.interface.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
+import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
+import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
+import { wordCounter } from "../utils/wordCounter.js";
 
 export class ChapterPublicationRepository implements IChapterPublicationRepository {
   constructor(
@@ -24,36 +25,23 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
   ) {
     const { id, page, limit, sort } = dto;
 
-    const novelConfig = await this.novelRepo.getPaywallConfig(id);
-    if (!novelConfig) throw new NotFoundError("Roman bulunamadı.");
+    const novel = await this.novelRepo.findOneById(id);
+    if (!novel) throw new NotFoundError("Roman bulunamadi.");
 
-    const isOwner = novelConfig.author?.user?.id === userId;
+    const isOwner = novel.author?.user?.id === userId;
 
     const query = this.publicationRepo
       .createQueryBuilder("pub")
       .innerJoinAndSelect("pub.chapter", "chapter")
       .innerJoinAndSelect("pub.volume", "volume")
-      .leftJoinAndSelect(
-        "chapter.purchases",
-        "purchase",
-        "purchase.userId = :userId",
-        { userId: userId ?? null },
-      )
       .where("chapter.novelId = :novelId", { novelId: id });
 
     query.andWhere(
       new Brackets((qb) => {
-        // Kural A: Herkes yayında olan bölümleri görebilir
         qb.where("pub.publicationStatus = :published", {
           published: PublicationStatus.PUBLISHED,
         });
 
-        // Kural B: Eğer kullanıcı satın almışsa, arşivlenmiş olsa bile görmeli
-        if (userId) {
-          qb.orWhere("purchase.id IS NOT NULL");
-        }
-
-        // Kural C: Admin veya Sahibi ise her şeyi (Arşivler dahil) görmeli
         if (isAdmin || isOwner) {
           qb.orWhere("pub.publicationStatus = :unpublished", {
             unpublished: PublicationStatus.UNPUBLISHED,
@@ -71,46 +59,16 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
 
     const [publications, total] = await query.getManyAndCount();
 
-    const items = publications.map((p) => {
-      const { paywallStartVolume, paywallStartChapter } = novelConfig;
-
-      let isLockedBySystem = p.volume.orderIndex === 0;
-
-      if (
-        paywallStartVolume !== null &&
-        paywallStartChapter !== null &&
-        !isLockedBySystem
-      ) {
-        isLockedBySystem =
-          p.volume.orderIndex > paywallStartVolume ||
-          (p.volume.orderIndex === paywallStartVolume &&
-            p.orderIndex >= paywallStartChapter);
-      }
-
-      const hasPurchased =
-        p.chapter.purchases && p.chapter.purchases.length > 0;
-
-      const isUnpublished =
-        p.publicationStatus === PublicationStatus.UNPUBLISHED;
-
-      const canRead =
-        isAdmin ||
-        isOwner ||
-        hasPurchased ||
-        (!isLockedBySystem && !isUnpublished);
-
-      return {
-        id: p.chapterId,
-        title: p.chapter.title,
-        chapterOrder: p.orderIndex,
-        volumeOrder: p.volume.orderIndex,
-        volumeName: p.volume.name,
-        volumeId: p.volumeId,
-        isLocked: !canRead,
-        publishedAt: p.publishedAt,
-        isUnpublished: isUnpublished,
-      };
-    });
+    const items = publications.map((p) => ({
+      id: p.chapterId,
+      title: p.chapter.title,
+      chapterOrder: p.orderIndex,
+      volumeOrder: p.volume.orderIndex,
+      volumeName: p.volume.name,
+      volumeId: p.volumeId,
+      publishedAt: p.publishedAt,
+      isUnpublished: p.publicationStatus === PublicationStatus.UNPUBLISHED,
+    }));
 
     return {
       items: items as any[],
@@ -133,12 +91,6 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
           content: true,
           novel: {
             id: true,
-            paywallStartChapter: true,
-            paywallStartVolume: true,
-            chapterFreemiumPrice: true,
-            chapterPremiumPrice: true,
-            discountRate: true,
-            discountEndDate: true,
             status: true,
             author: { userId: true },
           },
@@ -160,20 +112,125 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       title: publication.chapter.title,
       content: publication.chapter.content,
       chapterOrder: publication.orderIndex,
-      premiumPrice: publication.chapter.novel.chapterPremiumPrice,
-      freemiumPrice: publication.chapter.novel.chapterFreemiumPrice,
-      discountRate: publication.chapter.novel.discountRate,
-      discountEndDate: publication.chapter.novel.discountEndDate,
       volumeOrder: publication.volume.orderIndex,
       volumeId: publication.volumeId,
       volumeTitle: publication.volume.name,
-      paywallStartChapter: publication.chapter.novel.paywallStartChapter,
-      paywallStartVolume: publication.chapter.novel.paywallStartVolume,
       authorId: publication.chapter.novel.author?.userId ?? null,
       publicationStatus: publication.publicationStatus,
       novelId: publication.chapter.novel.id,
       novelStatus: publication.chapter.novel.status,
     };
+  }
+
+  async getPublishedChaptersForDownload(novelId: string) {
+    const publications = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .orderBy("volume.orderIndex", "ASC")
+      .addOrderBy("pub.orderIndex", "ASC")
+      .getMany();
+
+    return publications.map((publication) => ({
+      id: publication.chapterId,
+      title: publication.chapter.title,
+      content: publication.chapter.content,
+      chapterOrder: publication.orderIndex,
+      volumeId: publication.volumeId,
+      volumeName: publication.volume.name,
+      volumeOrder: publication.volume.orderIndex,
+      publishedAt: publication.publishedAt,
+      updatedAt: publication.chapter.updatedAt,
+    }));
+  }
+
+  async getPublishedChaptersManifest(novelId: string) {
+    const publications = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .orderBy("volume.orderIndex", "ASC")
+      .addOrderBy("pub.orderIndex", "ASC")
+      .getMany();
+
+    return publications.map((publication) => ({
+      id: publication.chapterId,
+      title: publication.chapter.title,
+      chapterOrder: publication.orderIndex,
+      volumeId: publication.volumeId,
+      volumeName: publication.volume.name,
+      volumeOrder: publication.volume.orderIndex,
+      publishedAt: publication.publishedAt,
+      updatedAt: publication.chapter.updatedAt,
+      wordCount: wordCounter(publication.chapter.content),
+    }));
+  }
+
+  async getPublishedChapterForOffline(chapterId: string) {
+    const publication = await this.publicationRepo.findOne({
+      where: {
+        chapterId,
+        publicationStatus: PublicationStatus.PUBLISHED,
+      },
+      relations: { volume: true, chapter: true },
+    });
+
+    if (!publication) return null;
+
+    return {
+      id: publication.chapterId,
+      novelId: publication.chapter.novelId,
+      title: publication.chapter.title,
+      content: publication.chapter.content,
+      chapterOrder: publication.orderIndex,
+      volumeId: publication.volumeId,
+      volumeName: publication.volume.name,
+      volumeOrder: publication.volume.orderIndex,
+      publishedAt: publication.publishedAt,
+      updatedAt: publication.chapter.updatedAt,
+      wordCount: wordCounter(publication.chapter.content),
+    };
+  }
+
+  async getPublishedChaptersByIdsForDownload(
+    novelId: string,
+    chapterIds: string[],
+  ) {
+    const publications = await this.publicationRepo.find({
+      where: {
+        chapterId: In(chapterIds),
+        publicationStatus: PublicationStatus.PUBLISHED,
+        chapter: { novelId },
+      },
+      relations: { volume: true, chapter: true },
+    });
+
+    return publications
+      .map((publication) => ({
+        id: publication.chapterId,
+        novelId: publication.chapter.novelId,
+        title: publication.chapter.title,
+        content: publication.chapter.content,
+        chapterOrder: publication.orderIndex,
+        volumeId: publication.volumeId,
+        volumeName: publication.volume.name,
+        volumeOrder: publication.volume.orderIndex,
+        publishedAt: publication.publishedAt,
+        updatedAt: publication.chapter.updatedAt,
+        wordCount: wordCounter(publication.chapter.content),
+      }))
+      .sort(
+        (a, b) =>
+          a.volumeOrder - b.volumeOrder || a.chapterOrder - b.chapterOrder,
+      );
   }
 
   async getLastChapterOrderInVolume(volumeId: string) {
@@ -250,17 +307,16 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
 
   async getNextChapter(
     novelId: string,
-    currentOrderIndex: number, // chapterOrder yerine artık orderIndex kullanıyoruz
-    currentVolumeOrder: number, // Volume tablosundaki sıra
+    currentOrderIndex: number,
+    currentVolumeOrder: number,
   ) {
     const nextChapter = await this.publicationRepo
       .createQueryBuilder("pub")
       .innerJoin("pub.chapter", "chapter")
-      .innerJoin("pub.volume", "vol") // Volume tablosunu da bağlamalıyız ki sırasına bakalım
+      .innerJoin("pub.volume", "vol")
       .where("chapter.novelId = :novelId", { novelId })
       .andWhere(
         new Brackets((qb) => {
-          // Mantık: Ya bir sonraki volume'un ilk bölümleri, ya aynı volume'un sonraki bölümleri
           qb.where("vol.orderIndex > :currentVolumeOrder", {
             currentVolumeOrder,
           }).orWhere(
@@ -277,24 +333,21 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       .select(["pub.chapterId", "chapter.title"])
       .getOne();
 
-    if (!nextChapter) return null;
-
-    return nextChapter.chapterId;
+    return nextChapter?.chapterId ?? null;
   }
 
   async getPreviousChapter(
     novelId: string,
-    currentOrderIndex: number, // chapterOrder yerine artık orderIndex kullanıyoruz
-    currentVolumeOrder: number, // Volume tablosundaki sıra
+    currentOrderIndex: number,
+    currentVolumeOrder: number,
   ) {
     const previousChapter = await this.publicationRepo
       .createQueryBuilder("pub")
       .innerJoin("pub.chapter", "chapter")
-      .innerJoin("pub.volume", "vol") // Volume tablosunu da bağlamalıyız ki sırasına bakalım
+      .innerJoin("pub.volume", "vol")
       .where("chapter.novelId = :novelId", { novelId })
       .andWhere(
         new Brackets((qb) => {
-          // Mantık: Ya bir önceki volume'un son bölümleri, ya aynı volume'un önceki bölümleri
           qb.where("vol.orderIndex < :currentVolumeOrder", {
             currentVolumeOrder,
           }).orWhere(
@@ -311,8 +364,6 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       .select(["pub.chapterId", "chapter.title"])
       .getOne();
 
-    if (!previousChapter) return null;
-
-    return previousChapter.chapterId;
+    return previousChapter?.chapterId ?? null;
   }
 }

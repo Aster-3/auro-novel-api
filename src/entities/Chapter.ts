@@ -12,8 +12,8 @@ import {
 } from "typeorm";
 import { Novel } from "./Novel.js";
 import { ChapterPublication } from "./ChapterPublication.js";
-import { ChapterPurchase } from "./ChapterPurchase.js";
 import { ReadingStats } from "./ReadingStats.js";
+import { ChapterComment } from "./ChapterComment.js";
 
 @Entity()
 @Unique(["id", "novelId"])
@@ -42,18 +42,18 @@ export class Chapter {
   @UpdateDateColumn()
   updatedAt!: Date;
 
+  @Column({ type: "int", default: 0 })
+  commentCount!: number;
+
   @OneToOne(() => ChapterPublication, (publication) => publication.chapter, {
     cascade: true,
     nullable: true,
   })
   publication?: ChapterPublication;
 
-  @OneToMany(() => ChapterPurchase, (purchase) => purchase.chapter, {
-    cascade: true,
-    nullable: true,
-  })
-  purchases?: ChapterPurchase[];
-
   @OneToMany(() => ReadingStats, (stats) => stats.chapter)
   readingStats!: ReadingStats[];
+
+  @OneToMany(() => ChapterComment, (comment) => comment.chapter)
+  comments!: ChapterComment[];
 }

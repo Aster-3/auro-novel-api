@@ -19,7 +19,6 @@ export interface IChapterPublicationRepository {
       volumeOrder: number;
       volumeName: string | null;
       volumeId: string;
-      isLocked: boolean;
       createdAt: Date;
       isUnpublished?: boolean;
     }>
@@ -32,17 +31,68 @@ export interface IChapterPublicationRepository {
     volumeOrder: number;
     volumeId: string;
     volumeTitle: string | null;
-    paywallStartChapter: number | null;
-    paywallStartVolume: number | null;
-    premiumPrice: number | null;
-    freemiumPrice: number | null;
-    discountRate: number | null;
-    discountEndDate: Date | null;
     authorId: string | null;
     publicationStatus: PublicationStatus;
     novelId: string;
     novelStatus: SeriesStatus;
   } | null>;
+  getPublishedChaptersForDownload(novelId: string): Promise<
+    {
+      id: string;
+      title: string;
+      content: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+    }[]
+  >;
+  getPublishedChaptersManifest(novelId: string): Promise<
+    {
+      id: string;
+      title: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+      wordCount: number;
+    }[]
+  >;
+  getPublishedChapterForOffline(chapterId: string): Promise<{
+    id: string;
+    novelId: string;
+    title: string;
+    content: string;
+    chapterOrder: number;
+    volumeId: string;
+    volumeName: string | null;
+    volumeOrder: number;
+    publishedAt: Date;
+    updatedAt: Date;
+    wordCount: number;
+  } | null>;
+  getPublishedChaptersByIdsForDownload(
+    novelId: string,
+    chapterIds: string[],
+  ): Promise<
+    {
+      id: string;
+      novelId: string;
+      title: string;
+      content: string;
+      chapterOrder: number;
+      volumeId: string;
+      volumeName: string | null;
+      volumeOrder: number;
+      publishedAt: Date;
+      updatedAt: Date;
+      wordCount: number;
+    }[]
+  >;
   getChapterForMeta(id: string): Promise<{
     id: string;
     title: string;

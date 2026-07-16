@@ -15,3 +15,7 @@ export const queryPageAndLimitSchema = z.object({
       .default(1),
   }),
 });
+
+export type QueryPageAndLimitDto = z.infer<
+  typeof queryPageAndLimitSchema
+>["query"];

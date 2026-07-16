@@ -11,11 +11,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import {
-  NovelFormat,
-  SeriesStatus,
-  sourceType,
-} from "../constants/series.constants.js";
+import { NovelType, SeriesStatus } from "../constants/series.constants.js";
 import { Comment } from "./Comment.js";
 import { Chapter } from "./Chapter.js";
 import { Category } from "./Category.js";
@@ -24,7 +20,6 @@ import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
 import { Author } from "./Author.js";
 import { NovelDailyStats } from "./NovelDailyStats.js";
-import { AuthorEarning } from "./AuthorEarning.js";
 import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
@@ -51,45 +46,25 @@ export class Novel {
   status!: SeriesStatus;
 
   @Index()
-  @Column({ type: "enum", enum: NovelFormat, default: NovelFormat.WEBNOVEL })
-  format!: NovelFormat;
+  @Column({
+    name: "type",
+    type: "enum",
+    enum: NovelType,
+    default: NovelType.USER_GENERATED,
+  })
+  type!: NovelType;
 
-  @Index()
-  @Column({ type: "enum", enum: sourceType, default: sourceType.LOCAL })
-  sourceType!: sourceType;
-
-  @Column({ type: "int", default: 50 })
-  authorSharePercent!: number;
-
-  @Column({ type: "int", default: 10 })
-  chapterPremiumPrice!: number;
-
-  @Column({ type: "int", default: 5 })
-  chapterFreemiumPrice!: number;
+  @Column({ name: "free_limit", type: "int", default: 0 })
+  freeLimit!: number;
 
   @Column({ type: "int", default: 0 })
   chapterCount!: number;
-
-  @Column({ type: "int", default: 0 })
-  discountRate!: number;
-
-  @Column({ type: "timestamp", nullable: true, default: null })
-  discountEndDate!: Date | null;
-
-  @Column({ type: "int", default: 0 })
-  totalSales!: number;
 
   @Column({ type: "float", default: 0 })
   rankingScore!: number;
 
   @Column({ type: "timestamp", nullable: true, default: null })
   lastChapterDate!: Date | null;
-
-  @Column({ type: "int", default: 1, nullable: true })
-  paywallStartVolume!: number | null;
-
-  @Column({ type: "int", default: 31, nullable: true })
-  paywallStartChapter!: number | null;
 
   @Column({ type: "boolean", default: false })
   isBanned!: boolean;
@@ -113,6 +88,9 @@ export class Novel {
 
   @Column({ type: "int", default: 0 })
   totalReviewsCount!: number;
+
+  @Column({ type: "int", default: 0 })
+  totalLibraryCount!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 4, default: 0 })
   weeklyRankingScore!: number;
@@ -145,7 +123,4 @@ export class Novel {
 
   @OneToMany(() => NovelDailyStats, (stats) => stats.novel)
   dailyStats!: NovelDailyStats[];
-
-  @OneToMany(() => AuthorEarning, (earning) => earning.novel)
-  earnings!: AuthorEarning[];
 }

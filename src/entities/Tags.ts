@@ -10,7 +10,6 @@ import {
 } from "typeorm";
 import { Novel } from "./Novel.js";
 import { User } from "./User.js";
-import { LanguageType } from "../constants/series.constants.js";
 
 @Entity()
 export class Tags {
@@ -23,9 +22,6 @@ export class Tags {
   @Index()
   @Column({ type: "varchar", length: 50, unique: true })
   slug!: string;
-
-  @Column({ type: "enum", enum: LanguageType, nullable: false })
-  language!: string;
 
   @CreateDateColumn()
   createdAt!: Date;

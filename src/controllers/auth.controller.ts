@@ -6,7 +6,7 @@ export class AuthController {
 
   register = async (req: Request, res: Response) => {
     const created = await this.userService.create(req.body);
-    res.json({ user: created });
+    res.json(created);
   };
 
   verifyUser = async (req: Request, res: Response) => {
@@ -28,5 +28,21 @@ export class AuthController {
     const { refreshToken } = req.body;
     const data = await this.userService.refreshToken(refreshToken);
     res.json(data);
+  };
+
+  forgotPassword = async (req: Request, res: Response) => {
+    const result = await this.userService.forgotPassword(req.body);
+    res.json(result);
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    const result = await this.userService.resetPassword(req.body);
+    res.json(result);
+  };
+
+  changePassword = async (req: Request, res: Response) => {
+    const userId = req.user?.id || "";
+    const result = await this.userService.changePassword(userId, req.body);
+    res.json(result);
   };
 }

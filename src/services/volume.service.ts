@@ -12,57 +12,20 @@ export class VolumeService implements IVolumeService {
 
   async createVolume(dto: CreateVolumeDTO, isAdmin: boolean, userId: string) {
     const isOwner = await this.novelRepo.isOwnerControl(dto.novelId, userId);
-    console.log(
-      "Milestone: Ownership check completed. isAdmin:",
-      isAdmin,
-      isOwner,
-      userId,
-      dto.novelId,
-    );
-    if (!isAdmin && !isOwner) {
+
+    if (!isOwner) {
       throw new ConflictError(
         "invalid_access",
-        "Bu romanın sahibi değilsiniz.",
+        "Bu romanin sahibi degilsiniz.",
       );
     }
+
     const lastVolume = await this.volumeRepo.getLastVolume(dto.novelId);
-    const currentMaxInteger = Math.floor(lastVolume?.orderIndex ?? 0);
-
-    if (!isAdmin || dto.orderIndex === undefined || dto.orderIndex === null) {
-      const nextOrder = lastVolume ? Math.floor(lastVolume.orderIndex) + 1 : 1;
-
-      await this.volumeRepo.create({
-        novelId: dto.novelId,
-        orderIndex: nextOrder,
-        name: dto.name ?? null,
-      });
-      return;
-    }
-
-    const incomingOrder = dto.orderIndex!;
-
-    if (incomingOrder > currentMaxInteger + 1) {
-      throw new ConflictError(
-        "Cilt Sırası",
-        `Sıradaki cilt en fazla ${currentMaxInteger + 1} olabilir. Arada boşluk bırakamazsınız.`,
-      );
-    }
-
-    const exists = await this.volumeRepo.duplicateControl(
-      dto.novelId,
-      incomingOrder,
-    );
-
-    if (exists) {
-      throw new ConflictError(
-        "Cilt Sırası",
-        `${incomingOrder} numaralı cilt zaten mevcut.`,
-      );
-    }
+    const nextOrder = lastVolume ? Math.floor(lastVolume.orderIndex) + 1 : 1;
 
     await this.volumeRepo.create({
       novelId: dto.novelId,
-      orderIndex: incomingOrder,
+      orderIndex: nextOrder,
       name: dto.name ?? null,
     });
   }
@@ -72,40 +35,26 @@ export class VolumeService implements IVolumeService {
 
     if (!volume) {
       throw new ConflictError(
-        "Cilt bulunamadı",
-        "Silinmek istenen cilt mevcut değil.",
+        "volume_not_found",
+        "Silinmek istenen cilt mevcut degil.",
       );
     }
 
     const isOwner = await this.volumeRepo.isOwnerControl(volumeId, userId);
 
-    if (!isAdmin && !isOwner) {
+    if (!isOwner) {
       throw new ConflictError(
         "invalid_access",
-        "Bu romanın sahibi değilsiniz.",
+        "Bu romanin sahibi degilsiniz.",
       );
     }
 
-    const isEmpty = await this.volumeRepo.isVolumeEmpty(volumeId);
-    if (!isEmpty) {
-      throw new ConflictError(
-        "Cilt boş değil",
-        "Bu cilt boş değil, silmeden önce içindeki bölümleri silmeniz gerekiyor.",
-      );
-    }
-
-    const isLastVolume = await this.volumeRepo.checkIfLastVolume(
-      volume.novelId,
+    await this.ensureVolumeCanBeDeleted(volumeId);
+    await this.volumeRepo.deleteAndCloseGap(
       volumeId,
+      volume.novelId,
+      volume.orderIndex,
     );
-    if (!isLastVolume) {
-      throw new ConflictError(
-        "Son cilt değil",
-        "Sadece son cilt silinebilir. Sırayı korumak için önce diğer ciltleri silmeniz gerekiyor.",
-      );
-    }
-
-    await this.volumeRepo.delete(volumeId);
   }
 
   async getVolumeByNovelId(novelId: string) {
@@ -121,19 +70,30 @@ export class VolumeService implements IVolumeService {
     const exist = await this.volumeRepo.existControl(volumeId);
     if (!exist) {
       throw new ConflictError(
-        "Cilt bulunamadı",
-        "Güncellenmek istenen cilt mevcut değil.",
+        "volume_not_found",
+        "Guncellenmek istenen cilt mevcut degil.",
       );
     }
 
     const isOwner = await this.volumeRepo.isOwnerControl(volumeId, userId);
 
-    if (!isAdmin && !isOwner) {
+    if (!isOwner) {
       throw new ConflictError(
         "invalid_access",
-        "Bu romanın sahibi değilsiniz.",
+        "Bu romanin sahibi degilsiniz.",
       );
     }
+
     await this.volumeRepo.update(volumeId, name);
+  }
+
+  private async ensureVolumeCanBeDeleted(volumeId: string) {
+    const isEmpty = await this.volumeRepo.isVolumeEmpty(volumeId);
+    if (!isEmpty) {
+      throw new ConflictError(
+        "volume_not_empty",
+        "Bu cilt bos degil, silmeden once icindeki bolumleri silmeniz gerekiyor.",
+      );
+    }
   }
 }

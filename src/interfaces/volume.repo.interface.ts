@@ -4,8 +4,13 @@ import { CreateVolumeDTO } from "../schemas/create.volume.schema.js";
 
 export interface IVolumeRepository {
   create(dto: CreateVolumeDTO): Promise<string>;
-  update(volumeId: string, name: string): Promise<void>;
+  update(volumeId: string, name: string | null): Promise<void>;
   delete(id: string): Promise<void>;
+  deleteAndCloseGap(
+    volumeId: string,
+    novelId: string,
+    orderIndex: number,
+  ): Promise<void>;
   getOneById(id: string): Promise<Volume | null>;
   existControl(volumeId: string): Promise<boolean>;
   isOwnerControl(volumeId: string, authorId: string): Promise<boolean>;

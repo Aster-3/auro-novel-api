@@ -3,6 +3,7 @@ import { Novel } from "../entities/Novel.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
+import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { Chapter, Volume } from "../entities/_index.js";
 import { PublicationStatus } from "../constants/chapter.constants.js";
@@ -46,10 +47,14 @@ export class NovelRepository implements INovelRepository {
   }
 
   async getNovels(dto: GetNovelsDTo) {
-    const { name, status, limit, page } = dto;
+    const { name, authorId, status, limit, page } = dto;
     const where: FindOptionsWhere<Novel> = {};
     if (name) where.name = ILike(`%${name}%`);
-    if (status) where.status = status;
+    if (authorId) where.authorId = authorId;
+    where.status =
+      status && status !== SeriesStatus.DRAFT
+        ? status
+        : Not(SeriesStatus.DRAFT);
 
     const [novels, total] = await this.novelRepo.findAndCount({
       where: where,
@@ -57,16 +62,82 @@ export class NovelRepository implements INovelRepository {
         id: true,
         name: true,
         coverImage: true,
+        status: true,
+        chapterCount: true,
+        viewCount: true,
+        positiveReviewsCount: true,
+        totalReviewsCount: true,
       },
       skip: (page - 1) * limit,
       take: limit,
     });
+    const items = novels.map((novel) => ({
+      id: novel.id,
+      name: novel.name,
+      coverImage: novel.coverImage ?? null,
+      status: novel.status,
+      chapterCount: novel.chapterCount,
+      viewCount: novel.viewCount,
+      recommendationRate:
+        novel.totalReviewsCount > 0
+          ? Math.round(
+              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+            )
+          : null,
+    }));
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
     return {
-      items: novels,
+      items,
       total: total,
       nextPage: nextPage,
+      currentPage: page,
+      lastPage: totalPage,
+    };
+  }
+
+  async getNovelsByAuthorUserId(userId: string, dto: QueryPageAndLimitDto) {
+    const { limit, page } = dto;
+    const [novels, total] = await this.novelRepo.findAndCount({
+      where: {
+        author: {
+          userId,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        coverImage: true,
+        status: true,
+        chapterCount: true,
+        viewCount: true,
+        positiveReviewsCount: true,
+        totalReviewsCount: true,
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const items = novels.map((novel) => ({
+      id: novel.id,
+      name: novel.name,
+      coverImage: novel.coverImage ?? null,
+      status: novel.status,
+      chapterCount: novel.chapterCount,
+      viewCount: novel.viewCount,
+      recommendationRate:
+        novel.totalReviewsCount > 0
+          ? Math.round(
+              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+            )
+          : null,
+    }));
+    const totalPage = Math.ceil(total / limit);
+    const nextPage = page < totalPage ? page + 1 : null;
+    return {
+      items,
+      total,
+      nextPage,
       currentPage: page,
       lastPage: totalPage,
     };
@@ -83,21 +154,21 @@ export class NovelRepository implements INovelRepository {
         status: true,
         positiveReviewsCount: true,
         totalReviewsCount: true,
+        totalLibraryCount: true,
         viewCount: true,
         rankingScore: true,
-        sourceType: true,
-        chapterFreemiumPrice: true,
-        chapterPremiumPrice: true,
-        format: true,
-        totalSales: true,
+        type: true,
+        freeLimit: true,
+        isAdultContent: true,
         chapterCount: true,
         lastChapterDate: true,
         author: {
           id: true,
           nickname: true,
-          user: { id: true, nickname: true },
+          isVerified: true,
+          user: { id: true, username: true, nickname: true },
         },
-        categories: { id: true, trName: true, enName: true },
+        categories: { id: true, title: true },
         tags: { id: true, name: true },
       },
       relations: {
@@ -148,13 +219,33 @@ export class NovelRepository implements INovelRepository {
         viewCount: true,
         totalReviewsCount: true,
         positiveReviewsCount: true,
-        totalSales: true,
+        totalLibraryCount: true,
       },
     });
   }
 
+  async getFirstPublishedChapterId(novelId: string) {
+    const firstPublishedChapter = await this.novelRepo.manager
+      .createQueryBuilder("ChapterPublication", "pub")
+      .innerJoin("pub.chapter", "chapter")
+      .innerJoin("pub.volume", "volume")
+      .where("chapter.novelId = :novelId", { novelId })
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .orderBy("volume.orderIndex", "ASC")
+      .addOrderBy("pub.orderIndex", "ASC")
+      .select("pub.chapterId", "chapterId")
+      .getRawOne<{ chapterId: string }>();
+
+    return firstPublishedChapter?.chapterId ?? null;
+  }
+
   async getWeeklyTrendingNovels(limit: number): Promise<Novel[]> {
     return this.novelRepo.find({
+      where: {
+        status: Not(SeriesStatus.DRAFT),
+      },
       select: {
         id: true,
         name: true,
@@ -164,6 +255,7 @@ export class NovelRepository implements INovelRepository {
       order: {
         weeklyRankingScore: "DESC",
       },
+      take: limit,
     });
   }
 
@@ -217,13 +309,7 @@ export class NovelRepository implements INovelRepository {
         "stats.novelId = novel.id AND stats.recordedAt = :dateString",
         { dateString },
       )
-      .select([
-        "novel.id",
-        "novel.totalReviewsCount",
-        "novel.totalSales",
-        "stats.totalReviews",
-        "stats.totalPurchases",
-      ])
+      .select(["novel.id", "novel.totalReviewsCount", "stats.totalReviews"])
       .getRawMany();
   }
 
@@ -266,7 +352,7 @@ export class NovelRepository implements INovelRepository {
       .update(Novel)
       .set(updateSet)
       .where("id = :id", { id: novelId })
-      .returning(["totalReviewsCount", "positiveReviewsCount", "totalSales"])
+      .returning(["totalReviewsCount", "positiveReviewsCount"])
       .execute();
 
     return result.raw[0];
@@ -295,10 +381,6 @@ export class NovelRepository implements INovelRepository {
 
   async incrementViewCount(novelId: string) {
     await this.novelRepo.increment({ id: novelId }, "viewCount", 1);
-  }
-
-  async incrementTotalSales(novelId: string): Promise<void> {
-    await this.novelRepo.increment({ id: novelId }, "totalSales", 1);
   }
 
   async updateNovel(dto: UpdateNovelDTO) {
@@ -347,35 +429,5 @@ export class NovelRepository implements INovelRepository {
       chapterCount: parseInt(stats.count) || 0,
       lastChapterDate: stats.lastDate || null,
     });
-  }
-
-  async getPaywallConfig(novelId: string) {
-    const novel = await this.novelRepo.findOne({
-      where: { id: novelId },
-      select: {
-        id: true,
-        paywallStartVolume: true,
-        paywallStartChapter: true,
-        author: {
-          id: true,
-          user: { id: true },
-        },
-      },
-      relations: {
-        author: {
-          user: true,
-        },
-      },
-    });
-    if (!novel) return null;
-    return {
-      paywallStartVolume: novel.paywallStartVolume,
-      paywallStartChapter: novel.paywallStartChapter,
-      author: {
-        user: {
-          id: novel.author?.user?.id || null,
-        },
-      },
-    };
   }
 }

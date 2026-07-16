@@ -13,11 +13,16 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
   async createNotification(dto: CreateNotificationDto): Promise<void> {
     const notification = this.notificationRepo.create({
       userId: dto.userId,
+      actorUserId: dto.actorUserId ?? null,
       type: dto.type,
-      title: dto.title,
-      body: dto.body,
+      targetType: dto.targetType,
+      targetId: dto.targetId ?? null,
+      targetUrl: dto.targetUrl ?? null,
+      titleSnapshot: dto.titleSnapshot ?? null,
+      bodySnapshot: dto.bodySnapshot ?? null,
       data: dto.data ? JSON.stringify(dto.data) : null,
     });
+
     await this.notificationRepo.save(notification);
   }
 
@@ -25,21 +30,30 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     dto: GetNotificationsDto,
   ): Promise<FindAndCountType<PersonalNotification>> {
     const { userId, page, limit } = dto;
-
     const skip = (page - 1) * limit;
-    const query = this.notificationRepo.findAndCount({
-      where: { userId },
-      order: { createdAt: "DESC" },
-      skip,
-      take: limit,
-    });
+
+    const [notifications, totalCount] = await this.notificationRepo
+      .createQueryBuilder("notification")
+      .leftJoinAndSelect("notification.actorUser", "actorUser")
+      .select([
+        "notification",
+        "actorUser.id",
+        "actorUser.username",
+        "actorUser.nickname",
+        "actorUser.profileImageUrl",
+      ])
+      .where("notification.userId = :userId", { userId })
+      .orderBy("notification.createdAt", "DESC")
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
 
     const nextPage = page + 1;
-    const totalPages = Math.ceil((await query)[1] / limit);
+    const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      items: (await query)[0],
-      total: (await query)[1],
+      items: notifications,
+      total: totalCount,
       currentPage: page,
       nextPage: nextPage > totalPages ? null : nextPage,
       lastPage: totalPages,
@@ -52,19 +66,22 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     });
   }
 
-  async markAsRead(notificationId: string): Promise<void> {
-    await this.notificationRepo.update(
-      { id: notificationId },
-      { isRead: true },
+  async markAsRead(notificationId: string, userId: string): Promise<number> {
+    const result = await this.notificationRepo.update(
+      { id: notificationId, userId },
+      { isRead: true, readAt: new Date() },
     );
+
+    return result.affected || 0;
   }
 
   async markAllAsRead(userId: string): Promise<void> {
     await this.notificationRepo
       .createQueryBuilder()
       .update(PersonalNotification)
-      .set({ isRead: true })
+      .set({ isRead: true, readAt: new Date() })
       .where("userId = :userId", { userId })
+      .andWhere("isRead = :isRead", { isRead: false })
       .execute();
   }
 
@@ -72,10 +89,11 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     notificationId: string,
     userId: string,
   ): Promise<number> {
-    const result = await this.notificationRepo.delete({
+    const result = await this.notificationRepo.softDelete({
       id: notificationId,
       userId,
     });
-    return result.affected || 0; // Kaç satır silindiğini dön (0 veya 1)
+
+    return result.affected || 0;
   }
 }

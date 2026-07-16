@@ -1,15 +1,14 @@
 import * as z from "zod";
-import { reqString, reqUuid } from "../utils/zod.error.helper.js";
-import { LanguageType } from "../constants/series.constants.js";
+import { reqString } from "../utils/zod.error.helper.js";
 
 export const createTagSchema = z.object({
   body: z.object({
-    name: reqString("Etiket adı")
-      .min(3, "Etiket adı en az 3 karakter olmalıdır")
-      .max(30, "Etiket adı en fazla 30 karakter olmalıdır"),
-    language: z.enum(LanguageType, "Dil türü geçersiz"),
-    userId: reqUuid("Kullanıcı id'si"),
+    name: reqString("Etiket adi")
+      .min(3, "Etiket adi en az 3 karakter olmalidir")
+      .max(30, "Etiket adi en fazla 30 karakter olmalidir"),
   }),
 });
 
-export type CreateTagDto = z.infer<typeof createTagSchema>["body"];
+export type CreateTagDto = z.infer<typeof createTagSchema>["body"] & {
+  userId: string;
+};

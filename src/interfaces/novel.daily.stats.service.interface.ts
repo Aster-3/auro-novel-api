@@ -12,7 +12,7 @@ export interface INovelDailyStatsService {
       viewCount: number;
       totalReviewsCount: number;
       positiveReviewsCount: number;
-      totalSales: number;
+      totalLibraryCount: number;
     }[],
   ): Promise<void>;
 }
@@ -26,8 +26,8 @@ export interface DashboardStats {
 export interface NovelStatsResponse {
   totalViews: DashboardStats;
   totalReviews: DashboardStats;
-  totalSoldChapters: DashboardStats;
   totalRecommendations: DashboardStats;
+  totalLibraryCount: DashboardStats;
 }
 
 export enum TrendState {
