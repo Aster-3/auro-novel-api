@@ -8,11 +8,15 @@
     "dev": "nodemon --legacy-watch --exec tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
-    "migration:generate": "typeorm-ts-node-esm migration:generate src/migrations/AutoMigration -d src/database/data-source.ts",
-    "schema:sync": "node dist/database/sync.schema.js",
-    "seed": "node dist/database/run.seeders.js",
-    "seed:dev": "tsx src/database/run.seeders.ts"
+    "migration:generate": "docker compose -f docker-compose.dev.yml exec api npm exec -- node scripts/generate-migration.mjs",
+    "migration:run": "docker compose -f docker-compose.dev.yml exec api npm exec -- typeorm-ts-node-esm migration:run -d src/database/data-source.ts",
+    "migration:show": "docker compose -f docker-compose.dev.yml exec api npm exec -- typeorm-ts-node-esm migration:show -d src/database/data-source.ts",
+    "migration:revert": "docker compose -f docker-compose.dev.yml exec api npm exec -- typeorm-ts-node-esm migration:revert -d src/database/data-source.ts",
+    "migration:run:prod": "docker compose -f docker-compose.yml run --rm --build api npm exec -- typeorm migration:run -d dist/database/data-source.js",
+    "migration:show:prod": "docker compose -f docker-compose.yml run --rm --build api npm exec -- typeorm migration:show -d dist/database/data-source.js",
+    "migration:revert:prod": "docker compose -f docker-compose.yml run --rm --build api npm exec -- typeorm migration:revert -d dist/database/data-source.js",
+    "seed": "docker compose -f docker-compose.dev.yml exec api npm exec -- tsx src/database/run.seeders.ts",
+    "seed:prod": "docker compose -f docker-compose.yml run --rm --build api node dist/database/run.seeders.js"
   },
   "repository": {
     "type": "git",

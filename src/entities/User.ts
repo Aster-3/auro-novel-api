@@ -10,7 +10,6 @@ import {
 } from "typeorm";
 import { Comment } from "./Comment.js";
 import { CommentLike } from "./CommentLike.js";
-import { Novel } from "./Novel.js";
 import { Tags } from "./Tags.js";
 import { Library } from "./Library.js";
 import { Reply } from "./Reply.js";
@@ -121,9 +120,6 @@ export class User {
 
   @OneToMany(() => ChapterCommentLike, (like) => like.user)
   chapterCommentLikes!: ChapterCommentLike[];
-
-  @OneToMany(() => Novel, (novel) => novel.author)
-  novels!: Novel[];
 
   @OneToMany(() => Tags, (tags) => tags.createdBy)
   createdTags!: Tags[];

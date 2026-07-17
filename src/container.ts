@@ -75,7 +75,7 @@ const volumeService = new VolumeService(
   uow.novelRepository,
 );
 const adminService = new AdminService(uow, pushNotificationService);
-const feedbackService = new FeedbackService(uow, mailService);
+const feedbackService = new FeedbackService(uow);
 const bannerService = new BannerService(
   uow.bannerRepository,
   uow.novelRepository,

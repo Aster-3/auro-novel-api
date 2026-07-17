@@ -186,7 +186,7 @@ export class AdminService implements IAdminService {
     const query = AppDataSource.getRepository(User)
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.authorProfile", "author")
-      .loadRelationCountAndMap("user.novelCount", "user.novels")
+      .loadRelationCountAndMap("user.novelCount", "author.novels")
       .loadRelationCountAndMap("user.commentCount", "user.comments");
 
     if (search) {
@@ -217,7 +217,7 @@ export class AdminService implements IAdminService {
     const user = await AppDataSource.getRepository(User)
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.authorProfile", "author")
-      .loadRelationCountAndMap("user.novelCount", "user.novels")
+      .loadRelationCountAndMap("user.novelCount", "author.novels")
       .loadRelationCountAndMap("user.commentCount", "user.comments")
       .loadRelationCountAndMap("user.replyCount", "user.replies")
       .loadRelationCountAndMap("user.libraryCount", "user.library")

@@ -9,8 +9,6 @@ import userFactory from "./factories/user.factory.js";
 import categoryFactory from "./factories/category.factory.js";
 
 const isProduction = process.env.NODE_ENV === "production";
-const shouldSynchronize =
-  !isProduction && process.env.TYPEORM_SYNCHRONIZE === "true";
 
 const databaseUrl = process.env.DATABASE_URL;
 const ssl =
@@ -36,12 +34,14 @@ const connectionOptions: DataSourceOptions = databaseUrl
 
 const options: DataSourceOptions & SeederOptions = {
   ...connectionOptions,
-  synchronize: shouldSynchronize,
+  synchronize: false,
   logging: false,
   seeds: [MainSeeder],
   factories: [userFactory, categoryFactory],
   entities: Object.values(Entities),
-  migrations: [isProduction ? "dist/migrations/*.js" : "src/migrations/*.ts"],
+  migrations: [
+    isProduction ? "dist/database/migrations/*.js" : "src/database/migrations/*.ts",
+  ],
   subscribers: [],
 };
 export const AppDataSource = new DataSource(options);
