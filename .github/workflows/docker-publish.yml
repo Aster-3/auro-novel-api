@@ -30,22 +30,26 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
-      - name: Public IP'yi Al
-        id: ip
-        uses: haythem/public-ip@v1.3.0
-
-      - name: AWS Security Group İznini Aç
-        uses: tkgregory/action-aws-security-group-ingress@v0.1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1 # Sunucunuzun bölgesi
-          security-group-id: sg-033428ebcd70a2d04 # Gerçek AWS Security Group ID'niz
-          port: 22
-          to-port: 22
-          protocol: tcp
-          cidr: ${{ steps.ip.outputs.ipv4 }}/32
-          action: authorize
+          aws-region: eu-central-1
+
+      - name: Get GitHub Runner Public IP
+        id: get-ip
+        run: |
+          RUNNER_IP=$(curl -s https://checkip.amazonaws.com)
+          echo "RUNNER_IP=${RUNNER_IP}" >> $GITHUB_ENV
+
+      - name: AWS Security Group İznini Aç
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id sg-033428ebcd70a2d04 \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ env.RUNNER_IP }}/32
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -61,15 +65,10 @@ jobs:
             docker image prune -f
 
       - name: AWS Security Group İznini Kaldır
-        if: always() # Deploy patlasa bile bu adım çalışıp kapıyı kapatır
-        uses: tkgregory/action-aws-security-group-ingress@v0.1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1 # Sunucunuzun bölgesi
-          security-group-id: sg-033428ebcd70a2d04 # Gerçek AWS Security Group ID'niz
-          port: 22
-          to-port: 22
-          protocol: tcp
-          cidr: ${{ steps.ip.outputs.ipv4 }}/32
-          action: revoke
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id sg-033428ebcd70a2d04 \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ env.RUNNER_IP }}/32
