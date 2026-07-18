@@ -95,6 +95,12 @@ export class NovelController {
     res.status(200).json(novels);
   };
 
+  getSimilarNovels = async (req: Request, res: Response) => {
+    const { id, limit } = res.locals.validatedData;
+    const novels = await this.novelService.getSimilarNovels(id, limit);
+    res.status(200).json({ items: novels });
+  };
+
   addNovelComment = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const dto = { ...res.locals.validatedData, userId };

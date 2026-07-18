@@ -15,6 +15,7 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 import { novelController } from "../container.js";
 import { coverImageUpload } from "../middlewares/upload.middleware.js";
+import { getSimilarNovelsSchema } from "../schemas/get.similar.novels.schema.js";
 const router = Router();
 
 router.get("/", validateSchema(getNovelsSchema), novelController.getNovels); ///OKEY
@@ -49,6 +50,12 @@ router.get(
   "/:id/offline-manifest",
   validateSchema(paramsUuidSchema),
   novelController.getOfflineManifest,
+);
+
+router.get(
+  "/:id/similar",
+  validateSchema(getSimilarNovelsSchema),
+  novelController.getSimilarNovels,
 );
 
 router.post(

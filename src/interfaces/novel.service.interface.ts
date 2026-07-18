@@ -1,6 +1,6 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { Novel } from "../entities/Novel.js";
-import { NovelListItem } from "./novel.repo.interface.js";
+import { NovelListItem, SimilarNovelItem } from "./novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
@@ -37,6 +37,7 @@ export interface INovelService {
   getWeeklyTrendingNovels(limit?: number): Promise<Novel[]>;
   getNovelsWithTagId(tagId: string, limit?: number): Promise<Novel[]>;
   getLastCreatedNovels(limit?: number): Promise<Novel[]>;
+  getSimilarNovels(novelId: string, limit?: number): Promise<SimilarNovelItem[]>;
   refreshWeeklyTrendData(): Promise<void>;
   getAllNovelsWithStats(): Promise<
     {

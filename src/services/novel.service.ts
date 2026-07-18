@@ -127,6 +127,13 @@ export class NovelService implements INovelService {
     return await this.novelRepo.getLastCreatedNovels(limit);
   }
 
+  async getSimilarNovels(novelId: string, limit: number = 10) {
+    const novelExists = await this.novelRepo.existControl({ id: novelId });
+    if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+
+    return await this.novelRepo.getSimilarNovels(novelId, limit);
+  }
+
   async updateNovelCategories(
     novelId: string,
     categoryIds: number[],

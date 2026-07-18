@@ -12,6 +12,11 @@ export type NovelListItem = Pick<
   recommendationRate: number | null;
 };
 
+export type SimilarNovelItem = Pick<
+  Novel,
+  "id" | "name" | "coverImage"
+>;
+
 export interface INovelRepository {
   create(novel: CreateNovelDTo): Promise<Novel>;
   getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<NovelListItem>>;
@@ -23,6 +28,7 @@ export interface INovelRepository {
   getWeeklyTrendingNovels(limit: number): Promise<Novel[]>;
   getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]>;
   getLastCreatedNovels(limit: number): Promise<Novel[]>;
+  getSimilarNovels(novelId: string, limit: number): Promise<SimilarNovelItem[]>;
   findOneById(id: string): Promise<Novel | null>;
   getFirstPublishedChapterId(novelId: string): Promise<string | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;

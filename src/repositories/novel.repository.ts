@@ -1,6 +1,9 @@
 import { FindOptionsWhere, ILike, Not, Repository } from "typeorm";
 import { Novel } from "../entities/Novel.js";
-import { INovelRepository } from "../interfaces/novel.repo.interface.js";
+import {
+  INovelRepository,
+  SimilarNovelItem,
+} from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
@@ -294,6 +297,88 @@ export class NovelRepository implements INovelRepository {
         coverImage: true,
       },
     });
+  }
+
+  async getSimilarNovels(
+    novelId: string,
+    limit: number,
+  ): Promise<SimilarNovelItem[]> {
+    const sourceNovel = await this.novelRepo.findOne({
+      where: { id: novelId },
+      select: {
+        id: true,
+        type: true,
+        isAdultContent: true,
+        tags: { id: true },
+        categories: { id: true },
+      },
+      relations: {
+        tags: true,
+        categories: true,
+      },
+    });
+
+    if (!sourceNovel) return [];
+
+    const tagIds = sourceNovel.tags?.map((tag) => tag.id) ?? [];
+    const categoryIds =
+      sourceNovel.categories?.map((category) => category.id) ?? [];
+
+    const sharedTagCountExpression = tagIds.length
+      ? "COUNT(DISTINCT CASE WHEN tag.id IN (:...tagIds) THEN tag.id END)"
+      : "0";
+    const sharedCategoryCountExpression = categoryIds.length
+      ? "COUNT(DISTINCT CASE WHEN category.id IN (:...categoryIds) THEN category.id END)"
+      : "0";
+    const similarityScoreExpression = `
+      (${sharedTagCountExpression} * 5) +
+      (${sharedCategoryCountExpression} * 3) +
+      (CASE WHEN novel.type = :type THEN 2 ELSE 0 END) +
+      (LEAST(novel."rankingScore", 100) * 0.05) +
+      (COALESCE(novel."weeklyRankingScore", 0) * 0.05) +
+      (LN(novel."totalLibraryCount" + 1) * 0.5) +
+      (CASE WHEN novel."totalReviewsCount" > 0 THEN novel."positiveReviewsCount"::float / novel."totalReviewsCount" ELSE 0 END)
+    `;
+
+    const query = this.novelRepo
+      .createQueryBuilder("novel")
+      .leftJoin("novel.tags", "tag")
+      .leftJoin("novel.categories", "category")
+      .select("novel.id", "id")
+      .addSelect("novel.name", "name")
+      .addSelect("novel.coverImage", "coverImage")
+      .addSelect(sharedTagCountExpression, "sharedTagCount")
+      .addSelect(sharedCategoryCountExpression, "sharedCategoryCount")
+      .addSelect(similarityScoreExpression, "similarityScore")
+      .where("novel.id != :novelId", { novelId })
+      .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere("novel.isBanned = false")
+      .andWhere("novel.isAdultContent = :isAdultContent", {
+        isAdultContent: sourceNovel.isAdultContent,
+      })
+      .groupBy("novel.id")
+      .orderBy('"similarityScore"', "DESC")
+      .addOrderBy('"sharedTagCount"', "DESC")
+      .addOrderBy('"sharedCategoryCount"', "DESC")
+      .addOrderBy('novel."rankingScore"', "DESC")
+      .limit(limit)
+      .setParameters({
+        type: sourceNovel.type,
+        tagIds,
+        categoryIds,
+      });
+
+    const rows = await query.getRawMany<{
+      id: string;
+      name: string;
+      coverImage: string | null;
+    }>();
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      coverImage: row.coverImage ?? null,
+    }));
   }
 
   async getWeeklyTrendData(): Promise<any[]> {
