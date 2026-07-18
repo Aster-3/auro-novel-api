@@ -761,9 +761,14 @@ export class AdminService implements IAdminService {
   }
 
   async updateAnnouncement(id: string, dto: AdminUpdateNotificationDto) {
+    const updateData = { ...dto };
+    if (updateData.isPublished === true && updateData.publishedAt === undefined) {
+      updateData.publishedAt = new Date();
+    }
+
     const result = await AppDataSource.getRepository(GlobalNotification).update(
       id,
-      dto as any,
+      updateData as any,
     );
     if (!result.affected) throw new NotFoundError("Duyuru bulunamadi.");
     return this.getAnnouncementById(id);

@@ -1,8 +1,5 @@
 import {
   Brackets,
-  IsNull,
-  LessThanOrEqual,
-  MoreThan,
   Repository,
 } from "typeorm";
 import {
@@ -58,7 +55,7 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
 
     const itemsWithFlag = notifications.map((notification) => ({
       ...notification,
-      isNew: notification.createdAt > lastSeenDate,
+      isNew: this.getSeenComparisonDate(notification) > lastSeenDate,
     }));
 
     return {
@@ -98,7 +95,7 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
 
     return {
       ...notification,
-      isNew: notification.createdAt > lastSeenDate,
+      isNew: this.getSeenComparisonDate(notification) > lastSeenDate,
     };
   }
 
@@ -112,21 +109,26 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
   async getTotalUnreadCount(lastSeenDate: Date): Promise<number> {
     const now = new Date();
 
-    return await this.notificationRepo.count({
-      where: [
-        {
-          isPublished: true,
-          publishedAt: LessThanOrEqual(now),
-          expiresAt: MoreThan(now),
-          createdAt: MoreThan(lastSeenDate),
-        },
-        {
-          isPublished: true,
-          publishedAt: LessThanOrEqual(now),
-          expiresAt: IsNull(),
-          createdAt: MoreThan(lastSeenDate),
-        },
-      ],
-    });
+    return await this.notificationRepo
+      .createQueryBuilder("notification")
+      .where("notification.isPublished = :isPublished", { isPublished: true })
+      .andWhere("notification.publishedAt <= :now", { now })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("notification.expiresAt IS NULL").orWhere(
+            "notification.expiresAt > :now",
+            { now },
+          );
+        }),
+      )
+      .andWhere(
+        'COALESCE(notification.publishedAt, notification.createdAt) > :lastSeenDate',
+        { lastSeenDate },
+      )
+      .getCount();
+  }
+
+  private getSeenComparisonDate(notification: GlobalNotification) {
+    return notification.publishedAt ?? notification.createdAt;
   }
 }

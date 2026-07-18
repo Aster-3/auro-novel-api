@@ -511,10 +511,18 @@ export class UserService implements IUserService {
     const lastSeenDate =
       await this.uow.userRepository.getLastGlobalNotificationSeenAt(dto.userId);
 
-    return await this.uow.globalNotificationRepository.getGlobalNotifications(
-      dto,
-      lastSeenDate || new Date(0),
+    const notifications =
+      await this.uow.globalNotificationRepository.getGlobalNotifications(
+        dto,
+        lastSeenDate || new Date(0),
+      );
+
+    await this.uow.userRepository.setLastGlobalNotificationSeenAt(
+      dto.userId,
+      new Date(),
     );
+
+    return notifications;
   }
 
   async getGlobalNotificationById(notificationId: string, userId: string) {
@@ -530,6 +538,11 @@ export class UserService implements IUserService {
     if (!notification) {
       throw new NotFoundError("Duyuru bulunamadi.");
     }
+
+    await this.uow.userRepository.setLastGlobalNotificationSeenAt(
+      userId,
+      new Date(),
+    );
 
     return notification;
   }

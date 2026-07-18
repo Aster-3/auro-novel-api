@@ -1,7 +1,6 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { UserLoginResponseDto } from "../dtos/login.dto.js";
-import { GlobalNotification } from "../entities/_index.js";
 import { PersonalNotification } from "../entities/PersonalNotification.js";
 import { ReadingStats } from "../entities/ReadingStats.js";
 import { User } from "../entities/User.js";
@@ -30,6 +29,7 @@ import { PublicUserProfile } from "./user.repo.interface.js";
 import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
+import { GlobalNotificationWithSeenState } from "./global.notification.repo.interface.js";
 
 export interface IUserService {
   create(dto: CreateUserDto): Promise<{
@@ -96,11 +96,11 @@ export interface IUserService {
   }>;
   getGlobalNotifications(
     dto: GetNotificationsDto,
-  ): Promise<FindAndCountType<GlobalNotification>>;
+  ): Promise<FindAndCountType<GlobalNotificationWithSeenState>>;
   getGlobalNotificationById(
     notificationId: string,
     userId: string,
-  ): Promise<GlobalNotification & { isNew: boolean }>;
+  ): Promise<GlobalNotificationWithSeenState>;
   setLastGlobalNotificationSeenAt(userId: string, date: Date): Promise<void>;
   registerDevice(dto: RegisterUserDeviceDto): Promise<UserDevice>;
   unregisterDevice(dto: UnregisterUserDeviceDto): Promise<void>;
