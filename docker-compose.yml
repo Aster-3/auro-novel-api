@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: leywinn/auronovel-api:latest
     ports:
       - "127.0.0.1:3000:3000"
     env_file:
