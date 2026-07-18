@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -13,8 +14,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{secrets.DOCKERHUB_USERNAME}}
-          password: ${{secrets.DOCKERHUB_TOKEN}}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -28,8 +29,24 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
-
     steps:
+      - name: Public IP'yi Al
+        id: ip
+        uses: haythem/public-ip@v1.3.0
+
+      - name: AWS Security Group İznini Aç
+        uses: tkgregory/action-aws-security-group-ingress@v0.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1 # Sunucunuzun bölgesi
+          security-group-id: sg-033428ebcd70a2d04 # Gerçek AWS Security Group ID'niz
+          port: 22
+          to-port: 22
+          protocol: tcp
+          cidr: ${{ steps.ip.outputs.ipv4 }}/32
+          action: authorize
+
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -42,3 +59,17 @@ jobs:
             docker compose run --rm api npm run migration:run:prod
             docker compose up -d --no-deps --build api
             docker image prune -f
+
+      - name: AWS Security Group İznini Kaldır
+        if: always() # Deploy patlasa bile bu adım çalışıp kapıyı kapatır
+        uses: tkgregory/action-aws-security-group-ingress@v0.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1 # Sunucunuzun bölgesi
+          security-group-id: sg-033428ebcd70a2d04 # Gerçek AWS Security Group ID'niz
+          port: 22
+          to-port: 22
+          protocol: tcp
+          cidr: ${{ steps.ip.outputs.ipv4 }}/32
+          action: revoke
