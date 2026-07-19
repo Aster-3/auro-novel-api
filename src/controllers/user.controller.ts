@@ -54,6 +54,12 @@ export class UserController {
     res.status(204).send();
   };
 
+  deleteMyAccount = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const result = await this.userService.deleteMyAccount(userId, req.body);
+    res.status(200).json(result);
+  };
+
   getUsers = async (req: Request, res: Response) => {
     const users = await this.userService.searchUsers(res.locals.validatedData);
     res.status(200).json(users);

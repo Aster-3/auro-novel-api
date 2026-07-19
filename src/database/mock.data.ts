@@ -79,6 +79,14 @@ export const mockUsers = [
     profileImageUrl: "https://i.pravatar.cc/150?u=ellie",
     description: "Endure and survive.",
   },
+  {
+    username: "googletester",
+    nickname: "Google Tester",
+    email: "testuser@auronovel.com",
+    password: "Test1234",
+    profileImageUrl: "https://robohash.org/google?set=set1&size=150x150",
+    description: "Dedicated test account for Google sign-in flows.",
+  },
 ];
 
 export const mockCategories = [

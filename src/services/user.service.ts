@@ -36,6 +36,7 @@ import {
 import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
+import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
 
 const PASSWORD_RESET_CODE_EXPIRY_MS = 10 * 60000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
@@ -100,6 +101,28 @@ export class UserService implements IUserService {
 
   deleteUser(id: string): Promise<void> {
     return this.uow.userRepository.deleteUser(id);
+  }
+
+  async deleteMyAccount(userId: string, dto: DeleteMyAccountDto) {
+    if (dto.confirmation !== "ONAYLIYORUM") {
+      throw new BadRequestError(
+        'Hesabi silmek icin "ONAYLIYORUM" yazmalisiniz.',
+      );
+    }
+
+    const user = await this.uow.userRepository.findWithPasswordById(userId);
+    if (!user) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    const passwordMatch = await argon2.verify(user.password, dto.password);
+    if (!passwordMatch) {
+      throw new BadRequestError("Sifre hatali.");
+    }
+
+    await this.uow.userRepository.softDeleteUser(user.id);
+
+    return { message: "Hesabiniz basariyla silindi." };
   }
 
   verifyUser = async (dto: VerifyUserDto) => {

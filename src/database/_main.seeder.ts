@@ -64,6 +64,120 @@ const slugify = (value: string) =>
 
 const sample = <T>(items: T[], index: number) => items[index % items.length];
 
+const toHtmlParagraphs = (paragraphs: string[]) =>
+  paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");
+
+const volumeNameSeeds = [
+  ["The Blue Index", "Lanterns Under Glass"],
+  ["Skybound Notes", "Maps of the Upper Wind"],
+  ["Platform Dusk", "The Red Signal"],
+  ["Porcelain Court", "The Mirror Treaty"],
+  ["Sunward Ashes", "The Seventh Echo"],
+  ["Brass Petals", "Midnight Calibration"],
+  ["Sign-In Sparks", "The Callback Gate"],
+];
+
+const novelChapterSeeds = [
+  {
+    titles: [
+      "The Locked Catalogue",
+      "Ink Beneath the Moon",
+      "A Whisper in Row Seven",
+      "The Archivist's Debt",
+      "Pages That Remember",
+      "The Room Without Dust",
+    ],
+    motif:
+      "a moonlit archive where forgotten books rearrange themselves after midnight",
+  },
+  {
+    titles: [
+      "A Rope of Bright Air",
+      "Storm Glass",
+      "The Cartographer Above",
+      "Engines of Cloud",
+      "A Name Written in Thunder",
+      "The Weight of Falling",
+    ],
+    motif:
+      "a skyfaring city held aloft by old engines, weather magic, and stubborn promises",
+  },
+  {
+    titles: [
+      "The Last Platform",
+      "Tickets for the Sleeping",
+      "Orion at the Window",
+      "The Conductor's Map",
+      "A Station Between Stars",
+      "Brake Lights in the Dark",
+    ],
+    motif:
+      "an interstellar train crossing abandoned stations on the edge of Orion",
+  },
+  {
+    titles: [
+      "The Duke's Reflection",
+      "Tea in the Glass Garden",
+      "A Court of Splinters",
+      "The Velvet Accusation",
+      "Masks Before Dawn",
+      "The Shattered Toast",
+    ],
+    motif:
+      "a glittering duchy where every noble secret is preserved in enchanted glass",
+  },
+  {
+    titles: [
+      "Solara Wakes",
+      "The Market of Second Chances",
+      "Nine Shadows at Noon",
+      "A Bargain with Fire",
+      "The Seventh Life",
+      "Ashes Learn to Sing",
+    ],
+    motif:
+      "a desert-born heroine who returns from death with fragments of nine different lives",
+  },
+  {
+    titles: [
+      "Petals of Brass",
+      "The Clockmaker's Shrine",
+      "Sakura After Midnight",
+      "Gears Beneath the River",
+      "The Festival of Lost Seconds",
+      "When the Hands Stop",
+    ],
+    motif:
+      "a clockwork city where mechanical blossoms bloom whenever time slips out of place",
+  },
+  {
+    titles: [
+      "The OAuth Door",
+      "Tokens in the Rain",
+      "A Redirect at Dawn",
+      "The Session Ledger",
+      "Scopes of Glass",
+      "Return to Auro",
+    ],
+    motif:
+      "a test account author navigating magical sign-in gates, borrowed identities, and one very stubborn callback URL",
+  },
+];
+
+const createChapterContent = (
+  novelName: string,
+  chapterTitle: string,
+  motif: string,
+) =>
+  toHtmlParagraphs([
+    `${chapterTitle} begins in ${novelName}, ${motif}. The morning is quiet at first, but the kind of quiet that makes every small sound feel chosen: a hinge settling, a kettle cooling, a footstep stopping just before the threshold.`,
+    `The main character follows a clue that should have been ordinary. Instead, it points toward a promise someone tried very hard to erase. By noon, the safest answer is already impossible, and every familiar place has started to feel slightly rearranged.`,
+    `There is a conversation in this chapter that changes the shape of the journey. No one says the whole truth, not yet, but enough of it leaks through the pauses. A friend asks for trust, a rival offers help, and both requests carry a price.`,
+    "",
+    `By the final scene, the chapter leaves ${novelName} with a new direction. The discovery is not a solution; it is a door opening onto a larger problem. Somewhere nearby, someone has been waiting for exactly this mistake.`,
+    `Far behind the scene, a smaller thread remains unresolved: a missing key, an impossible timestamp, a name spoken by the wrong person. It is easy to miss, but it will matter before the road bends again.`,
+  ]);
+
 export default class MainSeeder implements Seeder {
   public async run(
     dataSource: DataSource,
@@ -100,14 +214,23 @@ export default class MainSeeder implements Seeder {
 
     console.log("Dummy veriler hazirlaniyor...");
 
-    const password = await argon2.hash("Password123!");
+    const userPasswordHashes = new Map(
+      await Promise.all(
+        mockUsers.map(async (user) => [
+          user.email,
+          await argon2.hash(
+            user.username === "googletester" ? user.password : "Password123!",
+          ),
+        ] as const),
+      ),
+    );
     const users = await userRepo.save(
       mockUsers.map((user, index) =>
         userRepo.create({
           ...user,
           username: user.username.slice(0, 15),
           nickname: user.nickname.slice(0, 20),
-          password,
+          password: userPasswordHashes.get(user.email) ?? "",
           gender: sample(
             [UserGender.MALE, UserGender.FEMALE, UserGender.OTHER],
             index,
@@ -184,13 +307,21 @@ export default class MainSeeder implements Seeder {
       ),
     );
 
+    const testUser = users.find((user) => user.username === "googletester");
+    const authorUsers = testUser
+      ? [...users.slice(0, 6), testUser]
+      : users.slice(0, 6);
+
     const authors = await authorRepo.save(
-      users.slice(0, 6).map((user, index) =>
+      authorUsers.map((user, index) =>
         authorRepo.create({
           user,
           userId: user.id,
-          nickname: `${user.nickname} Writes`,
-          isVerified: index < 4,
+          nickname:
+            user.username === "googletester"
+              ? "Google Tester Writes"
+              : `${user.nickname} Writes`,
+          isVerified: index < 4 || user.username === "googletester",
         }),
       ),
     );
@@ -202,6 +333,7 @@ export default class MainSeeder implements Seeder {
       "The Glass Duke",
       "Nine Lives of Solara",
       "Clockwork Sakura",
+      "Callback Chronicles",
     ];
     const novels = await novelRepo.save(
       novelSeeds.map((name, index) =>
@@ -241,14 +373,14 @@ export default class MainSeeder implements Seeder {
     );
 
     const volumes: Volume[] = [];
-    for (const novel of novels) {
+    for (const [novelIndex, novel] of novels.entries()) {
       for (let orderIndex = 1; orderIndex <= 2; orderIndex += 1) {
         volumes.push(
           await volumeRepo.save(
             volumeRepo.create({
               novel,
               novelId: novel.id,
-              name: `Volume ${orderIndex}`,
+              name: volumeNameSeeds[novelIndex][orderIndex - 1],
               coverImage: image(`volume-${novel.slug}-${orderIndex}`),
               orderIndex,
             }),
@@ -259,30 +391,22 @@ export default class MainSeeder implements Seeder {
 
     const chapters: Chapter[] = [];
     for (const [novelIndex, novel] of novels.entries()) {
+      const chapterSeed = novelChapterSeeds[novelIndex];
       const novelVolumes = volumes.filter(
         (volume) => volume.novelId === novel.id,
       );
       for (let chapterIndex = 1; chapterIndex <= 6; chapterIndex += 1) {
+        const chapterTitle = chapterSeed.titles[chapterIndex - 1];
         const chapter = await chapterRepo.save(
           chapterRepo.create({
             novel,
             novelId: novel.id,
-            title: `Chapter ${chapterIndex}: ${sample(
-              [
-                "First Light",
-                "Hidden Door",
-                "Oath",
-                "Storm",
-                "Afterglow",
-                "Return",
-              ],
-              chapterIndex - 1,
-            )}`,
-            content: Array.from(
-              { length: 8 },
-              (_, paragraphIndex) =>
-                `Paragraph ${paragraphIndex + 1} for dummy chapter ${chapterIndex} of ${novel.name}. This text exists so reader screens have realistic body content.`,
-            ).join("\n\n"),
+            title: chapterTitle,
+            content: createChapterContent(
+              novel.name,
+              chapterTitle,
+              chapterSeed.motif,
+            ),
           }),
         );
         chapters.push(chapter);

@@ -22,6 +22,7 @@ import {
   getUserShowcaseSchema,
 } from "../schemas/get.user.showcase.schema.js";
 import { profileImageUpload } from "../middlewares/upload.middleware.js";
+import { deleteMyAccountSchema } from "../schemas/delete.my.account.schema.js";
 
 const router = Router({ strict: true });
 
@@ -64,6 +65,13 @@ router.patch(
   ]),
   validateSchema(updateUserSchema),
   userController.updateUser,
+);
+
+router.delete(
+  "/me",
+  authMiddleware,
+  validateSchema(deleteMyAccountSchema),
+  userController.deleteMyAccount,
 );
 
 router.get("/me/reading-stats", authMiddleware, userController.getReadingStats);
@@ -224,8 +232,8 @@ router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
 router.delete(
   "/:id",
-  adminMiddleware,
   validateSchema(paramsUuidSchema),
+  adminMiddleware,
   userController.deleteUser,
 );
 

@@ -30,6 +30,7 @@ import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 import { GlobalNotificationWithSeenState } from "./global.notification.repo.interface.js";
+import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
 
 export interface IUserService {
   create(dto: CreateUserDto): Promise<{
@@ -50,6 +51,10 @@ export interface IUserService {
     dto: GetUserLibraryShowcaseDto,
   ): Promise<FindAndCountType<any>>;
   deleteUser(id: string): Promise<void>;
+  deleteMyAccount(
+    userId: string,
+    dto: DeleteMyAccountDto,
+  ): Promise<{ message: string }>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
   verifyUser(dto: VerifyUserDto): Promise<User>;
   getAllVerifications(): Promise<UserVerification[]>;

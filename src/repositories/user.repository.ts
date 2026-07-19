@@ -266,6 +266,13 @@ export class UserRepository implements IUserRepository {
     await this.userRepo.delete(id);
   }
 
+  async softDeleteUser(id: string) {
+    await this.userRepo.manager.transaction(async (manager) => {
+      await manager.update(User, { id }, { refreshToken: null });
+      await manager.softDelete(User, { id });
+    });
+  }
+
   async getLastGlobalNotificationSeenAt(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },

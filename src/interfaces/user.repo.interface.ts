@@ -30,6 +30,7 @@ export interface IUserRepository {
   findOneById(id: string): Promise<User | null>;
   findPublicProfileById(id: string): Promise<PublicUserProfile | null>;
   deleteUser(id: string): Promise<void>;
+  softDeleteUser(id: string): Promise<void>;
   activateUser(user: User, verification: UserVerification): Promise<User>;
   create(user: CreateUserDto, code: string, expiry: Date): Promise<User>;
   searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
