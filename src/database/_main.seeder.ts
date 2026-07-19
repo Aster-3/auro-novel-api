@@ -607,6 +607,7 @@ export default class MainSeeder implements Seeder {
               FeedbackSubmissionType.FEEDBACK,
               FeedbackSubmissionType.SUPPORT,
               FeedbackSubmissionType.SUGGESTION,
+              FeedbackSubmissionType.REPORT,
             ],
             index,
           ),

@@ -2,6 +2,7 @@ export enum FeedbackSubmissionType {
   SUPPORT = "support",
   FEEDBACK = "feedback",
   SUGGESTION = "suggestion",
+  REPORT = "report",
   OTHER = "other",
 }
 
