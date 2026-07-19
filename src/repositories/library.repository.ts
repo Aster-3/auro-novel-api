@@ -66,7 +66,7 @@ export class LibraryRepository implements ILibraryRepository {
   }
 
   async getMyLibrary(dto: GetMyLibraryDto) {
-    const { userId, sortBy, limit, page } = dto;
+    const { userId, sortBy, limit, page, search } = dto;
     const skip = (page - 1) * limit;
 
     const query = this.libraryRepo
@@ -81,6 +81,10 @@ export class LibraryRepository implements ILibraryRepository {
         { userId },
       )
       .where("library.userId = :userId", { userId });
+
+    if (search) {
+      query.andWhere("novel.name ILIKE :search", { search: `%${search}%` });
+    }
 
     if (sortBy === LibrarySortOption.LAST_READED) {
       query.addSelect("stats.lastReadAt", "stats_lastReadAt");

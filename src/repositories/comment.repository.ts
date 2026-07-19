@@ -112,6 +112,16 @@ export class CommentRepository implements ICommentRepository {
       },
     });
 
+    const reviewCountsByUserId = await this.getReviewCountsByUserIds(
+      items.map((comment) => comment.user?.id).filter(Boolean) as string[],
+    );
+
+    items.forEach((comment) => {
+      if (!comment.user?.id) return;
+      (comment.user as any).reviewCount =
+        reviewCountsByUserId.get(comment.user.id) ?? 0;
+    });
+
     return {
       items,
       total,
@@ -163,6 +173,9 @@ export class CommentRepository implements ICommentRepository {
 
     const { entities, raw } = await query.getRawAndEntities();
     const total = await query.getCount();
+    const reviewCountsByUserId = await this.getReviewCountsByUserIds(
+      entities.map((comment) => comment.user?.id).filter(Boolean) as string[],
+    );
 
     const items = entities.map((comment, index) => {
       const hasLiked = userId ? parseInt(raw[index].viewerHasLiked) > 0 : false;
@@ -178,6 +191,9 @@ export class CommentRepository implements ICommentRepository {
           id: comment.user?.id,
           nickname: comment.user?.nickname,
           profileImageUrl: comment.user?.profileImageUrl,
+          reviewCount: comment.user?.id
+            ? (reviewCountsByUserId.get(comment.user.id) ?? 0)
+            : 0,
         },
         viewerHasLiked: hasLiked,
       };
@@ -336,5 +352,22 @@ export class CommentRepository implements ICommentRepository {
       userId: comment.userId,
       novelId: comment.novelId,
     };
+  }
+
+  private async getReviewCountsByUserIds(userIds: string[]) {
+    const uniqueUserIds = [...new Set(userIds)];
+    if (!uniqueUserIds.length) return new Map<string, number>();
+
+    const rows = await this.commentRepo
+      .createQueryBuilder("comment")
+      .select("comment.userId", "userId")
+      .addSelect("COUNT(comment.id)", "reviewCount")
+      .where("comment.userId IN (:...userIds)", { userIds: uniqueUserIds })
+      .groupBy("comment.userId")
+      .getRawMany<{ userId: string; reviewCount: string }>();
+
+    return new Map(
+      rows.map((row) => [row.userId, Number(row.reviewCount)] as const),
+    );
   }
 }

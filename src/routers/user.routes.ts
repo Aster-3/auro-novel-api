@@ -122,6 +122,12 @@ router.patch(
   userController.setLastGlobalNotificationSeenAt,
 );
 
+router.post(
+  "/me/notifications/global/last-seen",
+  authMiddleware,
+  userController.setLastGlobalNotificationSeenAt,
+);
+
 router.get(
   "/me/notifications/global/:notificationId",
   authMiddleware,
