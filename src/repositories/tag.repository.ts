@@ -76,7 +76,7 @@ export class TagRepository implements ITagRepository {
         "novel.lastChapterDate",
         "novel.createdAt",
       ])
-      .where("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .where("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("novel.rankingScore", "DESC")
       .addOrderBy("novel.createdAt", "DESC")
       .skip((page - 1) * limit)

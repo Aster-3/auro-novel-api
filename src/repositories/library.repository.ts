@@ -81,7 +81,7 @@ export class LibraryRepository implements ILibraryRepository {
         { userId },
       )
       .where("library.userId = :userId", { userId });
-    query.andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL");
+    query.andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
 
     if (search) {
       query.andWhere("novel.name ILIKE :search", { search: `%${search}%` });
@@ -142,7 +142,7 @@ export class LibraryRepository implements ILibraryRepository {
       )
       .where("library.userId = :userId", { userId })
       .andWhere("library.isHidden = false")
-      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL");
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
 
     if (sortBy === LibrarySortOption.LAST_READED) {
       query.addSelect("stats.lastReadAt", "stats_lastReadAt");

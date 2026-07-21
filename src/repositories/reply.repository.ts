@@ -174,7 +174,7 @@ export class ReplyRepository implements IReplyRepository {
       .leftJoinAndSelect("parentReply.user", "parentUser")
       .where("reply.userId = :userId", { userId })
       .andWhere("reply.deletedAt IS NULL")
-      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("reply.createdAt", "DESC")
       .skip(skip)
       .take(limit);

@@ -94,7 +94,7 @@ export class CommentRepository implements ICommentRepository {
       .innerJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
       .where("comment.createdAt >= :oneWeekAgo", { oneWeekAgo })
-      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("comment.likeCount", "DESC")
       .take(10)
       .getMany();
@@ -312,7 +312,7 @@ export class CommentRepository implements ICommentRepository {
       .innerJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
       .where("comment.userId = :userId", { userId })
-      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);
