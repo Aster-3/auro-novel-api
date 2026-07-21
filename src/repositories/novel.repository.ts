@@ -270,7 +270,7 @@ export class NovelRepository implements INovelRepository {
     return this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
-      .select(["novel.id", "novel.name", "novel.coverImage"])
+      .select(["novel.id", "novel.name", "novel.coverImage", "novel.createdAt"])
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
       .andWhere(
         "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
