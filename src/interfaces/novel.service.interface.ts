@@ -35,6 +35,7 @@ export interface INovelService {
     }[]
   >;
   getWeeklyTrendingNovels(limit?: number): Promise<Novel[]>;
+  getRandomClassicNovels(limit?: number): Promise<Novel[]>;
   getNovelsWithTagId(tagId: string, limit?: number): Promise<Novel[]>;
   getLastCreatedNovels(limit?: number): Promise<Novel[]>;
   getSimilarNovels(novelId: string, limit?: number): Promise<SimilarNovelItem[]>;

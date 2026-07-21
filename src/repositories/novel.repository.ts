@@ -10,7 +10,7 @@ import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { Chapter, Volume } from "../entities/_index.js";
 import { PublicationStatus } from "../constants/chapter.constants.js";
-import { SeriesStatus } from "../constants/series.constants.js";
+import { NovelType, SeriesStatus } from "../constants/series.constants.js";
 import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 
 export class NovelRepository implements INovelRepository {
@@ -247,6 +247,41 @@ export class NovelRepository implements INovelRepository {
       .orderBy("novel.weeklyRankingScore", "DESC")
       .take(limit)
       .getMany();
+  }
+
+  async getRandomClassicNovels(limit: number): Promise<Novel[]> {
+    const poolLimit = Math.max(limit * 4, 30);
+
+    const candidates = await this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.rankingScore",
+        "novel.totalLibraryCount",
+        "novel.totalReviewsCount",
+      ])
+      .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere("novel.type = :type", { type: NovelType.CLASSIC })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .orderBy("novel.rankingScore", "DESC")
+      .addOrderBy("novel.totalLibraryCount", "DESC")
+      .addOrderBy("novel.totalReviewsCount", "DESC")
+      .take(poolLimit)
+      .getMany();
+
+    return candidates
+      .sort(() => Math.random() - 0.5)
+      .slice(0, limit)
+      .map((novel) => ({
+        id: novel.id,
+        name: novel.name,
+        coverImage: novel.coverImage,
+      })) as Novel[];
   }
 
   async getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]> {

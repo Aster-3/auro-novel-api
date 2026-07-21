@@ -32,6 +32,8 @@ router.get("/last-updated", novelController.getLastUpdatedNovels); ///OKEY
 
 router.get("/weekly-trending", novelController.getWeeklyTrendingNovels); ///OKEY
 
+router.get("/classics", novelController.getRandomClassicNovels); ///OKEY
+
 router.get("/last-created", novelController.getLastCreatedNovels); ///OKEY
 
 router.get(

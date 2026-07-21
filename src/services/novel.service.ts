@@ -102,6 +102,11 @@ export class NovelService implements INovelService {
     return await this.novelRepo.getWeeklyTrendingNovels(Number(limit));
   }
 
+  async getRandomClassicNovels(limit: number = 15) {
+    if (limit > 50) limit = 50;
+    return await this.novelRepo.getRandomClassicNovels(Number(limit));
+  }
+
   async getAllNovelsWithStats() {
     return await this.novelRepo.getAllNovelsWithStats();
   }

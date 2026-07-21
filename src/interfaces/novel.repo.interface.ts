@@ -26,6 +26,7 @@ export interface INovelRepository {
   ): Promise<FindAndCountType<NovelListItem>>;
   getLastUpdatedNovels(limit: number): Promise<Novel[]>;
   getWeeklyTrendingNovels(limit: number): Promise<Novel[]>;
+  getRandomClassicNovels(limit: number): Promise<Novel[]>;
   getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]>;
   getLastCreatedNovels(limit: number): Promise<Novel[]>;
   getSimilarNovels(novelId: string, limit: number): Promise<SimilarNovelItem[]>;

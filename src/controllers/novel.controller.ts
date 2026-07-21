@@ -77,6 +77,14 @@ export class NovelController {
     res.status(200).json(novels);
   };
 
+  getRandomClassicNovels = async (req: Request, res: Response) => {
+    const { limit } = req.query as any;
+    const novels = await this.novelService.getRandomClassicNovels(
+      limit ? parseInt(limit) : undefined,
+    );
+    res.status(200).json(novels);
+  };
+
   getNovelsWithTagId = async (req: Request, res: Response) => {
     const { id } = req.params as any;
     const { limit } = req.query as any;
