@@ -1,5 +1,6 @@
 import { ILike, Like, Repository } from "typeorm";
 import { User } from "../entities/User.js";
+import { UserDevice } from "../entities/UserDevice.js";
 import {
   IUserRepository,
   PublicUserProfile,
@@ -11,6 +12,7 @@ import { UserVerification } from "../entities/UserVerification.js";
 import { UserStatus } from "../constants/user.constants.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { GetMeQuery } from "../schemas/get.me.schema.js";
+import { createDeletedUserIdentity } from "../utils/deleted.user.presenter.js";
 
 export class UserRepository implements IUserRepository {
   constructor(private userRepo: Repository<User>) {}
@@ -262,13 +264,10 @@ export class UserRepository implements IUserRepository {
     return user;
   }
 
-  async deleteUser(id: string) {
-    await this.userRepo.delete(id);
-  }
-
   async softDeleteUser(id: string) {
     await this.userRepo.manager.transaction(async (manager) => {
-      await manager.update(User, { id }, { refreshToken: null });
+      await manager.update(User, { id }, createDeletedUserIdentity());
+      await manager.update(UserDevice, { userId: id }, { isActive: false });
       await manager.softDelete(User, { id });
     });
   }

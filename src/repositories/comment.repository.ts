@@ -9,6 +9,7 @@ import { NotFoundError } from "../errors/not.found.error.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 import { CommentSortType } from "../constants/comment.constants.js";
+import { presentUser } from "../utils/deleted.user.presenter.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -89,7 +90,11 @@ export class CommentRepository implements ICommentRepository {
 
     return await this.commentRepo
       .createQueryBuilder("comment")
+      .innerJoin("comment.novel", "novel")
+      .innerJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .where("comment.createdAt >= :oneWeekAgo", { oneWeekAgo })
+      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
       .orderBy("comment.likeCount", "DESC")
       .take(10)
       .getMany();
@@ -123,7 +128,18 @@ export class CommentRepository implements ICommentRepository {
     });
 
     return {
-      items,
+      items: items.map((comment) => ({
+        id: comment.id,
+        content: comment.content,
+        isRecommend: comment.isRecommend,
+        createdAt: comment.createdAt,
+        user: {
+          ...presentUser(comment.user),
+          reviewCount: comment.user?.id
+            ? ((comment.user as any).reviewCount ?? 0)
+            : 0,
+        },
+      })),
       total,
     };
   }
@@ -188,9 +204,7 @@ export class CommentRepository implements ICommentRepository {
         likeCount: comment.likeCount,
         replyCount: comment.replyCount,
         user: {
-          id: comment.user?.id,
-          nickname: comment.user?.nickname,
-          profileImageUrl: comment.user?.profileImageUrl,
+          ...presentUser(comment.user),
           reviewCount: comment.user?.id
             ? (reviewCountsByUserId.get(comment.user.id) ?? 0)
             : 0,
@@ -257,7 +271,7 @@ export class CommentRepository implements ICommentRepository {
   }
 
   async getOneById(id: number): Promise<Comment | null> {
-    return await this.commentRepo.findOne({
+    const comment = await this.commentRepo.findOne({
       where: { id },
       select: {
         id: true,
@@ -273,6 +287,19 @@ export class CommentRepository implements ICommentRepository {
         user: true,
       },
     });
+
+    if (!comment) return null;
+
+    return {
+      id: comment.id,
+      content: comment.content,
+      isRecommend: comment.isRecommend,
+      createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt,
+      likeCount: comment.likeCount,
+      replyCount: comment.replyCount,
+      user: presentUser(comment.user),
+    } as any;
   }
 
   async getReviewsByUserId(dto: GetUserShowcaseDto, viewerId?: string) {
@@ -282,7 +309,10 @@ export class CommentRepository implements ICommentRepository {
     const query = this.commentRepo
       .createQueryBuilder("comment")
       .leftJoinAndSelect("comment.novel", "novel")
+      .innerJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .where("comment.userId = :userId", { userId })
+      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);

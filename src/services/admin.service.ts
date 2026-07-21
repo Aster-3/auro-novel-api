@@ -236,8 +236,12 @@ export class AdminService implements IAdminService {
   }
 
   async deleteUser(id: string) {
-    const result = await AppDataSource.getRepository(User).delete(id);
-    if (!result.affected) throw new NotFoundError("Kullanici bulunamadi.");
+    const exists = await AppDataSource.getRepository(User).exists({
+      where: { id },
+    });
+    if (!exists) throw new NotFoundError("Kullanici bulunamadi.");
+
+    await this.uow.userRepository.softDeleteUser(id);
   }
 
   async createNovel(dto: AdminCreateNovelDto, file?: Express.Multer.File) {

@@ -230,11 +230,4 @@ router.get(
 
 router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
 
-router.delete(
-  "/:id",
-  validateSchema(paramsUuidSchema),
-  adminMiddleware,
-  userController.deleteUser,
-);
-
 export default router;

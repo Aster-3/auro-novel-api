@@ -1,4 +1,4 @@
-import { FindOptionsWhere, ILike, Not, Repository } from "typeorm";
+import { Repository, SelectQueryBuilder } from "typeorm";
 import { Novel } from "../entities/Novel.js";
 import {
   INovelRepository,
@@ -15,6 +15,15 @@ import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
+
+  private withVisibleAuthor(query: SelectQueryBuilder<Novel>) {
+    return query
+      .leftJoin("novel.author", "authorVisibility")
+      .leftJoin("authorVisibility.user", "authorUserVisibility")
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      );
+  }
 
   async create(createNovelDto: CreateNovelDTo) {
     return await this.novelRepo.manager.transaction(async (manager) => {
@@ -51,29 +60,31 @@ export class NovelRepository implements INovelRepository {
 
   async getNovels(dto: GetNovelsDTo) {
     const { name, authorId, status, limit, page } = dto;
-    const where: FindOptionsWhere<Novel> = {};
-    if (name) where.name = ILike(`%${name}%`);
-    if (authorId) where.authorId = authorId;
-    where.status =
-      status && status !== SeriesStatus.DRAFT
-        ? status
-        : Not(SeriesStatus.DRAFT);
+    const query = this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.status",
+        "novel.chapterCount",
+        "novel.viewCount",
+        "novel.positiveReviewsCount",
+        "novel.totalReviewsCount",
+      ])
+      .skip((page - 1) * limit)
+      .take(limit);
 
-    const [novels, total] = await this.novelRepo.findAndCount({
-      where: where,
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        status: true,
-        chapterCount: true,
-        viewCount: true,
-        positiveReviewsCount: true,
-        totalReviewsCount: true,
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    if (name) query.andWhere("novel.name ILIKE :name", { name: `%${name}%` });
+    if (authorId) query.andWhere("novel.authorId = :authorId", { authorId });
+    if (status && status !== SeriesStatus.DRAFT) {
+      query.andWhere("novel.status = :status", { status });
+    } else {
+      query.andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT });
+    }
+
+    const [novels, total] = await query.getManyAndCount();
     const items = novels.map((novel) => ({
       id: novel.id,
       name: novel.name,
@@ -101,25 +112,24 @@ export class NovelRepository implements INovelRepository {
 
   async getNovelsByAuthorUserId(userId: string, dto: QueryPageAndLimitDto) {
     const { limit, page } = dto;
-    const [novels, total] = await this.novelRepo.findAndCount({
-      where: {
-        author: {
-          userId,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        status: true,
-        chapterCount: true,
-        viewCount: true,
-        positiveReviewsCount: true,
-        totalReviewsCount: true,
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const query = this.novelRepo
+      .createQueryBuilder("novel")
+      .innerJoin("novel.author", "author")
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.status",
+        "novel.chapterCount",
+        "novel.viewCount",
+        "novel.positiveReviewsCount",
+        "novel.totalReviewsCount",
+      ])
+      .where("author.userId = :userId", { userId })
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [novels, total] = await query.getManyAndCount();
 
     const items = novels.map((novel) => ({
       id: novel.id,
@@ -147,72 +157,48 @@ export class NovelRepository implements INovelRepository {
   }
 
   async findOneById(id: string) {
-    return this.novelRepo.findOne({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        synopsis: true,
-        status: true,
-        positiveReviewsCount: true,
-        totalReviewsCount: true,
-        totalLibraryCount: true,
-        viewCount: true,
-        rankingScore: true,
-        type: true,
-        freeLimit: true,
-        isAdultContent: true,
-        chapterCount: true,
-        lastChapterDate: true,
-        author: {
-          id: true,
-          nickname: true,
-          isVerified: true,
-          user: { id: true, username: true, nickname: true },
-        },
-        categories: { id: true, title: true },
-        tags: { id: true, name: true },
-      },
-      relations: {
-        author: {
-          user: true,
-        },
-        tags: true,
-        categories: true,
-      },
-    });
+    return this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .leftJoinAndSelect("novel.tags", "tags")
+      .leftJoinAndSelect("novel.categories", "categories")
+      .where("novel.id = :id", { id })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .getOne();
   }
 
   async getLastUpdatedNovels(limit: number): Promise<Novel[]> {
-    return this.novelRepo.find({
-      order: {
-        lastChapterDate: {
-          direction: "DESC",
-          nulls: "LAST",
-        },
-      },
-      take: limit,
-      where: {
-        status: Not(SeriesStatus.DRAFT),
-      },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        author: {
-          id: true,
-          nickname: true,
-          user: { id: true, nickname: true },
-        },
-        rankingScore: true,
-        totalReviewsCount: true,
-        positiveReviewsCount: true,
-        chapterCount: true,
-        lastChapterDate: true,
-      },
-      relations: { author: { user: true } },
-    });
+    return this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .leftJoinAndSelect("novel.author", "author")
+      .leftJoinAndSelect("author.user", "authorUser")
+      .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.rankingScore",
+        "novel.totalReviewsCount",
+        "novel.positiveReviewsCount",
+        "novel.chapterCount",
+        "novel.lastChapterDate",
+        "author.id",
+        "author.nickname",
+        "author.isVerified",
+        "authorUser.id",
+        "authorUser.nickname",
+      ])
+      .orderBy("novel.lastChapterDate", "DESC", "NULLS LAST")
+      .take(limit)
+      .getMany();
   }
 
   async getAllNovelsWithStats() {
@@ -245,78 +231,69 @@ export class NovelRepository implements INovelRepository {
   }
 
   async getWeeklyTrendingNovels(limit: number): Promise<Novel[]> {
-    return this.novelRepo.find({
-      where: {
-        status: Not(SeriesStatus.DRAFT),
-      },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        weeklyRankingScore: true,
-      },
-      order: {
-        weeklyRankingScore: "DESC",
-      },
-      take: limit,
-    });
+    return this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.weeklyRankingScore",
+      ])
+      .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .orderBy("novel.weeklyRankingScore", "DESC")
+      .take(limit)
+      .getMany();
   }
 
   async getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]> {
-    return this.novelRepo.find({
-      where: {
-        tags: {
-          id: tagId,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-        rankingScore: true,
-      },
-      order: {
-        rankingScore: "DESC",
-      },
-      take: limit,
-    });
+    return this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .innerJoin("novel.tags", "tag", "tag.id = :tagId", { tagId })
+      .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.rankingScore",
+      ])
+      .orderBy("novel.rankingScore", "DESC")
+      .take(limit)
+      .getMany();
   }
 
   async getLastCreatedNovels(limit: number): Promise<Novel[]> {
-    return this.novelRepo.find({
-      order: {
-        createdAt: "DESC",
-      },
-      take: limit,
-      where: {
-        status: Not(SeriesStatus.DRAFT),
-      },
-      select: {
-        id: true,
-        name: true,
-        coverImage: true,
-      },
-    });
+    return this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .select(["novel.id", "novel.name", "novel.coverImage"])
+      .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .orderBy("novel.createdAt", "DESC")
+      .take(limit)
+      .getMany();
   }
 
   async getSimilarNovels(
     novelId: string,
     limit: number,
   ): Promise<SimilarNovelItem[]> {
-    const sourceNovel = await this.novelRepo.findOne({
-      where: { id: novelId },
-      select: {
-        id: true,
-        type: true,
-        isAdultContent: true,
-        tags: { id: true },
-        categories: { id: true },
-      },
-      relations: {
-        tags: true,
-        categories: true,
-      },
-    });
+    const sourceNovel = await this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .leftJoinAndSelect("novel.tags", "sourceTag")
+      .leftJoinAndSelect("novel.categories", "sourceCategory")
+      .where("novel.id = :novelId", { novelId })
+      .andWhere(
+        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
+      )
+      .getOne();
 
     if (!sourceNovel) return [];
 
@@ -342,6 +319,8 @@ export class NovelRepository implements INovelRepository {
 
     const query = this.novelRepo
       .createQueryBuilder("novel")
+      .leftJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .leftJoin("novel.tags", "tag")
       .leftJoin("novel.categories", "category")
       .select("novel.id", "id")
@@ -351,6 +330,7 @@ export class NovelRepository implements INovelRepository {
       .addSelect(sharedCategoryCountExpression, "sharedCategoryCount")
       .addSelect(similarityScoreExpression, "similarityScore")
       .where("novel.id != :novelId", { novelId })
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
       .andWhere("novel.isBanned = false")
       .andWhere("novel.isAdultContent = :isAdultContent", {

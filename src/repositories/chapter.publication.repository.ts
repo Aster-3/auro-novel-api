@@ -80,30 +80,16 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
   }
 
   async getChapterForReading(id: string) {
-    const publication = await this.publicationRepo.findOne({
-      where: { chapterId: id },
-      select: {
-        chapterId: true,
-        orderIndex: true,
-        volumeId: true,
-        chapter: {
-          title: true,
-          content: true,
-          novel: {
-            id: true,
-            status: true,
-            author: { userId: true },
-          },
-        },
-        volume: {
-          orderIndex: true,
-          id: true,
-          name: true,
-        },
-        publicationStatus: true,
-      },
-      relations: { volume: true, chapter: { novel: { author: true } } },
-    });
+    const publication = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("chapter.novel", "novel")
+      .innerJoinAndSelect("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .where("pub.chapterId = :id", { id })
+      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .getOne();
 
     if (!publication) return null;
 
@@ -175,13 +161,19 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
   }
 
   async getPublishedChapterForOffline(chapterId: string) {
-    const publication = await this.publicationRepo.findOne({
-      where: {
-        chapterId,
-        publicationStatus: PublicationStatus.PUBLISHED,
-      },
-      relations: { volume: true, chapter: true },
-    });
+    const publication = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("chapter.novel", "novel")
+      .innerJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .where("pub.chapterId = :chapterId", { chapterId })
+      .andWhere("pub.publicationStatus = :published", {
+        published: PublicationStatus.PUBLISHED,
+      })
+      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
+      .getOne();
 
     if (!publication) return null;
 

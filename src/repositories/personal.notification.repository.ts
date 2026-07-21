@@ -6,6 +6,7 @@ import {
 } from "../interfaces/personal.notification.repo.interface.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { GetNotificationsDto } from "../schemas/get.notifications.schema.js";
+import { presentUser } from "../utils/deleted.user.presenter.js";
 
 export class PersonalNotificationRepository implements IPersonalNotificationRepository {
   constructor(private notificationRepo: Repository<PersonalNotification>) {}
@@ -52,7 +53,12 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      items: notifications,
+      items: notifications.map((notification) => ({
+        ...notification,
+        actorUser: notification.actorUserId
+          ? presentUser(notification.actorUser)
+          : null,
+      })) as any[],
       total: totalCount,
       currentPage: page,
       nextPage: nextPage > totalPages ? null : nextPage,

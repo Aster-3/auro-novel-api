@@ -48,12 +48,6 @@ export class UserController {
     res.status(200).json(library);
   };
 
-  deleteUser = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    await this.userService.deleteUser(id);
-    res.status(204).send();
-  };
-
   deleteMyAccount = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
     const result = await this.userService.deleteMyAccount(userId, req.body);

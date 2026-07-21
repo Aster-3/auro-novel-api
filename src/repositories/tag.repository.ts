@@ -63,6 +63,8 @@ export class TagRepository implements ITagRepository {
       .getRepository(Novel)
       .createQueryBuilder("novel")
       .innerJoin("novel.tags", "tag", "tag.id = :id", { id })
+      .leftJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .select([
         "novel.id",
         "novel.name",
@@ -74,6 +76,7 @@ export class TagRepository implements ITagRepository {
         "novel.lastChapterDate",
         "novel.createdAt",
       ])
+      .where("author.userId IS NULL OR authorUser.id IS NOT NULL")
       .orderBy("novel.rankingScore", "DESC")
       .addOrderBy("novel.createdAt", "DESC")
       .skip((page - 1) * limit)

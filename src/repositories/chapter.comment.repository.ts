@@ -7,6 +7,7 @@ import {
   CreateChapterCommentReplyDto,
 } from "../schemas/create.chapter.comment.schema.js";
 import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js";
+import { presentUser } from "../utils/deleted.user.presenter.js";
 
 export class ChapterCommentRepository implements IChapterCommentRepository {
   constructor(private commentRepo: Repository<ChapterComment>) {}
@@ -246,11 +247,7 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       replyCount: comment.replyCount,
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
-      user: {
-        id: comment.user?.id,
-        nickname: comment.user?.nickname,
-        profileImageUrl: comment.user?.profileImageUrl,
-      },
+      user: presentUser(comment.user),
       parentComment:
         includeParent && comment.parentComment
           ? {
@@ -259,11 +256,7 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
                 ? null
                 : comment.parentComment.content,
               isDeleted: !!comment.parentComment.deletedAt,
-              user: {
-                id: comment.parentComment.user?.id,
-                nickname: comment.parentComment.user?.nickname || "deleted",
-                profileImageUrl: comment.parentComment.user?.profileImageUrl,
-              },
+              user: presentUser(comment.parentComment.user),
             }
           : null,
       viewerHasLiked,

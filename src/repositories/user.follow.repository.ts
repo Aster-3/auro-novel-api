@@ -2,6 +2,7 @@ import { Repository } from "typeorm";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { User } from "../entities/User.js";
 import { UserFollow } from "../entities/UserFollow.js";
+import { presentUser } from "../utils/deleted.user.presenter.js";
 import {
   GetUserFollowsDto,
   IUserFollowRepository,
@@ -42,28 +43,27 @@ export class UserFollowRepository implements IUserFollowRepository {
     const { userId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
-    const [follows, total] = await this.followRepo.findAndCount({
-      where: { followingId: userId },
-      relations: { follower: true },
-      select: {
-        followerId: true,
-        followingId: true,
-        createdAt: true,
-        follower: {
-          id: true,
-          username: true,
-          nickname: true,
-          profileImageUrl: true,
-          description: true,
-        },
-      },
-      order: { createdAt: "DESC" },
-      take: limit,
-      skip,
-    });
+    const [follows, total] = await this.followRepo
+      .createQueryBuilder("follow")
+      .innerJoinAndSelect("follow.follower", "follower")
+      .where("follow.followingId = :userId", { userId })
+      .select([
+        "follow.followerId",
+        "follow.followingId",
+        "follow.createdAt",
+        "follower.id",
+        "follower.username",
+        "follower.nickname",
+        "follower.profileImageUrl",
+        "follower.description",
+      ])
+      .orderBy("follow.createdAt", "DESC")
+      .take(limit)
+      .skip(skip)
+      .getManyAndCount();
 
     return this.toPaginatedUsers(
-      follows.map((follow) => follow.follower),
+      follows.map((follow) => presentUser(follow.follower)) as any[],
       total,
       page,
       limit,
@@ -76,28 +76,27 @@ export class UserFollowRepository implements IUserFollowRepository {
     const { userId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
-    const [follows, total] = await this.followRepo.findAndCount({
-      where: { followerId: userId },
-      relations: { following: true },
-      select: {
-        followerId: true,
-        followingId: true,
-        createdAt: true,
-        following: {
-          id: true,
-          username: true,
-          nickname: true,
-          profileImageUrl: true,
-          description: true,
-        },
-      },
-      order: { createdAt: "DESC" },
-      take: limit,
-      skip,
-    });
+    const [follows, total] = await this.followRepo
+      .createQueryBuilder("follow")
+      .innerJoinAndSelect("follow.following", "following")
+      .where("follow.followerId = :userId", { userId })
+      .select([
+        "follow.followerId",
+        "follow.followingId",
+        "follow.createdAt",
+        "following.id",
+        "following.username",
+        "following.nickname",
+        "following.profileImageUrl",
+        "following.description",
+      ])
+      .orderBy("follow.createdAt", "DESC")
+      .take(limit)
+      .skip(skip)
+      .getManyAndCount();
 
     return this.toPaginatedUsers(
-      follows.map((follow) => follow.following),
+      follows.map((follow) => presentUser(follow.following)) as any[],
       total,
       page,
       limit,
@@ -106,8 +105,16 @@ export class UserFollowRepository implements IUserFollowRepository {
 
   async getFollowCounts(userId: string): Promise<UserFollowCounts> {
     const [followersCount, followingCount] = await Promise.all([
-      this.followRepo.count({ where: { followingId: userId } }),
-      this.followRepo.count({ where: { followerId: userId } }),
+      this.followRepo
+        .createQueryBuilder("follow")
+        .innerJoin("follow.follower", "follower")
+        .where("follow.followingId = :userId", { userId })
+        .getCount(),
+      this.followRepo
+        .createQueryBuilder("follow")
+        .innerJoin("follow.following", "following")
+        .where("follow.followerId = :userId", { userId })
+        .getCount(),
     ]);
 
     return { followersCount, followingCount };

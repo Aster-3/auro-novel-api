@@ -99,10 +99,6 @@ export class UserService implements IUserService {
     }
   };
 
-  deleteUser(id: string): Promise<void> {
-    return this.uow.userRepository.deleteUser(id);
-  }
-
   async deleteMyAccount(userId: string, dto: DeleteMyAccountDto) {
     if (dto.confirmation !== "ONAYLIYORUM") {
       throw new BadRequestError(

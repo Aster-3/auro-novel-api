@@ -5,6 +5,7 @@ import { Reply } from "../entities/Reply.js";
 import { GetCommentRepliesDto } from "../schemas/get.comment.replies.schema.js";
 import { Comment } from "../entities/Comment.js";
 import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
+import { presentUser } from "../utils/deleted.user.presenter.js";
 
 export class ReplyRepository implements IReplyRepository {
   constructor(private replyRepo: Repository<Reply>) {}
@@ -129,11 +130,7 @@ export class ReplyRepository implements IReplyRepository {
         content: reply.content,
         likeCount: reply.likeCount,
         createdAt: reply.createdAt,
-        user: {
-          id: reply.user?.id,
-          nickname: reply.user?.nickname,
-          profileImageUrl: reply.user?.profileImageUrl,
-        },
+        user: presentUser(reply.user),
         // Üst yanıt (parent) kontrolü
         parentReply: reply.parentReply
           ? {
@@ -141,10 +138,7 @@ export class ReplyRepository implements IReplyRepository {
                 ? null
                 : reply.parentReply.content,
               isDeleted: !!reply.parentReply.deletedAt, // Frontend'de "Silinmiş bir yanıta yanıt verdi" demek için
-              user: {
-                nickname: reply.parentReply.user?.nickname || "deleted",
-                profileImageUrl: reply.parentReply.user?.profileImageUrl,
-              },
+              user: presentUser(reply.parentReply.user),
             }
           : null,
         viewerHasLiked: hasLiked,
@@ -174,10 +168,13 @@ export class ReplyRepository implements IReplyRepository {
       .withDeleted()
       .leftJoinAndSelect("reply.comment", "comment")
       .leftJoinAndSelect("comment.novel", "novel")
+      .innerJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .leftJoinAndSelect("reply.parentReply", "parentReply")
       .leftJoinAndSelect("parentReply.user", "parentUser")
       .where("reply.userId = :userId", { userId })
       .andWhere("reply.deletedAt IS NULL")
+      .andWhere("author.userId IS NULL OR authorUser.id IS NOT NULL")
       .orderBy("reply.createdAt", "DESC")
       .skip(skip)
       .take(limit);
@@ -223,11 +220,7 @@ export class ReplyRepository implements IReplyRepository {
                 ? null
                 : reply.parentReply.content,
               isDeleted: !!reply.parentReply.deletedAt,
-              user: {
-                id: reply.parentReply.user?.id,
-                nickname: reply.parentReply.user?.nickname || "deleted",
-                profileImageUrl: reply.parentReply.user?.profileImageUrl,
-              },
+              user: presentUser(reply.parentReply.user),
             }
           : null,
         viewerHasLiked: hasLiked,

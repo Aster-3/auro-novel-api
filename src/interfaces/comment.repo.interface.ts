@@ -19,7 +19,7 @@ export interface ICommentRepository {
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsWithCount(
     novelId: string,
-  ): Promise<{ items: Comment[]; total: number }>;
+  ): Promise<{ items: any[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
   isOwner(
     commentId: number,

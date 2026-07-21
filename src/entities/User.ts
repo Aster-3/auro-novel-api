@@ -49,13 +49,13 @@ export class User {
   password!: string;
 
   @Column({ type: "text", nullable: true })
-  profileImageUrl?: string;
+  profileImageUrl?: string | null;
 
   @Column({ type: "text", nullable: true })
-  profileBackgroundImageUrl?: string;
+  profileBackgroundImageUrl?: string | null;
 
   @Column({ type: "varchar", length: 500, nullable: true })
-  description?: string;
+  description?: string | null;
 
   @Column({ type: "enum", enum: UserGender, nullable: true })
   gender?: UserGender | null;

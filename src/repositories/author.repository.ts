@@ -20,23 +20,22 @@ export class AuthorRepository implements IAuthorRepository {
 
   async getAuthors(dto: any): Promise<any> {
     const { page, limit } = dto;
-    const [result, total] = await this.authorRepo.findAndCount({
-      skip: (page - 1) * limit,
-      select: {
-        id: true,
-        nickname: true,
-        user: {
-          id: true,
-          nickname: true,
-        },
-        userId: true,
-        isVerified: true,
-      },
-      take: limit,
-      relations: {
-        user: true,
-      },
-    });
+    const [result, total] = await this.authorRepo
+      .createQueryBuilder("author")
+      .leftJoinAndSelect("author.user", "user")
+      .where("author.userId IS NULL OR user.id IS NOT NULL")
+      .select([
+        "author.id",
+        "author.nickname",
+        "author.userId",
+        "author.isVerified",
+        "user.id",
+        "user.nickname",
+      ])
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
     return {
       data: result,
       count: total,

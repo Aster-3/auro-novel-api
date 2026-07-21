@@ -22,10 +22,8 @@ export class CommentService implements ICommentService {
   ) {}
 
   createComment = async (dto: CreateCommentDto) => {
-    const novelExists = await this.uow.novelRepository.existControl({
-      id: dto.novelId,
-    });
-    if (!novelExists) {
+    const novel = await this.uow.novelRepository.findOneById(dto.novelId);
+    if (!novel) {
       throw new NotFoundError("Novel not found");
     }
 
@@ -99,6 +97,11 @@ export class CommentService implements ICommentService {
   };
 
   getCommentsByNovelId = async (dto: GetCommentsDto, userId: string) => {
+    const novel = await this.uow.novelRepository.findOneById(dto.novelId);
+    if (!novel) {
+      throw new NotFoundError("Novel not found");
+    }
+
     return await this.uow.commentRepository.getCommentsByNovelId(dto, userId);
   };
 
@@ -124,10 +127,21 @@ export class CommentService implements ICommentService {
   }
 
   getLast3CommentsByNovelId(novelId: string) {
-    return this.uow.commentRepository.getLast3CommentsWithCount(novelId);
+    return this.uow.novelRepository.findOneById(novelId).then((novel) => {
+      if (!novel) {
+        throw new NotFoundError("Novel not found");
+      }
+
+      return this.uow.commentRepository.getLast3CommentsWithCount(novelId);
+    });
   }
 
-  getMyComment(novelId: string, userId: string) {
+  async getMyComment(novelId: string, userId: string) {
+    const novel = await this.uow.novelRepository.findOneById(novelId);
+    if (!novel) {
+      throw new NotFoundError("Novel not found");
+    }
+
     return this.uow.commentRepository.getMyComment(novelId, userId);
   }
 

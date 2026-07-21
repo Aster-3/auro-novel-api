@@ -50,7 +50,6 @@ export interface IUserService {
   getUserLibrary(
     dto: GetUserLibraryShowcaseDto,
   ): Promise<FindAndCountType<any>>;
-  deleteUser(id: string): Promise<void>;
   deleteMyAccount(
     userId: string,
     dto: DeleteMyAccountDto,
