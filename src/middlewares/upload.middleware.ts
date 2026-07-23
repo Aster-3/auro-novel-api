@@ -1,7 +1,12 @@
 import multer from "multer";
 import { BadRequestError } from "../errors/bad.request.js";
 
-const imageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const imageMimeTypes = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
 
 const createImageUpload = (maxFileSizeMb: number) =>
   multer({
@@ -11,7 +16,11 @@ const createImageUpload = (maxFileSizeMb: number) =>
     },
     fileFilter: (req, file, cb) => {
       if (!imageMimeTypes.has(file.mimetype)) {
-        cb(new BadRequestError("Sadece jpeg, png veya webp gorsel yuklenebilir."));
+        cb(
+          new BadRequestError(
+            "Sadece jpg, jpeg, png veya webp gorsel yuklenebilir.",
+          ),
+        );
         return;
       }
 
