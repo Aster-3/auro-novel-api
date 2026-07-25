@@ -72,8 +72,8 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
   async getRecentReadsByUserId(
     userId: string,
     limit: number,
-  ): Promise<RecentReadItem[]> {
-    const stats = await this.readingRepo
+  ): Promise<{ items: RecentReadItem[]; total: number }> {
+    const [stats, total] = await this.readingRepo
       .createQueryBuilder("stats")
       .leftJoinAndSelect("stats.novel", "novel")
       .leftJoin("novel.author", "author")
@@ -83,29 +83,32 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("stats.lastReadAt", "DESC")
       .take(limit)
-      .getMany();
+      .getManyAndCount();
 
-    return stats.map((stat) => ({
-      id: stat.id,
-      novelId: stat.novelId,
-      lastChapterProgress: stat.lastChapterProgress,
-      totalReadTime: stat.totalReadTime,
-      lastReadAt: stat.lastReadAt,
-      lastReadChapter: stat.chapter
-        ? {
-            id: stat.chapter.id,
-            title: stat.chapter.title,
-          }
-        : null,
-      novel: stat.novel
-        ? {
-            id: stat.novel.id,
-            name: stat.novel.name,
-            slug: stat.novel.slug,
-            coverImageUrl: stat.novel.coverImage,
-          }
-        : null,
-    }));
+    return {
+      items: stats.map((stat) => ({
+        id: stat.id,
+        novelId: stat.novelId,
+        lastChapterProgress: stat.lastChapterProgress,
+        totalReadTime: stat.totalReadTime,
+        lastReadAt: stat.lastReadAt,
+        lastReadChapter: stat.chapter
+          ? {
+              id: stat.chapter.id,
+              title: stat.chapter.title,
+            }
+          : null,
+        novel: stat.novel
+          ? {
+              id: stat.novel.id,
+              name: stat.novel.name,
+              slug: stat.novel.slug,
+              coverImageUrl: stat.novel.coverImage,
+            }
+          : null,
+      })),
+      total,
+    };
   }
 
   async existControl(userId: string, novelId: string): Promise<boolean> {

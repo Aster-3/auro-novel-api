@@ -25,7 +25,10 @@ export interface IReadingStatsRepository {
     userId: string,
     novelId: string,
   ): Promise<ReadingStats | null>;
-  getRecentReadsByUserId(userId: string, limit: number): Promise<RecentReadItem[]>;
+  getRecentReadsByUserId(
+    userId: string,
+    limit: number,
+  ): Promise<{ items: RecentReadItem[]; total: number }>;
   updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
   existControl(userId: string, novelId: string): Promise<boolean>;
 }

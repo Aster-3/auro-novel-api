@@ -2,6 +2,7 @@ import { Repository, SelectQueryBuilder } from "typeorm";
 import { Novel } from "../entities/Novel.js";
 import {
   INovelRepository,
+  NovelListItem,
   SimilarNovelItem,
 } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
@@ -15,6 +16,25 @@ import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
+
+  private toNovelListItem(novel: Novel): NovelListItem {
+    return {
+      id: novel.id,
+      name: novel.name,
+      coverImage: novel.coverImage ?? null,
+      synopsis: novel.synopsis ?? null,
+      status: novel.status,
+      chapterCount: novel.chapterCount,
+      viewCount: novel.viewCount,
+      totalReviewsCount: novel.totalReviewsCount,
+      recommendationRate:
+        novel.totalReviewsCount > 0
+          ? Math.round(
+              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+            )
+          : null,
+    };
+  }
 
   private withVisibleAuthor(query: SelectQueryBuilder<Novel>) {
     return query
@@ -67,6 +87,7 @@ export class NovelRepository implements INovelRepository {
         "novel.id",
         "novel.name",
         "novel.coverImage",
+        "novel.synopsis",
         "novel.status",
         "novel.chapterCount",
         "novel.viewCount",
@@ -85,20 +106,7 @@ export class NovelRepository implements INovelRepository {
     }
 
     const [novels, total] = await query.getManyAndCount();
-    const items = novels.map((novel) => ({
-      id: novel.id,
-      name: novel.name,
-      coverImage: novel.coverImage ?? null,
-      status: novel.status,
-      chapterCount: novel.chapterCount,
-      viewCount: novel.viewCount,
-      recommendationRate:
-        novel.totalReviewsCount > 0
-          ? Math.round(
-              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
-            )
-          : null,
-    }));
+    const items = novels.map((novel) => this.toNovelListItem(novel));
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
     return {
@@ -119,6 +127,7 @@ export class NovelRepository implements INovelRepository {
         "novel.id",
         "novel.name",
         "novel.coverImage",
+        "novel.synopsis",
         "novel.status",
         "novel.chapterCount",
         "novel.viewCount",
@@ -131,20 +140,7 @@ export class NovelRepository implements INovelRepository {
 
     const [novels, total] = await query.getManyAndCount();
 
-    const items = novels.map((novel) => ({
-      id: novel.id,
-      name: novel.name,
-      coverImage: novel.coverImage ?? null,
-      status: novel.status,
-      chapterCount: novel.chapterCount,
-      viewCount: novel.viewCount,
-      recommendationRate:
-        novel.totalReviewsCount > 0
-          ? Math.round(
-              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
-            )
-          : null,
-    }));
+    const items = novels.map((novel) => this.toNovelListItem(novel));
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
     return {
@@ -153,6 +149,34 @@ export class NovelRepository implements INovelRepository {
       nextPage,
       currentPage: page,
       lastPage: totalPage,
+    };
+  }
+
+  async getRecentNovelsByAuthorId(authorId: string, limit: number) {
+    const query = this.withVisibleAuthor(
+      this.novelRepo.createQueryBuilder("novel"),
+    )
+      .select([
+        "novel.id",
+        "novel.name",
+        "novel.coverImage",
+        "novel.synopsis",
+        "novel.status",
+        "novel.chapterCount",
+        "novel.viewCount",
+        "novel.positiveReviewsCount",
+        "novel.totalReviewsCount",
+      ])
+      .andWhere("novel.authorId = :authorId", { authorId })
+      .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .orderBy("novel.createdAt", "DESC")
+      .take(limit);
+
+    const [novels, total] = await query.getManyAndCount();
+
+    return {
+      items: novels.map((novel) => this.toNovelListItem(novel)),
+      total,
     };
   }
 
