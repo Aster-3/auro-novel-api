@@ -140,12 +140,30 @@ export class LibraryRepository implements ILibraryRepository {
         "stats.userId = :userId AND stats.novelId = library.novelId",
         { userId },
       )
+      .leftJoin(
+        "Chapter",
+        "lastReadChapter",
+        "lastReadChapter.id = stats.lastReadChapterId AND lastReadChapter.novelId = library.novelId",
+      )
       .where("library.userId = :userId", { userId })
       .andWhere("library.isHidden = false")
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
 
+    query
+      .addSelect("stats.lastChapterProgress", "stats_lastChapterProgress")
+      .addSelect("stats.totalReadTime", "stats_totalReadTime")
+      .addSelect("stats.lastReadAt", "stats_lastReadAt")
+      .addSelect("lastReadChapter.id", "lastReadChapter_id")
+      .addSelect("lastReadChapter.title", "lastReadChapter_title")
+      .addSelect((subQuery) => {
+        return subQuery
+          .select('COUNT(readChapter."chapterId")', "readChapterCount")
+          .from("user_read_chapter", "readChapter")
+          .where('readChapter."userId" = :userId', { userId })
+          .andWhere('readChapter."novelId" = library."novelId"');
+      }, "readChapterCount");
+
     if (sortBy === LibrarySortOption.LAST_READED) {
-      query.addSelect("stats.lastReadAt", "stats_lastReadAt");
       query.orderBy("stats.lastReadAt", "DESC", "NULLS LAST");
     } else if (sortBy === LibrarySortOption.TITLE_ASC) {
       query.orderBy("novel.name", "ASC");
@@ -153,12 +171,24 @@ export class LibraryRepository implements ILibraryRepository {
       query.orderBy("library.createdAt", "DESC");
     }
 
-    const [libraryEntries, total] = await query
+    const { entities: libraryEntries, raw } = await query
       .take(limit)
       .skip(skip)
-      .getManyAndCount();
+      .getRawAndEntities();
+    const total = await query.getCount();
 
-    const items = libraryEntries.map((entry) => {
+    const items = libraryEntries.map((entry, index) => {
+      const rawItem = raw[index] ?? {};
+      const readChapterCount = Number(rawItem.readChapterCount ?? 0);
+      const totalChapterCount = entry.novel.chapterCount ?? 0;
+      const readingProgressPercent =
+        totalChapterCount > 0
+          ? Math.min(
+              100,
+              Math.round((readChapterCount / totalChapterCount) * 100),
+            )
+          : 0;
+
       return {
         novelId: entry.novelId,
         title: entry.novel.name,
@@ -169,6 +199,26 @@ export class LibraryRepository implements ILibraryRepository {
         coverImageUrl: entry.novel.coverImage,
         isHidden: entry.isHidden,
         addedAt: entry.createdAt,
+        lastChapterProgress:
+          rawItem.stats_lastChapterProgress === null ||
+          rawItem.stats_lastChapterProgress === undefined
+            ? null
+            : Number(rawItem.stats_lastChapterProgress),
+        totalReadTime:
+          rawItem.stats_totalReadTime === null ||
+          rawItem.stats_totalReadTime === undefined
+            ? null
+            : Number(rawItem.stats_totalReadTime),
+        lastReadAt: rawItem.stats_lastReadAt ?? null,
+        lastReadChapter: rawItem.lastReadChapter_id
+          ? {
+              id: rawItem.lastReadChapter_id,
+              title: rawItem.lastReadChapter_title,
+            }
+          : null,
+        readChapterCount,
+        totalChapterCount,
+        readingProgressPercent,
       };
     });
 

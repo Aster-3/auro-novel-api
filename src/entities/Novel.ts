@@ -20,7 +20,6 @@ import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
 import { Author } from "./Author.js";
 import { NovelDailyStats } from "./NovelDailyStats.js";
-import { ReadingStats } from "./ReadingStats.js";
 
 @Entity()
 export class Novel {

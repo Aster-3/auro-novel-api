@@ -21,6 +21,16 @@ export interface ILibraryRepository {
       coverImageUrl?: string | null;
       isHidden: boolean;
       addedAt: Date;
+      lastChapterProgress: number | null;
+      totalReadTime: number | null;
+      lastReadAt: Date | null;
+      lastReadChapter: {
+        id: string;
+        title: string;
+      } | null;
+      readChapterCount: number;
+      totalChapterCount: number;
+      readingProgressPercent: number;
     }>
   >;
   addNovelToLibrary(novelId: string, userId: string): Promise<void>;
