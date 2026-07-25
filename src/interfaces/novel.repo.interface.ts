@@ -7,7 +7,14 @@ import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export type NovelListItem = Pick<
   Novel,
-  "id" | "name" | "coverImage" | "status" | "chapterCount" | "viewCount"
+  | "id"
+  | "name"
+  | "coverImage"
+  | "synopsis"
+  | "status"
+  | "chapterCount"
+  | "viewCount"
+  | "totalReviewsCount"
 > & {
   recommendationRate: number | null;
 };
@@ -24,6 +31,10 @@ export interface INovelRepository {
     userId: string,
     dto: QueryPageAndLimitDto,
   ): Promise<FindAndCountType<NovelListItem>>;
+  getRecentNovelsByAuthorId(
+    authorId: string,
+    limit: number,
+  ): Promise<{ items: NovelListItem[]; total: number }>;
   getLastUpdatedNovels(limit: number): Promise<Novel[]>;
   getWeeklyTrendingNovels(limit: number): Promise<Novel[]>;
   getRandomClassicNovels(limit: number): Promise<Novel[]>;

@@ -54,9 +54,23 @@ export interface IUserService {
     userId: string,
     viewerId?: string,
   ): Promise<{
-    recentReviews: any[];
-    recentReplies: any[];
-    recentReads: any[];
+    recentNovels: {
+      isAuthor: boolean;
+      total: number;
+      items: any[];
+    };
+    recentReviews: {
+      total: number;
+      items: any[];
+    };
+    recentReplies: {
+      total: number;
+      items: any[];
+    };
+    recentReads: {
+      total: number;
+      items: any[];
+    };
   }>;
   deleteMyAccount(
     userId: string,

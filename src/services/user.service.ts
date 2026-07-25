@@ -199,27 +199,51 @@ export class UserService implements IUserService {
   };
 
   getUserRecentActivity = async (userId: string, viewerId?: string) => {
-    const targetExists = await this.uow.userRepository.exsistById(userId);
-    if (!targetExists) {
+    const targetProfile =
+      await this.uow.userRepository.findPublicProfileById(userId);
+    if (!targetProfile) {
       throw new NotFoundError("Kullanici bulunamadi.");
     }
 
-    const [reviews, replies, reads] = await Promise.all([
+    const recentNovelsPromise =
+      targetProfile.isAuthor && targetProfile.authorId
+        ? this.uow.novelRepository.getRecentNovelsByAuthorId(
+            targetProfile.authorId,
+            3,
+          )
+        : Promise.resolve({ items: [], total: 0 });
+
+    const [novels, reviews, replies, reads] = await Promise.all([
+      recentNovelsPromise,
       this.uow.commentRepository.getReviewsByUserId(
-        { id: userId, userId, page: 1, limit: 5 },
+        { id: userId, userId, page: 1, limit: 3 },
         viewerId,
       ),
       this.uow.replyRepository.getRepliesByUserId(
-        { id: userId, userId, page: 1, limit: 5 },
+        { id: userId, userId, page: 1, limit: 3 },
         viewerId,
       ),
       this.uow.readingStatsRepository.getRecentReadsByUserId(userId, 3),
     ]);
 
     return {
-      recentReviews: reviews.items,
-      recentReplies: replies.items,
-      recentReads: reads,
+      recentNovels: {
+        isAuthor: targetProfile.isAuthor,
+        total: novels.total,
+        items: novels.items,
+      },
+      recentReviews: {
+        total: reviews.total,
+        items: reviews.items,
+      },
+      recentReplies: {
+        total: replies.total,
+        items: replies.items,
+      },
+      recentReads: {
+        total: reads.total,
+        items: reads.items,
+      },
     };
   };
 
