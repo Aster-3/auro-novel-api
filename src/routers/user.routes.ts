@@ -183,6 +183,13 @@ router.get(
   userController.getUserLibrary,
 );
 
+router.get(
+  "/:id/activity",
+  optionalAuthMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.getUserRecentActivity,
+);
+
 router.post(
   "/:id/follow",
   authMiddleware,
