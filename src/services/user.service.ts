@@ -213,18 +213,40 @@ export class UserService implements IUserService {
           )
         : Promise.resolve({ items: [], total: 0 });
 
-    const [novels, reviews, replies, reads] = await Promise.all([
-      recentNovelsPromise,
-      this.uow.commentRepository.getReviewsByUserId(
-        { id: userId, userId, page: 1, limit: 3 },
-        viewerId,
-      ),
-      this.uow.replyRepository.getRepliesByUserId(
-        { id: userId, userId, page: 1, limit: 3 },
-        viewerId,
-      ),
-      this.uow.readingStatsRepository.getRecentReadsByUserId(userId, 3),
-    ]);
+    const [novels, reviews, replies, reads, readProgressByNovel] =
+      await Promise.all([
+        recentNovelsPromise,
+        this.uow.commentRepository.getReviewsByUserId(
+          { id: userId, userId, page: 1, limit: 3 },
+          viewerId,
+        ),
+        this.uow.replyRepository.getRepliesByUserId(
+          { id: userId, userId, page: 1, limit: 3 },
+          viewerId,
+        ),
+        this.uow.readingStatsRepository.getRecentReadsByUserId(userId, 3),
+        this.uow.userReadChapterRepository.getReadProgressByUserId(userId),
+      ]);
+
+    const recentReadItems = reads.items.map((item) => {
+      const readChapterCount =
+        readProgressByNovel.get(item.novelId)?.readChapterCount ?? 0;
+      const totalChapterCount = item.novel?.chapterCount ?? 0;
+      const readingProgressPercent =
+        totalChapterCount > 0
+          ? Math.min(
+              100,
+              Math.round((readChapterCount / totalChapterCount) * 100),
+            )
+          : 0;
+
+      return {
+        ...item,
+        readChapterCount,
+        totalChapterCount,
+        readingProgressPercent,
+      };
+    });
 
     return {
       recentNovels: {
@@ -242,7 +264,7 @@ export class UserService implements IUserService {
       },
       recentReads: {
         total: reads.total,
-        items: reads.items,
+        items: recentReadItems,
       },
     };
   };
@@ -511,7 +533,23 @@ export class UserService implements IUserService {
   }
 
   async updateReadingStats(dto: UpdateReadingStatsDto) {
-    await this.uow.readingStatsRepository.updateReadingStats(dto);
+    await this.uow.startTransaction();
+    try {
+      await this.uow.readingStatsRepository.updateReadingStats(dto);
+
+      if (dto.lastChapterProgress > 50) {
+        await this.uow.userReadChapterRepository.markChapterAsRead({
+          userId: dto.userId,
+          novelId: dto.novelId,
+          chapterId: dto.lastReadChapterId,
+        });
+      }
+
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    }
   }
 
   async getUserNovelStats(userId: string, novelId: string) {

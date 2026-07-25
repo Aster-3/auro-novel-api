@@ -104,6 +104,7 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
               name: stat.novel.name,
               slug: stat.novel.slug,
               coverImageUrl: stat.novel.coverImage,
+              chapterCount: stat.novel.chapterCount,
             }
           : null,
       })),

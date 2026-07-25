@@ -16,6 +16,7 @@ export type RecentReadItem = {
     name: string;
     slug: string;
     coverImageUrl?: string | null;
+    chapterCount: number;
   } | null;
 };
 
