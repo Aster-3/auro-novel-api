@@ -81,6 +81,7 @@ export class LibraryRepository implements ILibraryRepository {
         { userId },
       )
       .where("library.userId = :userId", { userId });
+    query.andWhere("library.isHidden = false");
     query.andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
 
     if (search) {
