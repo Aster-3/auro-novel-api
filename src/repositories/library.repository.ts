@@ -157,10 +157,10 @@ export class LibraryRepository implements ILibraryRepository {
       .addSelect("lastReadChapter.title", "lastReadChapter_title")
       .addSelect((subQuery) => {
         return subQuery
-          .select('COUNT(readChapter."chapterId")', "readChapterCount")
+          .select('COUNT("readChapter"."chapterId")', "readChapterCount")
           .from("user_read_chapter", "readChapter")
-          .where('readChapter."userId" = :userId', { userId })
-          .andWhere('readChapter."novelId" = library."novelId"');
+          .where('"readChapter"."userId" = :userId', { userId })
+          .andWhere('"readChapter"."novelId" = "library"."novelId"');
       }, "readChapterCount");
 
     if (sortBy === LibrarySortOption.LAST_READED) {
