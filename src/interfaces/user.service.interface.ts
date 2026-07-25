@@ -20,6 +20,7 @@ import {
 import {
   GetUserFollowsDto,
   UserFollowCounts,
+  UserFollowListItem,
 } from "./user.follow.repo.interface.js";
 import {
   GetUserShowcaseDto,
@@ -143,6 +144,10 @@ export interface IUserService {
     followingId: string,
   ): Promise<UserFollowCounts & { isFollowing: boolean }>;
   getFollowCounts(userId: string): Promise<UserFollowCounts>;
-  getFollowers(dto: GetUserFollowsDto): Promise<FindAndCountType<User>>;
-  getFollowing(dto: GetUserFollowsDto): Promise<FindAndCountType<User>>;
+  getFollowers(
+    dto: GetUserFollowsDto,
+  ): Promise<FindAndCountType<UserFollowListItem>>;
+  getFollowing(
+    dto: GetUserFollowsDto,
+  ): Promise<FindAndCountType<UserFollowListItem>>;
 }

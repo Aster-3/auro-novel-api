@@ -219,12 +219,14 @@ router.get(
 
 router.get(
   "/:id/followers",
+  optionalAuthMiddleware,
   validateSchema(getUserFollowsSchema),
   userController.getFollowers,
 );
 
 router.get(
   "/:id/following",
+  optionalAuthMiddleware,
   validateSchema(getUserFollowsSchema),
   userController.getFollowing,
 );

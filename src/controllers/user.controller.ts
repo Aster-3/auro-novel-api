@@ -276,6 +276,7 @@ export class UserController {
     const { id: userId } = req.params as any;
     const followers = await this.userService.getFollowers({
       userId,
+      viewerId: req.user?.id,
       ...res.locals.validatedData,
     });
     res.status(200).json(followers);
@@ -285,6 +286,7 @@ export class UserController {
     const { id: userId } = req.params as any;
     const following = await this.userService.getFollowing({
       userId,
+      viewerId: req.user?.id,
       ...res.locals.validatedData,
     });
     res.status(200).json(following);

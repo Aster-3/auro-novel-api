@@ -1,12 +1,15 @@
 import { Repository } from "typeorm";
 import { FindAndCountType } from "../constants/findAndCountType.js";
-import { User } from "../entities/User.js";
 import { UserFollow } from "../entities/UserFollow.js";
-import { presentUser } from "../utils/deleted.user.presenter.js";
+import {
+  DELETED_USER_NICKNAME,
+  presentUser,
+} from "../utils/deleted.user.presenter.js";
 import {
   GetUserFollowsDto,
   IUserFollowRepository,
   UserFollowCounts,
+  UserFollowListItem,
 } from "../interfaces/user.follow.repo.interface.js";
 
 export class UserFollowRepository implements IUserFollowRepository {
@@ -39,8 +42,8 @@ export class UserFollowRepository implements IUserFollowRepository {
 
   async getFollowers(
     dto: GetUserFollowsDto,
-  ): Promise<FindAndCountType<User>> {
-    const { userId, page, limit } = dto;
+  ): Promise<FindAndCountType<UserFollowListItem>> {
+    const { userId, viewerId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
     const [follows, total] = await this.followRepo
@@ -62,8 +65,13 @@ export class UserFollowRepository implements IUserFollowRepository {
       .skip(skip)
       .getManyAndCount();
 
+    const items = await this.addViewerFollowState(
+      follows.map((follow) => presentUser(follow.follower)),
+      viewerId,
+    );
+
     return this.toPaginatedUsers(
-      follows.map((follow) => presentUser(follow.follower)) as any[],
+      items,
       total,
       page,
       limit,
@@ -72,8 +80,8 @@ export class UserFollowRepository implements IUserFollowRepository {
 
   async getFollowing(
     dto: GetUserFollowsDto,
-  ): Promise<FindAndCountType<User>> {
-    const { userId, page, limit } = dto;
+  ): Promise<FindAndCountType<UserFollowListItem>> {
+    const { userId, viewerId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
     const [follows, total] = await this.followRepo
@@ -95,8 +103,13 @@ export class UserFollowRepository implements IUserFollowRepository {
       .skip(skip)
       .getManyAndCount();
 
+    const items = await this.addViewerFollowState(
+      follows.map((follow) => presentUser(follow.following)),
+      viewerId,
+    );
+
     return this.toPaginatedUsers(
-      follows.map((follow) => presentUser(follow.following)) as any[],
+      items,
       total,
       page,
       limit,
@@ -121,11 +134,11 @@ export class UserFollowRepository implements IUserFollowRepository {
   }
 
   private toPaginatedUsers(
-    items: User[],
+    items: UserFollowListItem[],
     total: number,
     page: number,
     limit: number,
-  ): FindAndCountType<User> {
+  ): FindAndCountType<UserFollowListItem> {
     const lastPage = Math.ceil(total / limit);
 
     return {
@@ -135,5 +148,46 @@ export class UserFollowRepository implements IUserFollowRepository {
       lastPage,
       nextPage: page < lastPage ? page + 1 : null,
     };
+  }
+
+  private async addViewerFollowState(
+    items: ReturnType<typeof presentUser>[],
+    viewerId?: string,
+  ): Promise<UserFollowListItem[]> {
+    const normalizedItems = items.map((item) => ({
+      id: item.id ?? null,
+      username: item.username ?? null,
+      nickname: item.nickname ?? DELETED_USER_NICKNAME,
+      profileImageUrl: item.profileImageUrl ?? null,
+      description: item.description ?? null,
+      isDeletedUser: item.isDeletedUser,
+    }));
+
+    const itemIds = normalizedItems
+      .map((item) => item.id)
+      .filter((id): id is string => Boolean(id));
+
+    if (!viewerId || itemIds.length === 0) {
+      return normalizedItems.map((item) => ({
+        ...item,
+        viewerIsFollowing: false,
+      }));
+    }
+
+    const viewerFollows = await this.followRepo
+      .createQueryBuilder("follow")
+      .select("follow.followingId", "followingId")
+      .where("follow.followerId = :viewerId", { viewerId })
+      .andWhere("follow.followingId IN (:...itemIds)", { itemIds })
+      .getRawMany<{ followingId: string }>();
+
+    const followingIds = new Set(
+      viewerFollows.map((follow) => follow.followingId),
+    );
+
+    return normalizedItems.map((item) => ({
+      ...item,
+      viewerIsFollowing: Boolean(item.id && followingIds.has(item.id)),
+    }));
   }
 }
