@@ -13,10 +13,4 @@ router.post(
   libraryController.addNovelToLibrary,
 );
 
-router.delete(
-  "/",
-  validateSchema(libraryCreateDeleteSchema),
-  libraryController.removeNovelFromLibrary,
-);
-
 export default router;
