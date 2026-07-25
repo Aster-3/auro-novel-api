@@ -166,6 +166,7 @@ export class NovelRepository implements INovelRepository {
         "novel.viewCount",
         "novel.positiveReviewsCount",
         "novel.totalReviewsCount",
+        "novel.createdAt",
       ])
       .andWhere("novel.authorId = :authorId", { authorId })
       .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
