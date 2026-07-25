@@ -79,6 +79,11 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
       .leftJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
       .leftJoinAndSelect("stats.chapter", "chapter")
+      .innerJoin(
+        "Library",
+        "library",
+        "library.userId = stats.userId AND library.novelId = stats.novelId AND library.isHidden = false",
+      )
       .where("stats.userId = :userId", { userId })
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("stats.lastReadAt", "DESC")
