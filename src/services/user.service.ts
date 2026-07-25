@@ -537,7 +537,7 @@ export class UserService implements IUserService {
     try {
       await this.uow.readingStatsRepository.updateReadingStats(dto);
 
-      if (dto.lastChapterProgress > 50) {
+      if (this.isReadEnoughToMarkChapter(dto.lastChapterProgress)) {
         await this.uow.userReadChapterRepository.markChapterAsRead({
           userId: dto.userId,
           novelId: dto.novelId,
@@ -787,6 +787,10 @@ export class UserService implements IUserService {
   private isCodeResendOnCooldown(lastSentAt?: Date | null) {
     if (!lastSentAt) return false;
     return Date.now() - lastSentAt.getTime() < CODE_RESEND_COOLDOWN_MS;
+  }
+
+  private isReadEnoughToMarkChapter(progress: number) {
+    return progress > 50 || (progress <= 1 && progress > 0.5);
   }
 
   private createAccessTokenPayload(user: User) {
