@@ -1,5 +1,8 @@
 import { Repository } from "typeorm";
-import { IReadingStatsRepository } from "../interfaces/reading.stats.repository.interface.js";
+import {
+  IReadingStatsRepository,
+  RecentReadItem,
+} from "../interfaces/reading.stats.repository.interface.js";
 import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js";
 import { ReadingStats } from "../entities/ReadingStats.js";
 
@@ -64,6 +67,45 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
       },
     });
     return stats;
+  }
+
+  async getRecentReadsByUserId(
+    userId: string,
+    limit: number,
+  ): Promise<RecentReadItem[]> {
+    const stats = await this.readingRepo
+      .createQueryBuilder("stats")
+      .leftJoinAndSelect("stats.novel", "novel")
+      .leftJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
+      .leftJoinAndSelect("stats.chapter", "chapter")
+      .where("stats.userId = :userId", { userId })
+      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
+      .orderBy("stats.lastReadAt", "DESC")
+      .take(limit)
+      .getMany();
+
+    return stats.map((stat) => ({
+      id: stat.id,
+      novelId: stat.novelId,
+      lastChapterProgress: stat.lastChapterProgress,
+      totalReadTime: stat.totalReadTime,
+      lastReadAt: stat.lastReadAt,
+      lastReadChapter: stat.chapter
+        ? {
+            id: stat.chapter.id,
+            title: stat.chapter.title,
+          }
+        : null,
+      novel: stat.novel
+        ? {
+            id: stat.novel.id,
+            name: stat.novel.name,
+            slug: stat.novel.slug,
+            coverImageUrl: stat.novel.coverImage,
+          }
+        : null,
+    }));
   }
 
   async existControl(userId: string, novelId: string): Promise<boolean> {

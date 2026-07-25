@@ -48,6 +48,15 @@ export class UserController {
     res.status(200).json(library);
   };
 
+  getUserRecentActivity = async (req: Request, res: Response) => {
+    const { id: userId } = req.params as any;
+    const activity = await this.userService.getUserRecentActivity(
+      userId,
+      req.user?.id,
+    );
+    res.status(200).json(activity);
+  };
+
   deleteMyAccount = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
     const result = await this.userService.deleteMyAccount(userId, req.body);

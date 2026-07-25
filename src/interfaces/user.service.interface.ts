@@ -50,6 +50,14 @@ export interface IUserService {
   getUserLibrary(
     dto: GetUserLibraryShowcaseDto,
   ): Promise<FindAndCountType<any>>;
+  getUserRecentActivity(
+    userId: string,
+    viewerId?: string,
+  ): Promise<{
+    recentReviews: any[];
+    recentReplies: any[];
+    recentReads: any[];
+  }>;
   deleteMyAccount(
     userId: string,
     dto: DeleteMyAccountDto,

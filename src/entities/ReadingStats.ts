@@ -28,6 +28,12 @@ export class ReadingStats {
   @Column({ type: "uuid" })
   novelId!: string;
 
+  @ManyToOne(() => Novel, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "novelId" })
+  novel!: Novel;
+
   @Column({ type: "uuid" })
   lastReadChapterId!: string;
 

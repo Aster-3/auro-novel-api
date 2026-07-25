@@ -198,6 +198,31 @@ export class UserService implements IUserService {
     return await this.uow.libraryRepository.getPublicUserLibrary(dto);
   };
 
+  getUserRecentActivity = async (userId: string, viewerId?: string) => {
+    const targetExists = await this.uow.userRepository.exsistById(userId);
+    if (!targetExists) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    const [reviews, replies, reads] = await Promise.all([
+      this.uow.commentRepository.getReviewsByUserId(
+        { id: userId, userId, page: 1, limit: 5 },
+        viewerId,
+      ),
+      this.uow.replyRepository.getRepliesByUserId(
+        { id: userId, userId, page: 1, limit: 5 },
+        viewerId,
+      ),
+      this.uow.readingStatsRepository.getRecentReadsByUserId(userId, 3),
+    ]);
+
+    return {
+      recentReviews: reviews.items,
+      recentReplies: replies.items,
+      recentReads: reads,
+    };
+  };
+
   searchUsers = async (dto: GetUsersDto) => {
     return await this.uow.userRepository.searchUsers(dto);
   };
