@@ -3,6 +3,7 @@ import { CreateGlobalNotificationDto } from "../interfaces/global.notification.r
 import { UnitOfWork } from "../unit-of-work/unit.of.work.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { ConflictError } from "../errors/conflict.error.js";
+import { BadRequestError } from "../errors/bad.request.js";
 import { AppDataSource } from "../database/data-source.js";
 import {
   Author,
@@ -333,8 +334,27 @@ export class AdminService implements IAdminService {
     return novel;
   }
 
-  async updateNovel(id: string, dto: AdminUpdateNovelDto) {
-    const result = await AppDataSource.getRepository(Novel).update(id, dto);
+  async updateNovel(
+    id: string,
+    dto: AdminUpdateNovelDto,
+    file?: Express.Multer.File,
+  ) {
+    const updateData: AdminUpdateNovelDto & { coverImage?: string } = {
+      ...dto,
+    };
+
+    if (file) {
+      updateData.coverImage = await uploadToS3(file, "novel-covers");
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestError("En az bir alan gonderilmelidir.");
+    }
+
+    const result = await AppDataSource.getRepository(Novel).update(
+      id,
+      updateData,
+    );
     if (!result.affected) throw new NotFoundError("Roman bulunamadi.");
     return this.getNovelById(id);
   }

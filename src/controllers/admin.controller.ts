@@ -63,6 +63,7 @@ export class AdminController {
     const item = await this.adminService.updateNovel(
       this.getParam(req, "id"),
       req.body,
+      req.file ?? undefined,
     );
     res.json({ message: "Roman guncellendi.", item });
   };

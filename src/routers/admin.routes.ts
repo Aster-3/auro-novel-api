@@ -147,6 +147,7 @@ router.get(
 
 router.patch(
   "/novels/:id",
+  coverImageUpload.single("coverImage"),
   validateSchema(adminUpdateNovelSchema),
   adminController.updateNovel,
 );

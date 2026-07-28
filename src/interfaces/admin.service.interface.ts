@@ -38,7 +38,11 @@ export interface IAdminService {
   ): Promise<any>;
   getNovels(dto: AdminListNovelsDto): Promise<any>;
   getNovelById(id: string): Promise<any>;
-  updateNovel(id: string, dto: AdminUpdateNovelDto): Promise<any>;
+  updateNovel(
+    id: string,
+    dto: AdminUpdateNovelDto,
+    file?: Express.Multer.File,
+  ): Promise<any>;
   deleteNovel(id: string): Promise<void>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<any>;
   updateNovelTags(novelId: string, tagIds: string[]): Promise<any>;

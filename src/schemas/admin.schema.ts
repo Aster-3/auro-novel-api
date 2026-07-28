@@ -158,14 +158,11 @@ export const adminUpdateNovelSchema = z.object({
       synopsis: z.string().trim().max(1500).nullable().optional(),
       status: z.enum(SeriesStatus).optional(),
       type: z.enum(NovelType).optional(),
-      freeLimit: z.number().int().min(0).optional(),
-      isBanned: z.boolean().optional(),
-      isAdultContent: z.boolean().optional(),
+      freeLimit: z.coerce.number().int().min(0).optional(),
+      isBanned: queryBooleanSchema.optional(),
+      isAdultContent: queryBooleanSchema.optional(),
     })
-    .strict()
-    .refine((body) => Object.keys(body).length > 0, {
-      message: "En az bir alan gonderilmelidir.",
-    }),
+    .strict(),
 });
 
 export const adminListChaptersSchema = z.object({
