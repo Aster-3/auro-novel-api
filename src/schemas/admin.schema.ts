@@ -33,7 +33,32 @@ export const adminListUsersSchema = z.object({
     role: z.enum(UserRoles).optional(),
     status: z.enum(UserStatus).optional(),
     isVerified: queryBooleanSchema.optional(),
-    isPremium: queryBooleanSchema.optional(),
+    includeDeleted: queryBooleanSchema.optional().default(false),
+  }),
+});
+
+export const adminListDeletedAccountRecoveriesSchema = z.object({
+  query: z.object({
+    ...adminPaginationQuery,
+  }),
+});
+
+export const adminSearchDeletedAccountRecoverySchema = z.object({
+  query: z
+    .object({
+      email: z.email().optional(),
+      username: z.string().trim().min(3).max(15).optional(),
+    })
+    .refine((query) => query.email || query.username, {
+      message: "Email veya username gonderilmelidir.",
+    }),
+});
+
+export const adminRestoreDeletedUserSchema = z.object({
+  body: z.object({
+    id: z.uuid("Gecersiz kullanici id."),
+    email: z.email(),
+    password: z.string().min(6).max(100),
   }),
 });
 
@@ -125,7 +150,6 @@ export const adminUpdateUserSchema = z.object({
       role: z.enum(UserRoles).optional(),
       status: z.enum(UserStatus).optional(),
       isVerified: z.boolean().optional(),
-      isPremium: z.boolean().optional(),
       premiumUntil: z.coerce.date().nullable().optional(),
       subscriptionTier: z.enum(UserSubscriptionTier).nullable().optional(),
       subscriptionPeriod: z.enum(UserSubscriptionPeriod).nullable().optional(),
@@ -233,6 +257,15 @@ export const adminUpdateNotificationSchema = z.object({
 });
 
 export type AdminListUsersDto = z.infer<typeof adminListUsersSchema>["query"];
+export type AdminListDeletedAccountRecoveriesDto = z.infer<
+  typeof adminListDeletedAccountRecoveriesSchema
+>["query"];
+export type AdminSearchDeletedAccountRecoveryDto = z.infer<
+  typeof adminSearchDeletedAccountRecoverySchema
+>["query"];
+export type AdminRestoreDeletedUserDto = z.infer<
+  typeof adminRestoreDeletedUserSchema
+>["body"];
 export type AdminCreateAuthorDto = z.infer<
   typeof adminCreateAuthorSchema
 >["body"];

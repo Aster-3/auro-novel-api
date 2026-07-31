@@ -32,6 +32,7 @@ import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 import { GlobalNotificationWithSeenState } from "./global.notification.repo.interface.js";
 import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
+import { GoogleLoginDto } from "../schemas/google.login.schema.js";
 
 export interface IUserService {
   create(dto: CreateUserDto): Promise<{
@@ -82,6 +83,11 @@ export interface IUserService {
   getAllVerifications(): Promise<UserVerification[]>;
   resendCode(email: string): Promise<{ message: string }>;
   login: (dto: UserLoginDto) => Promise<{
+    user: UserLoginResponseDto;
+    accessToken?: string;
+    refreshToken?: string;
+  }>;
+  googleLogin(dto: GoogleLoginDto): Promise<{
     user: UserLoginResponseDto;
     accessToken?: string;
     refreshToken?: string;

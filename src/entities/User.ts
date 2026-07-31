@@ -15,6 +15,7 @@ import { Library } from "./Library.js";
 import { Reply } from "./Reply.js";
 import { ReplyLike } from "./ReplyLike.js";
 import {
+  UserAuthProvider,
   UserGender,
   UserRoles,
   UserStatus,
@@ -48,6 +49,17 @@ export class User {
   @Column({ type: "varchar", length: 255, select: false })
   password!: string;
 
+  @Column({ type: "varchar", length: 255, nullable: true, unique: true })
+  googleId?: string | null;
+
+  @Column({
+    type: "enum",
+    enum: UserAuthProvider,
+    enumName: "user_auth_provider_enum",
+    default: UserAuthProvider.LOCAL,
+  })
+  authProvider!: UserAuthProvider;
+
   @Column({ type: "text", nullable: true })
   profileImageUrl?: string | null;
 
@@ -63,14 +75,11 @@ export class User {
   @Column({ type: "enum", enum: UserRoles, default: UserRoles.USER })
   role!: UserRoles;
 
-  @Column({ type: "enum", enum: UserStatus, default: UserStatus.PENDING })
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
   status!: UserStatus;
 
   @Column({ type: "boolean", default: false })
   isVerified!: boolean;
-
-  @Column({ type: "boolean", default: false })
-  isPremium!: boolean;
 
   @Column({ type: "timestamp", nullable: true })
   premiumUntil?: Date | null;

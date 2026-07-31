@@ -5,10 +5,13 @@ import { PublicationStatus } from "../constants/chapter.constants.js";
 import {
   AdminListChaptersDto,
   AdminListCommentsDto,
+  AdminListDeletedAccountRecoveriesDto,
   AdminListNotificationsDto,
   AdminListNovelsDto,
   AdminListRepliesDto,
   AdminListUsersDto,
+  AdminRestoreDeletedUserDto,
+  AdminSearchDeletedAccountRecoveryDto,
   AdminCreateAuthorDto,
   AdminCreateChapterDto,
   AdminCreateNovelDto,
@@ -27,6 +30,13 @@ export interface CreateAnnouncementResult {
 
 export interface IAdminService {
   getDashboard(): Promise<any>;
+  getDeletedAccountRecoveries(
+    dto: AdminListDeletedAccountRecoveriesDto,
+  ): Promise<any>;
+  searchDeletedAccountRecovery(
+    dto: AdminSearchDeletedAccountRecoveryDto,
+  ): Promise<any>;
+  restoreDeletedUser(dto: AdminRestoreDeletedUserDto): Promise<any>;
   createIndependentAuthor(dto: AdminCreateAuthorDto): Promise<any>;
   getUsers(dto: AdminListUsersDto): Promise<any>;
   getUserById(id: string): Promise<any>;

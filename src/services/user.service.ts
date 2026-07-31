@@ -5,6 +5,7 @@ import { ConflictError } from "../errors/conflict.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
 import * as argon2 from "argon2";
+import { randomBytes } from "crypto";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
 import { ForbiddenError } from "../errors/forbidden.error.js";
 import { BadRequestError } from "../errors/bad.request.js";
@@ -37,12 +38,27 @@ import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
+import { isPremiumActive, withPremiumStatus } from "../utils/premium.status.js";
+import { UserAuthProvider, UserStatus } from "../constants/user.constants.js";
+import { GoogleLoginDto } from "../schemas/google.login.schema.js";
+import { getEnv } from "../utils/getEnv.js";
+import { AppDataSource } from "../database/data-source.js";
+import { UserVerification } from "../entities/UserVerification.js";
 
 const PASSWORD_RESET_CODE_EXPIRY_MS = 10 * 60000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 const CODE_RESEND_COOLDOWN_MS = 60 * 1000;
 const PASSWORD_RESET_REQUEST_MESSAGE =
   "Eger bu e-posta ile kayitli bir hesap varsa sifre sifirlama kodu gonderildi.";
+
+type GoogleTokenInfo = {
+  sub?: string;
+  aud?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  name?: string;
+  picture?: string;
+};
 
 export class UserService implements IUserService {
   constructor(
@@ -90,7 +106,7 @@ export class UserService implements IUserService {
         console.error("Doğrulama kodu gönderilirken hata oluştu:", err);
       }
 
-      return { user, verificationEmailSent };
+      return { user: withPremiumStatus(user), verificationEmailSent };
     } catch (error) {
       await this.uow.rollback();
       throw error;
@@ -156,7 +172,11 @@ export class UserService implements IUserService {
     if (user.isVerified) {
       throw new ConflictError("user", "Bu hesap zaten doğrulanmış.");
     }
-    return await this.uow.userRepository.activateUser(user, verification);
+    const activatedUser = await this.uow.userRepository.activateUser(
+      user,
+      verification,
+    );
+    return withPremiumStatus(activatedUser);
   };
 
   getOneUser = async (id: string) => {
@@ -329,6 +349,8 @@ export class UserService implements IUserService {
       throw new BadRequestError("E-posta adresi veya şifre hatalı.");
     }
 
+    this.ensureUserCanAuthenticate(user);
+
     if (!user.isVerified) {
       throw new ForbiddenError(
         "Hesap doğrulanmamış. Lütfen e-posta adresinizi doğrulayın.",
@@ -348,12 +370,57 @@ export class UserService implements IUserService {
     return { user: parsedUser, accessToken, refreshToken };
   };
 
+  googleLogin = async (dto: GoogleLoginDto) => {
+    const googleUser = await this.verifyGoogleIdToken(dto.idToken);
+    const userRepo = AppDataSource.getRepository(User);
+
+    let user = await userRepo.findOne({
+      where: { googleId: googleUser.sub },
+    });
+
+    if (!user) {
+      user = await userRepo.findOne({
+        where: { email: googleUser.email },
+      });
+    }
+
+    if (user) {
+      this.ensureUserCanAuthenticate(user);
+
+      if (!user.googleId || user.authProvider !== UserAuthProvider.MIXED) {
+        await AppDataSource.transaction(async (manager) => {
+          await manager.update(
+            User,
+            { id: user!.id },
+            {
+              googleId: googleUser.sub,
+              authProvider:
+                user!.authProvider === UserAuthProvider.LOCAL
+                  ? UserAuthProvider.MIXED
+                  : user!.authProvider,
+              isVerified: true,
+              profileImageUrl: user!.profileImageUrl ?? googleUser.picture,
+            },
+          );
+          await manager.delete(UserVerification, { userId: user!.id });
+        });
+
+        user = await userRepo.findOneOrFail({ where: { id: user.id } });
+      }
+
+      return this.createLoginResponse(user);
+    }
+
+    user = await this.createGoogleUser(googleUser);
+    return this.createLoginResponse(user);
+  };
+
   async updateUser(dto: UpdateUserDto): Promise<User> {
     const updated = await this.uow.userRepository.updateUser(dto);
     if (!updated) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
-    return updated;
+    return withPremiumStatus(updated);
   }
 
   async getMe(dto: GetMeQuery): Promise<User> {
@@ -361,7 +428,7 @@ export class UserService implements IUserService {
     if (!user) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
-    return user;
+    return dto.fields.includes("isPremium") ? withPremiumStatus(user) : user;
   }
 
   refreshToken = async (refreshToken: string) => {
@@ -376,6 +443,7 @@ export class UserService implements IUserService {
       if (!user || user.refreshToken !== refreshToken) {
         throw new UnauthenticatedError("REFRESH_TOKEN_INVALID");
       }
+      this.ensureUserCanAuthenticate(user);
       const newAccessToken = this.tokenService.generateAccessToken(
         this.createAccessTokenPayload(user),
       );
@@ -793,12 +861,112 @@ export class UserService implements IUserService {
     return readDurationInSeconds > 30;
   }
 
+  private ensureUserCanAuthenticate(user: User) {
+    if (user.status === UserStatus.BANNED) {
+      throw new ForbiddenError("Hesap banlanmis.");
+    }
+
+    if (user.status === UserStatus.DELETED) {
+      throw new ForbiddenError("Hesap silinmis.");
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new ForbiddenError("Hesap aktif degil.");
+    }
+  }
+
+  private async createLoginResponse(user: User) {
+    const accessToken = this.tokenService.generateAccessToken(
+      this.createAccessTokenPayload(user),
+    );
+    const refreshToken = this.tokenService.generateRefreshToken({
+      id: user.id,
+    });
+
+    await this.uow.userRepository.updateRefreshToken(user.id, refreshToken!);
+
+    return {
+      user: new UserLoginResponseDto(user),
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  private async verifyGoogleIdToken(idToken: string) {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+        idToken,
+      )}`,
+    );
+
+    if (!response.ok) {
+      throw new UnauthenticatedError("GOOGLE_TOKEN_INVALID");
+    }
+
+    const payload = (await response.json()) as GoogleTokenInfo;
+    const allowedAudiences = [
+      getEnv("GOOGLE_WEB_CLIENT_ID"),
+      getEnv("GOOGLE_ANDROID_CLIENT_ID"),
+    ];
+
+    if (!payload.sub || !payload.email || !allowedAudiences.includes(payload.aud ?? "")) {
+      throw new UnauthenticatedError("GOOGLE_TOKEN_INVALID");
+    }
+
+    if (payload.email_verified !== true && payload.email_verified !== "true") {
+      throw new ForbiddenError("Google email dogrulanmamis.");
+    }
+
+    return {
+      sub: payload.sub,
+      email: payload.email.toLowerCase(),
+      name: payload.name?.trim() || payload.email.split("@")[0],
+      picture: payload.picture ?? null,
+    };
+  }
+
+  private async createGoogleUser(googleUser: {
+    sub: string;
+    email: string;
+    name: string;
+    picture: string | null;
+  }) {
+    const password = await argon2.hash(randomBytes(32).toString("hex"));
+    const username = await this.createRandomUsername();
+    const nickname = googleUser.name.slice(0, 20) || username;
+
+    return AppDataSource.getRepository(User).save(
+      AppDataSource.getRepository(User).create({
+        username,
+        nickname,
+        email: googleUser.email,
+        password,
+        googleId: googleUser.sub,
+        authProvider: UserAuthProvider.GOOGLE,
+        status: UserStatus.ACTIVE,
+        isVerified: true,
+        profileImageUrl: googleUser.picture,
+      }),
+    );
+  }
+
+  private async createRandomUsername() {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const username = `u_${randomBytes(6).toString("hex")}`;
+      const exists = await this.uow.userRepository.findOneByUsername(username);
+      if (!exists) return username;
+    }
+
+    throw new ConflictError("username", "Kullanici adi olusturulamadi.");
+  }
+
   private createAccessTokenPayload(user: User) {
     return {
       id: user.id,
       email: user.email,
       role: user.role,
-      isPremium: user.isPremium,
+      authProvider: user.authProvider,
+      isPremium: isPremiumActive(user.premiumUntil),
       premiumUntil: user.premiumUntil,
       subscriptionTier: user.subscriptionTier,
       subscriptionPeriod: user.subscriptionPeriod,

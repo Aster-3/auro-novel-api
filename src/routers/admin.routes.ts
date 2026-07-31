@@ -31,11 +31,14 @@ import { searchTagSchema } from "../schemas/search.tag.schema.js";
 import {
   adminListChaptersSchema,
   adminListCommentsSchema,
+  adminListDeletedAccountRecoveriesSchema,
   adminListNotificationsSchema,
   adminListNovelsSchema,
   adminListRepliesSchema,
   adminListUsersSchema,
   adminCreateAuthorSchema,
+  adminRestoreDeletedUserSchema,
+  adminSearchDeletedAccountRecoverySchema,
   adminCreateChapterSchema,
   adminCreateNovelSchema,
   adminCreateVolumeSchema,
@@ -59,6 +62,24 @@ const numericIdParamSchema = (name: string) =>
   });
 
 router.get("/dashboard", adminController.getDashboard);
+
+router.get(
+  "/deleted-account-recoveries",
+  validateSchema(adminListDeletedAccountRecoveriesSchema),
+  adminController.getDeletedAccountRecoveries,
+);
+
+router.get(
+  "/deleted-account-recoveries/search",
+  validateSchema(adminSearchDeletedAccountRecoverySchema),
+  adminController.searchDeletedAccountRecovery,
+);
+
+router.post(
+  "/deleted-account-recoveries/restore",
+  validateSchema(adminRestoreDeletedUserSchema),
+  adminController.restoreDeletedUser,
+);
 
 router.get(
   "/users",

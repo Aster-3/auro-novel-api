@@ -24,3 +24,4 @@ export * from "./UserFollow.js";
 export * from "./UserReadChapter.js";
 export * from "./PasswordReset.js";
 export * from "./FeedbackSubmission.js";
+export * from "./DeletedAccountRecovery.js";

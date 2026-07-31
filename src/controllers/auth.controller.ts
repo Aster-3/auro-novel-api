@@ -24,6 +24,11 @@ export class AuthController {
     res.json(data);
   };
 
+  googleLogin = async (req: Request, res: Response) => {
+    const data = await this.userService.googleLogin(req.body);
+    res.json(data);
+  };
+
   refreshToken = async (req: Request, res: Response) => {
     const { refreshToken } = req.body;
     const data = await this.userService.refreshToken(refreshToken);

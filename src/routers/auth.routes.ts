@@ -10,6 +10,7 @@ import { authController } from "../container.js";
 import { forgotPasswordSchema } from "../schemas/forgot.password.schema.js";
 import { resetPasswordSchema } from "../schemas/reset.password.schema.js";
 import { changePasswordSchema } from "../schemas/change.password.schema.js";
+import { googleLoginSchema } from "../schemas/google.login.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   authRateLimit,
@@ -33,6 +34,13 @@ router.post(
   strictAuthRateLimit,
   validateSchema(userLoginSchema),
   authController.login,
+);
+
+router.post(
+  "/google",
+  strictAuthRateLimit,
+  validateSchema(googleLoginSchema),
+  authController.googleLogin,
 );
 
 router.post(

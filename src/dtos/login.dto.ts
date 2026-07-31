@@ -1,3 +1,5 @@
+import { isPremiumActive } from "../utils/premium.status.js";
+
 export class UserLoginResponseDto {
   id!: string;
   username!: string;
@@ -5,6 +7,7 @@ export class UserLoginResponseDto {
   email!: string;
   profileImageUrl!: string | null;
   role!: string;
+  authProvider!: string;
   isPremium!: boolean;
   premiumUntil!: Date | null;
   subscriptionTier!: string | null;
@@ -18,8 +21,9 @@ export class UserLoginResponseDto {
       this.email! = data.email || "";
       this.profileImageUrl = data.profileImageUrl || null;
       this.role = data.role || "user";
-      this.isPremium = data.isPremium || false;
+      this.authProvider = data.authProvider || "local";
       this.premiumUntil = data.premiumUntil || null;
+      this.isPremium = isPremiumActive(this.premiumUntil);
       this.subscriptionTier = data.subscriptionTier || null;
       this.subscriptionPeriod = data.subscriptionPeriod || null;
     }

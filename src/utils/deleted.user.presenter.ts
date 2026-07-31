@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { User } from "../entities/User.js";
+import { UserStatus } from "../constants/user.constants.js";
 
 export const DELETED_USER_NICKNAME = "Silinmiş Kullanıcı";
 
@@ -14,6 +15,8 @@ export function createDeletedUserIdentity() {
     profileBackgroundImageUrl: null,
     description: null,
     gender: null,
+    googleId: null,
+    status: UserStatus.DELETED,
     refreshToken: null,
   };
 }

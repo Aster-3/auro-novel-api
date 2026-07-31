@@ -9,10 +9,13 @@ import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
 import { UserVerification } from "../entities/UserVerification.js";
-import { UserStatus } from "../constants/user.constants.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { GetMeQuery } from "../schemas/get.me.schema.js";
 import { createDeletedUserIdentity } from "../utils/deleted.user.presenter.js";
+import { DeletedAccountRecovery } from "../entities/DeletedAccountRecovery.js";
+import { createAccountRecoveryHash } from "../utils/account.recovery.hash.js";
+
+const DELETED_ACCOUNT_RECOVERY_DAYS = 30;
 
 export class UserRepository implements IUserRepository {
   constructor(private userRepo: Repository<User>) {}
@@ -46,7 +49,6 @@ export class UserRepository implements IUserRepository {
   async activateUser(user: User, verification: UserVerification) {
     return await this.userRepo.manager.transaction(async (manager) => {
       user.isVerified = true;
-      user.status = UserStatus.ACTIVE;
       const updatedUser = await manager.save(User, user);
       await manager.remove(UserVerification, verification);
       return updatedUser;
@@ -76,9 +78,9 @@ export class UserRepository implements IUserRepository {
         description: true,
         gender: true,
         role: true,
+        authProvider: true,
         status: true,
         isVerified: true,
-        isPremium: true,
         premiumUntil: true,
         subscriptionTier: true,
         subscriptionPeriod: true,
@@ -187,10 +189,12 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         profileBackgroundImageUrl: true,
         role: true,
+        authProvider: true,
+        status: true,
         password: true,
+        googleId: true,
         refreshToken: true,
         isVerified: true,
-        isPremium: true,
         premiumUntil: true,
         subscriptionTier: true,
         subscriptionPeriod: true,
@@ -216,8 +220,13 @@ export class UserRepository implements IUserRepository {
   }
 
   async getMe(dto: GetMeQuery) {
-    const selectFields = dto.fields?.length
-      ? dto.fields.reduce((acc, f) => ({ ...acc, [f]: true }), { id: true })
+    const dbFields = dto.fields?.filter((field) => field !== "isPremium");
+    if (dto.fields?.includes("isPremium") && !dbFields?.includes("premiumUntil")) {
+      dbFields?.push("premiumUntil");
+    }
+
+    const selectFields = dbFields?.length
+      ? dbFields.reduce((acc, f) => ({ ...acc, [f]: true }), { id: true })
       : { id: true, username: true, email: true };
 
     const user = await this.userRepo.findOne({
@@ -252,7 +261,7 @@ export class UserRepository implements IUserRepository {
         email: true,
         profileImageUrl: true,
         role: true,
-        isPremium: true,
+        authProvider: true,
         premiumUntil: true,
         subscriptionTier: true,
         subscriptionPeriod: true,
@@ -266,6 +275,32 @@ export class UserRepository implements IUserRepository {
 
   async softDeleteUser(id: string) {
     await this.userRepo.manager.transaction(async (manager) => {
+      const user = await manager.findOne(User, {
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+        },
+      });
+
+      if (user) {
+        const deletedAt = new Date();
+        const expiresAt = new Date(deletedAt);
+        expiresAt.setDate(expiresAt.getDate() + DELETED_ACCOUNT_RECOVERY_DAYS);
+
+        await manager.save(
+          DeletedAccountRecovery,
+          manager.create(DeletedAccountRecovery, {
+            userId: user.id,
+            emailHash: createAccountRecoveryHash(user.email),
+            usernameHash: createAccountRecoveryHash(user.username),
+            deletedAt,
+            expiresAt,
+          }),
+        );
+      }
+
       await manager.update(User, { id }, createDeletedUserIdentity());
       await manager.update(UserDevice, { userId: id }, { isActive: false });
       await manager.softDelete(User, { id });

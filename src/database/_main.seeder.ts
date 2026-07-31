@@ -317,10 +317,7 @@ export default class MainSeeder implements Seeder {
         authorRepo.create({
           user,
           userId: user.id,
-          nickname:
-            user.username === "googletester"
-              ? "Google Tester Writes"
-              : `${user.nickname} Writes`,
+          nickname: user.nickname,
           isVerified: index < 4 || user.username === "googletester",
         }),
       ),

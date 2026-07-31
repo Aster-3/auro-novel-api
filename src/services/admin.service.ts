@@ -1,6 +1,8 @@
 import { IAdminService } from "../interfaces/admin.service.interface.js";
 import { CreateGlobalNotificationDto } from "../interfaces/global.notification.repo.interface.js";
 import { UnitOfWork } from "../unit-of-work/unit.of.work.js";
+import { MoreThanOrEqual, Not, IsNull } from "typeorm";
+import * as argon2 from "argon2";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { ConflictError } from "../errors/conflict.error.js";
 import { BadRequestError } from "../errors/bad.request.js";
@@ -10,6 +12,7 @@ import {
   Chapter,
   ChapterPublication,
   Comment,
+  DeletedAccountRecovery,
   GlobalNotification,
   Novel,
   Reply,
@@ -22,10 +25,13 @@ import { PublicationStatus } from "../constants/chapter.constants.js";
 import {
   AdminListChaptersDto,
   AdminListCommentsDto,
+  AdminListDeletedAccountRecoveriesDto,
   AdminListNotificationsDto,
   AdminListNovelsDto,
   AdminListRepliesDto,
   AdminListUsersDto,
+  AdminRestoreDeletedUserDto,
+  AdminSearchDeletedAccountRecoveryDto,
   AdminCreateAuthorDto,
   AdminCreateChapterDto,
   AdminCreateNovelDto,
@@ -41,6 +47,8 @@ import {
   PushNotificationService,
 } from "./push.notification.service.js";
 import { uploadToS3 } from "./s3.service.js";
+import { isPremiumActive, withPremiumStatus } from "../utils/premium.status.js";
+import { createAccountRecoveryHash } from "../utils/account.recovery.hash.js";
 
 export class AdminService implements IAdminService {
   constructor(
@@ -65,12 +73,15 @@ export class AdminService implements IAdminService {
     const chapterRepo = AppDataSource.getRepository(Chapter);
     const commentRepo = AppDataSource.getRepository(Comment);
     const replyRepo = AppDataSource.getRepository(Reply);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const [
       totalUsers,
+      registeredLast30Days,
       activeUsers,
-      pendingUsers,
       bannedUsers,
+      deletedUsers,
       premiumUsers,
       totalNovels,
       publishedNovels,
@@ -85,10 +96,18 @@ export class AdminService implements IAdminService {
       recentComments,
     ] = await Promise.all([
       userRepo.count(),
+      userRepo.count({
+        where: { createdAt: MoreThanOrEqual(thirtyDaysAgo) },
+      }),
       userRepo.count({ where: { status: UserStatus.ACTIVE } }),
-      userRepo.count({ where: { status: UserStatus.PENDING } }),
       userRepo.count({ where: { status: UserStatus.BANNED } }),
-      userRepo.count({ where: { isPremium: true } }),
+      userRepo.count({ where: { status: UserStatus.DELETED } }),
+      userRepo.count({
+        where: {
+          premiumUntil: MoreThanOrEqual(new Date()),
+          subscriptionTier: Not(IsNull()),
+        },
+      }),
       novelRepo.count(),
       novelRepo.count({ where: { status: SeriesStatus.ONGOING } }),
       novelRepo.count({ where: { status: SeriesStatus.DRAFT } }),
@@ -105,6 +124,7 @@ export class AdminService implements IAdminService {
           username: true,
           nickname: true,
           email: true,
+          profileImageUrl: true,
           role: true,
           status: true,
           createdAt: true,
@@ -143,9 +163,10 @@ export class AdminService implements IAdminService {
       stats: {
         users: {
           total: totalUsers,
+          registeredLast30Days,
           active: activeUsers,
-          pending: pendingUsers,
           banned: bannedUsers,
+          deleted: deletedUsers,
           premium: premiumUsers,
         },
         novels: {
@@ -181,14 +202,122 @@ export class AdminService implements IAdminService {
     return await AppDataSource.getRepository(Author).save(author);
   }
 
+  async getDeletedAccountRecoveries(
+    dto: AdminListDeletedAccountRecoveriesDto,
+  ) {
+    const { page, limit, sort } = dto;
+    const [items, total] = await AppDataSource.getRepository(
+      DeletedAccountRecovery,
+    ).findAndCount({
+      order: { createdAt: sort.toUpperCase() as "ASC" | "DESC" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return this.paginate(items, total, page, limit);
+  }
+
+  async searchDeletedAccountRecovery(
+    dto: AdminSearchDeletedAccountRecoveryDto,
+  ) {
+    const where: Partial<DeletedAccountRecovery> = {};
+
+    if (dto.email) {
+      where.emailHash = createAccountRecoveryHash(dto.email);
+    }
+
+    if (dto.username) {
+      where.usernameHash = createAccountRecoveryHash(dto.username);
+    }
+
+    const item = await AppDataSource.getRepository(
+      DeletedAccountRecovery,
+    ).findOne({
+      where,
+      order: { createdAt: "DESC" },
+    });
+
+    return { item, matched: Boolean(item) };
+  }
+
+  async restoreDeletedUser(dto: AdminRestoreDeletedUserDto) {
+    const userRepo = AppDataSource.getRepository(User);
+    const recoveryRepo = AppDataSource.getRepository(DeletedAccountRecovery);
+    const emailHash = createAccountRecoveryHash(dto.email);
+
+    const user = await userRepo
+      .createQueryBuilder("user")
+      .withDeleted()
+      .where("user.id = :id", { id: dto.id })
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    if (user.status !== UserStatus.DELETED || !user.deletedAt) {
+      throw new BadRequestError("Kullanici silinmis durumda degil.");
+    }
+
+    const recovery = await recoveryRepo.findOne({
+      where: {
+        userId: dto.id,
+        emailHash,
+      },
+      order: { createdAt: "DESC" },
+    });
+
+    if (!recovery) {
+      throw new NotFoundError("Kurtarma kaydi bulunamadi.");
+    }
+
+    if (recovery.expiresAt <= new Date()) {
+      throw new BadRequestError("Kurtarma kaydinin suresi dolmus.");
+    }
+
+    const emailOwner = await userRepo
+      .createQueryBuilder("user")
+      .withDeleted()
+      .where("LOWER(user.email) = LOWER(:email)", { email: dto.email })
+      .andWhere("user.id != :id", { id: dto.id })
+      .getOne();
+
+    if (emailOwner) {
+      throw new ConflictError("email", "Bu email baska bir kullaniciya ait.");
+    }
+
+    const hashedPassword = await argon2.hash(dto.password);
+
+    await AppDataSource.transaction(async (manager) => {
+      await manager.update(
+        User,
+        { id: dto.id },
+        {
+          email: dto.email,
+          password: hashedPassword,
+          status: UserStatus.ACTIVE,
+          refreshToken: null,
+        },
+      );
+      await manager.restore(User, { id: dto.id });
+      await manager.delete(DeletedAccountRecovery, { id: recovery.id });
+    });
+
+    return this.getUserById(dto.id);
+  }
+
   async getUsers(dto: AdminListUsersDto) {
-    const { page, limit, sort, search, role, status, isVerified, isPremium } =
+    const { page, limit, sort, search, role, status, isVerified, includeDeleted } =
       dto;
     const query = AppDataSource.getRepository(User)
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.authorProfile", "author")
       .loadRelationCountAndMap("user.novelCount", "author.novels")
       .loadRelationCountAndMap("user.commentCount", "user.comments");
+
+    if (includeDeleted || status === UserStatus.DELETED) {
+      query.withDeleted();
+    }
 
     if (search) {
       query.andWhere(
@@ -201,9 +330,6 @@ export class AdminService implements IAdminService {
     if (isVerified !== undefined) {
       query.andWhere("user.isVerified = :isVerified", { isVerified });
     }
-    if (isPremium !== undefined) {
-      query.andWhere("user.isPremium = :isPremium", { isPremium });
-    }
 
     query
       .orderBy("user.createdAt", sort.toUpperCase() as "ASC" | "DESC")
@@ -211,7 +337,7 @@ export class AdminService implements IAdminService {
       .take(limit);
 
     const [items, total] = await query.getManyAndCount();
-    return this.paginate(items, total, page, limit);
+    return this.paginate(items.map(withPremiumStatus), total, page, limit);
   }
 
   async getUserById(id: string) {
@@ -226,7 +352,20 @@ export class AdminService implements IAdminService {
       .getOne();
 
     if (!user) throw new NotFoundError("Kullanici bulunamadi.");
-    return user;
+
+    const { authorProfile, ...userData } = user;
+
+    return {
+      ...userData,
+      isPremium: isPremiumActive(userData.premiumUntil),
+      isAuthor: Boolean(authorProfile),
+      ...(authorProfile
+        ? {
+            authorId: authorProfile.id,
+            authorIsVerified: authorProfile.isVerified,
+          }
+        : {}),
+    };
   }
 
   async updateUser(id: string, dto: AdminUpdateUserDto) {

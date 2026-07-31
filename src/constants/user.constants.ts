@@ -6,8 +6,14 @@ export enum UserRoles {
 
 export enum UserStatus {
   ACTIVE = "active",
-  PENDING = "pending",
   BANNED = "banned",
+  DELETED = "deleted",
+}
+
+export enum UserAuthProvider {
+  LOCAL = "local",
+  GOOGLE = "google",
+  MIXED = "mixed",
 }
 
 export enum UserGender {

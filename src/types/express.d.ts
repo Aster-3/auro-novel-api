@@ -8,7 +8,8 @@ declare global {
         username: User["username"];
         email: User["email"];
         role: User["role"];
-        isPremium: User["isPremium"];
+        authProvider: User["authProvider"];
+        isPremium: boolean;
         premiumUntil: User["premiumUntil"];
         subscriptionTier: User["subscriptionTier"];
         subscriptionPeriod: User["subscriptionPeriod"];

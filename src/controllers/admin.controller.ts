@@ -13,6 +13,25 @@ export class AdminController {
     res.json(result);
   };
 
+  getDeletedAccountRecoveries = async (req: Request, res: Response) => {
+    const result = await this.adminService.getDeletedAccountRecoveries(
+      res.locals.validatedData,
+    );
+    res.json(result);
+  };
+
+  searchDeletedAccountRecovery = async (req: Request, res: Response) => {
+    const result = await this.adminService.searchDeletedAccountRecovery(
+      res.locals.validatedData,
+    );
+    res.json(result);
+  };
+
+  restoreDeletedUser = async (req: Request, res: Response) => {
+    const item = await this.adminService.restoreDeletedUser(req.body);
+    res.json({ message: "Kullanici geri getirildi.", item });
+  };
+
   createIndependentAuthor = async (req: Request, res: Response) => {
     const item = await this.adminService.createIndependentAuthor(req.body);
     res.status(201).json({ message: "Yazar olusturuldu.", item });
