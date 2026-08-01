@@ -30,7 +30,7 @@ export class TagService implements ITagService {
     if (limit > 20) limit = 20; // Maksimum 20 tag döndür
     return await this.tagRepo.getRandomTags(limit);
   }
-  async getNovelsByTagId(dto: GetTagNovelsDto) {
-    return await this.tagRepo.getNovelsByTagId(dto);
+  async getNovelsByTagId(dto: GetTagNovelsDto, allowAdultContent = false) {
+    return await this.tagRepo.getNovelsByTagId(dto, allowAdultContent);
   }
 }

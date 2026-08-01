@@ -14,6 +14,7 @@ import { GetMeQuery } from "../schemas/get.me.schema.js";
 import { createDeletedUserIdentity } from "../utils/deleted.user.presenter.js";
 import { DeletedAccountRecovery } from "../entities/DeletedAccountRecovery.js";
 import { createAccountRecoveryHash } from "../utils/account.recovery.hash.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 const DELETED_ACCOUNT_RECOVERY_DAYS = 30;
 
@@ -77,6 +78,9 @@ export class UserRepository implements IUserRepository {
         profileBackgroundImageUrl: true,
         description: true,
         gender: true,
+        showAdultContent: true,
+        adultContentConfirmedAt: true,
+        termsAndPrivacyAcceptedAt: true,
         role: true,
         authProvider: true,
         status: true,
@@ -134,7 +138,7 @@ export class UserRepository implements IUserRepository {
     };
   }
 
-  async searchUsers(dto: GetUsersDto) {
+  async searchUsers(dto: GetUsersDto, viewerId?: string) {
     const { search, page, limit, role, status } = dto;
 
     const isSearchSentButEmpty = search !== undefined && search.trim() === "";
@@ -149,24 +153,25 @@ export class UserRepository implements IUserRepository {
         lastPage: 0,
       };
     }
-    const where: any = {};
-    if (search) where.nickname = ILike(`%${search}%`);
-    if (role) where.role = role;
-    if (status) where.status = status;
+    const query = this.userRepo
+      .createQueryBuilder("user")
+      .select([
+        "user.id",
+        "user.username",
+        "user.nickname",
+        "user.profileImageUrl",
+        "user.email",
+      ])
+      .orderBy("user.createdAt", "ASC")
+      .take(limit)
+      .skip((page - 1) * limit);
 
-    const [result, total] = await this.userRepo.findAndCount({
-      where: where,
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        profileImageUrl: true,
-        email: true,
-      },
-      order: { createdAt: "ASC" },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
+    if (search) query.andWhere("user.nickname ILIKE :search", { search: `%${search}%` });
+    if (role) query.andWhere("user.role = :role", { role });
+    if (status) query.andWhere("user.status = :status", { status });
+    applyBlockedUserVisibilityFilter(query, viewerId, "user");
+
+    const [result, total] = await query.getManyAndCount();
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
     return {
@@ -191,6 +196,9 @@ export class UserRepository implements IUserRepository {
         role: true,
         authProvider: true,
         status: true,
+        showAdultContent: true,
+        adultContentConfirmedAt: true,
+        termsAndPrivacyAcceptedAt: true,
         password: true,
         googleId: true,
         refreshToken: true,
@@ -217,6 +225,30 @@ export class UserRepository implements IUserRepository {
   async updateUser(dto: UpdateUserDto) {
     const updatedUser = await this.userRepo.save(dto);
     return this.getUserForTokenRefresh(updatedUser.id);
+  }
+
+  async updateContentPreferences(
+    userId: string,
+    showAdultContent: boolean,
+  ) {
+    await this.userRepo.update({ id: userId }, { showAdultContent });
+    return this.getUserForTokenRefresh(userId);
+  }
+
+  async confirmAdultContent(userId: string, confirmedAt: Date) {
+    await this.userRepo.update(
+      { id: userId },
+      { adultContentConfirmedAt: confirmedAt },
+    );
+    return this.getUserForTokenRefresh(userId);
+  }
+
+  async acceptTermsAndPrivacy(userId: string, acceptedAt: Date) {
+    await this.userRepo.update(
+      { id: userId },
+      { termsAndPrivacyAcceptedAt: acceptedAt },
+    );
+    return this.getUserForTokenRefresh(userId);
   }
 
   async getMe(dto: GetMeQuery) {
@@ -262,6 +294,9 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         role: true,
         authProvider: true,
+        showAdultContent: true,
+        adultContentConfirmedAt: true,
+        termsAndPrivacyAcceptedAt: true,
         premiumUntil: true,
         subscriptionTier: true,
         subscriptionPeriod: true,

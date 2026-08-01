@@ -11,5 +11,8 @@ export interface ITagRepository {
   existBySlug(slug: string): Promise<boolean>;
   search(dto: SearchTagDto): Promise<FindAndCountType<Tags>>;
   getRandomTags(limit: number): Promise<Tags[]>;
-  getNovelsByTagId(dto: GetTagNovelsDto): Promise<FindAndCountType<Novel>>;
+  getNovelsByTagId(
+    dto: GetTagNovelsDto,
+    allowAdultContent?: boolean,
+  ): Promise<FindAndCountType<Novel>>;
 }

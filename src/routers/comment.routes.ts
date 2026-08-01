@@ -13,6 +13,7 @@ router.get("/top-week", commentController.getTopCommentsOfLastWeek); // OKEY
 
 router.get(
   "/:commentId",
+  optionalAuthMiddleware,
   validateSchema(deleteCommentSchema),
   commentController.getOneCommentById,
 );

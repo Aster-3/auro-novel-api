@@ -8,6 +8,9 @@ export class UserLoginResponseDto {
   profileImageUrl!: string | null;
   role!: string;
   authProvider!: string;
+  showAdultContent!: boolean;
+  adultContentConfirmedAt!: Date | null;
+  termsAndPrivacyAcceptedAt!: Date | null;
   isPremium!: boolean;
   premiumUntil!: Date | null;
   subscriptionTier!: string | null;
@@ -22,6 +25,9 @@ export class UserLoginResponseDto {
       this.profileImageUrl = data.profileImageUrl || null;
       this.role = data.role || "user";
       this.authProvider = data.authProvider || "local";
+      this.showAdultContent = data.showAdultContent ?? false;
+      this.adultContentConfirmedAt = data.adultContentConfirmedAt || null;
+      this.termsAndPrivacyAcceptedAt = data.termsAndPrivacyAcceptedAt || null;
       this.premiumUntil = data.premiumUntil || null;
       this.isPremium = isPremiumActive(this.premiumUntil);
       this.subscriptionTier = data.subscriptionTier || null;

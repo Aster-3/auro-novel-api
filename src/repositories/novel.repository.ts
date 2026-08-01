@@ -13,6 +13,8 @@ import { Chapter, Volume } from "../entities/_index.js";
 import { PublicationStatus } from "../constants/chapter.constants.js";
 import { NovelType, SeriesStatus } from "../constants/series.constants.js";
 import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
+import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -39,10 +41,7 @@ export class NovelRepository implements INovelRepository {
   private withVisibleAuthor(query: SelectQueryBuilder<Novel>) {
     return query
       .leftJoin("novel.author", "authorVisibility")
-      .leftJoin("authorVisibility.user", "authorUserVisibility")
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      );
+      .leftJoin("authorVisibility.user", "authorUserVisibility");
   }
 
   async create(createNovelDto: CreateNovelDTo) {
@@ -78,7 +77,11 @@ export class NovelRepository implements INovelRepository {
     });
   }
 
-  async getNovels(dto: GetNovelsDTo) {
+  async getNovels(
+    dto: GetNovelsDTo,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     const { name, authorId, status, limit, page } = dto;
     const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
@@ -96,6 +99,8 @@ export class NovelRepository implements INovelRepository {
       ])
       .skip((page - 1) * limit)
       .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
 
     if (name) query.andWhere("novel.name ILIKE :name", { name: `%${name}%` });
     if (authorId) query.andWhere("novel.authorId = :authorId", { authorId });
@@ -118,11 +123,16 @@ export class NovelRepository implements INovelRepository {
     };
   }
 
-  async getNovelsByAuthorUserId(userId: string, dto: QueryPageAndLimitDto) {
+  async getNovelsByAuthorUserId(
+    userId: string,
+    dto: QueryPageAndLimitDto,
+    viewerId?: string,
+  ) {
     const { limit, page } = dto;
     const query = this.novelRepo
       .createQueryBuilder("novel")
       .innerJoin("novel.author", "author")
+      .leftJoin("author.user", "authorUser")
       .select([
         "novel.id",
         "novel.name",
@@ -137,6 +147,7 @@ export class NovelRepository implements INovelRepository {
       .where("author.userId = :userId", { userId })
       .skip((page - 1) * limit)
       .take(limit);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
 
     const [novels, total] = await query.getManyAndCount();
 
@@ -152,7 +163,12 @@ export class NovelRepository implements INovelRepository {
     };
   }
 
-  async getRecentNovelsByAuthorId(authorId: string, limit: number) {
+  async getRecentNovelsByAuthorId(
+    authorId: string,
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
@@ -172,6 +188,8 @@ export class NovelRepository implements INovelRepository {
       .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
       .orderBy("novel.createdAt", "DESC")
       .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
 
     const [novels, total] = await query.getManyAndCount();
 
@@ -181,31 +199,32 @@ export class NovelRepository implements INovelRepository {
     };
   }
 
-  async findOneById(id: string) {
-    return this.withVisibleAuthor(
+  async findOneById(id: string, viewerId?: string) {
+    const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .leftJoinAndSelect("novel.author", "author")
       .leftJoinAndSelect("author.user", "authorUser")
       .leftJoinAndSelect("novel.tags", "tags")
       .leftJoinAndSelect("novel.categories", "categories")
-      .where("novel.id = :id", { id })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
-      .getOne();
+      .where("novel.id = :id", { id });
+
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+
+    return query.getOne();
   }
 
-  async getLastUpdatedNovels(limit: number): Promise<Novel[]> {
-    return this.withVisibleAuthor(
+  async getLastUpdatedNovels(
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ): Promise<Novel[]> {
+    const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .leftJoinAndSelect("novel.author", "author")
       .leftJoinAndSelect("author.user", "authorUser")
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
       .select([
         "novel.id",
         "novel.name",
@@ -217,13 +236,16 @@ export class NovelRepository implements INovelRepository {
         "novel.lastChapterDate",
         "author.id",
         "author.nickname",
+        "author.userId",
         "author.isVerified",
         "authorUser.id",
         "authorUser.nickname",
       ])
       .orderBy("novel.lastChapterDate", "DESC", "NULLS LAST")
-      .take(limit)
-      .getMany();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+    return query.getMany();
   }
 
   async getAllNovelsWithStats() {
@@ -255,8 +277,12 @@ export class NovelRepository implements INovelRepository {
     return firstPublishedChapter?.chapterId ?? null;
   }
 
-  async getWeeklyTrendingNovels(limit: number): Promise<Novel[]> {
-    return this.withVisibleAuthor(
+  async getWeeklyTrendingNovels(
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ): Promise<Novel[]> {
+    const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .select([
@@ -266,18 +292,21 @@ export class NovelRepository implements INovelRepository {
         "novel.weeklyRankingScore",
       ])
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
       .orderBy("novel.weeklyRankingScore", "DESC")
-      .take(limit)
-      .getMany();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
+    return query.getMany();
   }
 
-  async getRandomClassicNovels(limit: number): Promise<Novel[]> {
+  async getRandomClassicNovels(
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ): Promise<Novel[]> {
     const poolLimit = Math.max(limit * 4, 30);
 
-    const candidates = await this.withVisibleAuthor(
+    const candidatesQuery = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .select([
@@ -290,14 +319,17 @@ export class NovelRepository implements INovelRepository {
       ])
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
       .andWhere("novel.type = :type", { type: NovelType.CLASSIC })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
       .orderBy("novel.rankingScore", "DESC")
       .addOrderBy("novel.totalLibraryCount", "DESC")
       .addOrderBy("novel.totalReviewsCount", "DESC")
-      .take(poolLimit)
-      .getMany();
+      .take(poolLimit);
+    applyAdultContentFilter(candidatesQuery, allowAdultContent);
+    applyBlockedUserVisibilityFilter(
+      candidatesQuery,
+      viewerId,
+      "authorUserVisibility",
+    );
+    const candidates = await candidatesQuery.getMany();
 
     return candidates
       .sort(() => Math.random() - 0.5)
@@ -309,8 +341,13 @@ export class NovelRepository implements INovelRepository {
       })) as Novel[];
   }
 
-  async getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]> {
-    return this.withVisibleAuthor(
+  async getNovelsWithTagId(
+    tagId: string,
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ): Promise<Novel[]> {
+    const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .innerJoin("novel.tags", "tag", "tag.id = :tagId", { tagId })
@@ -322,38 +359,49 @@ export class NovelRepository implements INovelRepository {
         "novel.rankingScore",
       ])
       .orderBy("novel.rankingScore", "DESC")
-      .take(limit)
-      .getMany();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
+    return query.getMany();
   }
 
-  async getLastCreatedNovels(limit: number): Promise<Novel[]> {
-    return this.withVisibleAuthor(
+  async getLastCreatedNovels(
+    limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
+  ): Promise<Novel[]> {
+    const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .select(["novel.id", "novel.name", "novel.coverImage", "novel.createdAt"])
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
       .orderBy("novel.createdAt", "DESC")
-      .take(limit)
-      .getMany();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
+    return query.getMany();
   }
 
   async getSimilarNovels(
     novelId: string,
     limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
   ): Promise<SimilarNovelItem[]> {
-    const sourceNovel = await this.withVisibleAuthor(
+    const sourceNovelQuery = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
       .leftJoinAndSelect("novel.tags", "sourceTag")
       .leftJoinAndSelect("novel.categories", "sourceCategory")
-      .where("novel.id = :novelId", { novelId })
-      .andWhere(
-        "(authorVisibility.userId IS NULL OR authorUserVisibility.id IS NOT NULL)",
-      )
-      .getOne();
+      .where("novel.id = :novelId", { novelId });
+
+    applyBlockedUserVisibilityFilter(
+      sourceNovelQuery,
+      viewerId,
+      "authorUserVisibility",
+    );
+
+    const sourceNovel = await sourceNovelQuery.getOne();
 
     if (!sourceNovel) return [];
 
@@ -390,12 +438,8 @@ export class NovelRepository implements INovelRepository {
       .addSelect(sharedCategoryCountExpression, "sharedCategoryCount")
       .addSelect(similarityScoreExpression, "similarityScore")
       .where("novel.id != :novelId", { novelId })
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
-      .andWhere("novel.isBanned = false")
-      .andWhere("novel.isAdultContent = :isAdultContent", {
-        isAdultContent: sourceNovel.isAdultContent,
-      })
+      .andWhere('novel."isBanned" = false')
       .groupBy("novel.id")
       .orderBy('"similarityScore"', "DESC")
       .addOrderBy('"sharedTagCount"', "DESC")
@@ -407,6 +451,8 @@ export class NovelRepository implements INovelRepository {
         tagIds,
         categoryIds,
       });
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query as any, viewerId, "authorUser");
 
     const rows = await query.getRawMany<{
       id: string;

@@ -4,6 +4,7 @@ import { ICommentService } from "../interfaces/comment.service.interface.js";
 import { UserRoles } from "../constants/user.constants.js";
 import { BadRequestError } from "../errors/bad.request.js";
 import { IChapterService } from "../interfaces/chapter.service.interface.js";
+import { canShowAdultContent } from "../utils/adult.content.visibility.js";
 
 export class NovelController {
   constructor(
@@ -23,13 +24,20 @@ export class NovelController {
   };
 
   getNovels = async (req: Request, res: Response) => {
-    const novels = await this.novelService.getNovels(res.locals.validatedData);
+    const novels = await this.novelService.getNovels(
+      res.locals.validatedData,
+      canShowAdultContent(req.user),
+      req.user?.id,
+    );
     res.status(200).json(novels);
   };
 
   getOneNovel = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    const novel = await this.novelService.getNovelDetailWithId(id);
+    const novel = await this.novelService.getNovelDetailWithId(
+      id,
+      req.user?.id,
+    );
     res.status(200).json(novel);
   };
 
@@ -57,7 +65,10 @@ export class NovelController {
   getLast3CommentsByNovelId = async (req: Request, res: Response) => {
     const { novelId } = req.params as any;
     const comments =
-      await this.commentService.getLast3CommentsByNovelId(novelId);
+      await this.commentService.getLast3CommentsByNovelId(
+        novelId,
+        req.user?.id,
+      );
     res.status(200).json(comments);
   };
 
@@ -65,6 +76,8 @@ export class NovelController {
     const { limit } = req.query as any;
     const novels = await this.novelService.getLastUpdatedNovels(
       limit ? parseInt(limit) : undefined,
+      canShowAdultContent(req.user),
+      req.user?.id,
     );
     res.status(200).json(novels);
   };
@@ -73,6 +86,8 @@ export class NovelController {
     const { limit } = req.query as any;
     const novels = await this.novelService.getWeeklyTrendingNovels(
       limit ? parseInt(limit) : undefined,
+      canShowAdultContent(req.user),
+      req.user?.id,
     );
     res.status(200).json(novels);
   };
@@ -81,6 +96,8 @@ export class NovelController {
     const { limit } = req.query as any;
     const novels = await this.novelService.getRandomClassicNovels(
       limit ? parseInt(limit) : undefined,
+      canShowAdultContent(req.user),
+      req.user?.id,
     );
     res.status(200).json(novels);
   };
@@ -91,6 +108,8 @@ export class NovelController {
     const novels = await this.novelService.getNovelsWithTagId(
       id,
       limit ? parseInt(limit) : undefined,
+      canShowAdultContent(req.user),
+      req.user?.id,
     );
     res.status(200).json(novels);
   };
@@ -99,13 +118,20 @@ export class NovelController {
     const { limit } = req.query as any;
     const novels = await this.novelService.getLastCreatedNovels(
       limit ? parseInt(limit) : undefined,
+      canShowAdultContent(req.user),
+      req.user?.id,
     );
     res.status(200).json(novels);
   };
 
   getSimilarNovels = async (req: Request, res: Response) => {
     const { id, limit } = res.locals.validatedData;
-    const novels = await this.novelService.getSimilarNovels(id, limit);
+    const novels = await this.novelService.getSimilarNovels(
+      id,
+      limit,
+      canShowAdultContent(req.user),
+      req.user?.id,
+    );
     res.status(200).json({ items: novels });
   };
 

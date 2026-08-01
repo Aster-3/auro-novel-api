@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { ITagService } from "../interfaces/tag.service.interface.js";
+import { canShowAdultContent } from "../utils/adult.content.visibility.js";
 
 export class TagController {
   constructor(private tagService: ITagService) {}
@@ -29,6 +30,7 @@ export class TagController {
   getNovelsByTagId = async (req: Request, res: Response) => {
     const novels = await this.tagService.getNovelsByTagId(
       res.locals.validatedData,
+      canShowAdultContent(req.user),
     );
     res.json(novels);
   };

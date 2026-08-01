@@ -10,6 +10,7 @@ import { FindAndCountType } from "../constants/findAndCountType.js";
 import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 import { CommentSortType } from "../constants/comment.constants.js";
 import { presentUser } from "../utils/deleted.user.presenter.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -100,22 +101,27 @@ export class CommentRepository implements ICommentRepository {
       .getMany();
   }
 
-  async getLast3CommentsWithCount(novelId: string) {
-    const [items, total] = await this.commentRepo.findAndCount({
-      where: { novel: { id: novelId } },
-      order: { createdAt: "DESC" },
-      take: 3,
-      select: {
-        id: true,
-        content: true,
-        isRecommend: true,
-        createdAt: true,
-        user: { id: true, nickname: true, profileImageUrl: true },
-      },
-      relations: {
-        user: true,
-      },
-    });
+  async getLast3CommentsWithCount(novelId: string, viewerId?: string) {
+    const query = this.commentRepo
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .where("comment.novelId = :novelId", { novelId })
+      .select([
+        "comment.id",
+        "comment.content",
+        "comment.isRecommend",
+        "comment.createdAt",
+        "user.id",
+        "user.username",
+        "user.nickname",
+        "user.profileImageUrl",
+      ])
+      .orderBy("comment.createdAt", "DESC")
+      .take(3);
+
+    applyBlockedUserVisibilityFilter(query, viewerId, "user");
+
+    const [items, total] = await query.getManyAndCount();
 
     const reviewCountsByUserId = await this.getReviewCountsByUserIds(
       items.map((comment) => comment.user?.id).filter(Boolean) as string[],
@@ -177,6 +183,7 @@ export class CommentRepository implements ICommentRepository {
 
     if (userId) {
       query.andWhere("comment.userId != :userId", { userId });
+      applyBlockedUserVisibilityFilter(query, userId, "user");
 
       query.addSelect((subQuery) => {
         return subQuery
@@ -270,23 +277,28 @@ export class CommentRepository implements ICommentRepository {
       : null;
   }
 
-  async getOneById(id: number): Promise<Comment | null> {
-    const comment = await this.commentRepo.findOne({
-      where: { id },
-      select: {
-        id: true,
-        content: true,
-        isRecommend: true,
-        createdAt: true,
-        updatedAt: true,
-        likeCount: true,
-        replyCount: true,
-        user: { id: true, nickname: true, profileImageUrl: true },
-      },
-      relations: {
-        user: true,
-      },
-    });
+  async getOneById(id: number, viewerId?: string): Promise<Comment | null> {
+    const query = this.commentRepo
+      .createQueryBuilder("comment")
+      .leftJoinAndSelect("comment.user", "user")
+      .where("comment.id = :id", { id })
+      .select([
+        "comment.id",
+        "comment.content",
+        "comment.isRecommend",
+        "comment.createdAt",
+        "comment.updatedAt",
+        "comment.likeCount",
+        "comment.replyCount",
+        "user.id",
+        "user.username",
+        "user.nickname",
+        "user.profileImageUrl",
+      ]);
+
+    applyBlockedUserVisibilityFilter(query, viewerId, "user");
+
+    const comment = await query.getOne();
 
     if (!comment) return null;
 
@@ -308,6 +320,7 @@ export class CommentRepository implements ICommentRepository {
 
     const query = this.commentRepo
       .createQueryBuilder("comment")
+      .leftJoin("comment.user", "user")
       .leftJoinAndSelect("comment.novel", "novel")
       .innerJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
@@ -318,6 +331,9 @@ export class CommentRepository implements ICommentRepository {
       .take(limit);
 
     if (viewerId) {
+      applyBlockedUserVisibilityFilter(query, viewerId, "user");
+      applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")

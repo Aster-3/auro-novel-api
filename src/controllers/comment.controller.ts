@@ -37,6 +37,7 @@ export class CommentController {
     const { commentId } = req.params as any;
     const comment = await this.commentService.getOneCommentById(
       Number(commentId),
+      req.user?.id,
     );
     res.status(200).json(comment);
   };

@@ -5,6 +5,9 @@ import { GetMyLibraryDto } from "../schemas/get.my.library.schema.js";
 import { LibrarySortOption } from "../constants/series.constants.js";
 import { Novel } from "../entities/Novel.js";
 import { GetUserLibraryShowcaseDto } from "../schemas/get.user.showcase.schema.js";
+import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
+import { presentAuthor } from "../utils/deleted.user.presenter.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 export class LibraryRepository implements ILibraryRepository {
   constructor(private libraryRepo: Repository<Library>) {}
@@ -65,7 +68,7 @@ export class LibraryRepository implements ILibraryRepository {
     });
   }
 
-  async getMyLibrary(dto: GetMyLibraryDto) {
+  async getMyLibrary(dto: GetMyLibraryDto, viewerId = dto.userId) {
     const { userId, sortBy, limit, page, search } = dto;
     const skip = (page - 1) * limit;
 
@@ -82,7 +85,7 @@ export class LibraryRepository implements ILibraryRepository {
       )
       .where("library.userId = :userId", { userId });
     query.andWhere("library.isHidden = false");
-    query.andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
 
     if (search) {
       query.andWhere("novel.name ILIKE :search", { search: `%${search}%` });
@@ -103,13 +106,13 @@ export class LibraryRepository implements ILibraryRepository {
       .getManyAndCount();
 
     const items = libraryEntries.map((entry) => {
+      const author = presentAuthor(entry.novel?.author);
+
       return {
         novelId: entry.novelId,
         title: entry.novel.name,
-        authorName:
-          entry.novel?.author?.nickname ||
-          entry.novel?.author?.user?.nickname ||
-          "Unknown Author",
+        authorName: author.authorName,
+        authorIsDeleted: author.isDeletedUser,
         coverImageUrl: entry.novel.coverImage,
         isHidden: entry.isHidden,
         addedAt: entry.createdAt,
@@ -126,7 +129,11 @@ export class LibraryRepository implements ILibraryRepository {
     };
   }
 
-  async getPublicUserLibrary(dto: GetUserLibraryShowcaseDto) {
+  async getPublicUserLibrary(
+    dto: GetUserLibraryShowcaseDto,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     const { userId, sortBy, limit, page } = dto;
     const skip = (page - 1) * limit;
 
@@ -147,8 +154,9 @@ export class LibraryRepository implements ILibraryRepository {
         "lastReadChapter.id = stats.lastReadChapterId AND lastReadChapter.novelId = library.novelId",
       )
       .where("library.userId = :userId", { userId })
-      .andWhere("library.isHidden = false")
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)");
+      .andWhere("library.isHidden = false");
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
 
     query
       .addSelect("stats.lastChapterProgress", "stats_lastChapterProgress")
@@ -182,6 +190,7 @@ export class LibraryRepository implements ILibraryRepository {
       const rawItem = raw[index] ?? {};
       const readChapterCount = Number(rawItem.readChapterCount ?? 0);
       const totalChapterCount = entry.novel.chapterCount ?? 0;
+      const author = presentAuthor(entry.novel?.author);
       const readingProgressPercent =
         totalChapterCount > 0
           ? Math.min(
@@ -193,10 +202,8 @@ export class LibraryRepository implements ILibraryRepository {
       return {
         novelId: entry.novelId,
         title: entry.novel.name,
-        authorName:
-          entry.novel?.author?.nickname ||
-          entry.novel?.author?.user?.nickname ||
-          "Unknown Author",
+        authorName: author.authorName,
+        authorIsDeleted: author.isDeletedUser,
         coverImageUrl: entry.novel.coverImage,
         isHidden: entry.isHidden,
         addedAt: entry.createdAt,

@@ -20,7 +20,8 @@ export interface ICommentService {
   toggleLike(userId: string, commentId: number): Promise<boolean>;
   getLast3CommentsByNovelId(
     novelId: string,
+    viewerId?: string,
   ): Promise<{ items: Comment[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
-  getOneCommentById(id: number): Promise<Comment | null>;
+  getOneCommentById(id: number, viewerId?: string): Promise<Comment | null>;
 }

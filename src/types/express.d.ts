@@ -9,6 +9,7 @@ declare global {
         email: User["email"];
         role: User["role"];
         authProvider: User["authProvider"];
+        showAdultContent?: User["showAdultContent"];
         isPremium: boolean;
         premiumUntil: User["premiumUntil"];
         subscriptionTier: User["subscriptionTier"];

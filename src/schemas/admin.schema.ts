@@ -150,6 +150,7 @@ export const adminUpdateUserSchema = z.object({
       role: z.enum(UserRoles).optional(),
       status: z.enum(UserStatus).optional(),
       isVerified: z.boolean().optional(),
+      showAdultContent: z.boolean().optional(),
       premiumUntil: z.coerce.date().nullable().optional(),
       subscriptionTier: z.enum(UserSubscriptionTier).nullable().optional(),
       subscriptionPeriod: z.enum(UserSubscriptionPeriod).nullable().optional(),

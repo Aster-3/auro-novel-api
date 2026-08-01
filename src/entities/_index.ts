@@ -21,6 +21,7 @@ export * from "./PersonalNotification.js";
 export * from "./GlobalNotification.js";
 export * from "./UserDevice.js";
 export * from "./UserFollow.js";
+export * from "./UserBlock.js";
 export * from "./UserReadChapter.js";
 export * from "./PasswordReset.js";
 export * from "./FeedbackSubmission.js";

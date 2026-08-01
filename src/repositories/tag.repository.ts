@@ -5,6 +5,7 @@ import { Novel } from "../entities/Novel.js";
 import { CreateTagDto } from "../schemas/create.tag.schema.js";
 import { GetTagNovelsDto } from "../schemas/get.tag.novels.schema.js";
 import { SearchTagDto } from "../schemas/search.tag.schema.js";
+import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 
 export class TagRepository implements ITagRepository {
   constructor(private tagRepo: Repository<Tags>) {}
@@ -56,10 +57,10 @@ export class TagRepository implements ITagRepository {
       .getMany();
   }
 
-  async getNovelsByTagId(dto: GetTagNovelsDto) {
+  async getNovelsByTagId(dto: GetTagNovelsDto, allowAdultContent = false) {
     const { id, page, limit } = dto;
 
-    const [result, total] = await this.tagRepo.manager
+    const query = this.tagRepo.manager
       .getRepository(Novel)
       .createQueryBuilder("novel")
       .innerJoin("novel.tags", "tag", "tag.id = :id", { id })
@@ -76,12 +77,13 @@ export class TagRepository implements ITagRepository {
         "novel.lastChapterDate",
         "novel.createdAt",
       ])
-      .where("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("novel.rankingScore", "DESC")
       .addOrderBy("novel.createdAt", "DESC")
       .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+
+    const [result, total] = await query.getManyAndCount();
 
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;

@@ -32,12 +32,21 @@ export interface IUserRepository {
   softDeleteUser(id: string): Promise<void>;
   activateUser(user: User, verification: UserVerification): Promise<User>;
   create(user: CreateUserDto, code: string, expiry: Date): Promise<User>;
-  searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
+  searchUsers(dto: GetUsersDto, viewerId?: string): Promise<FindAndCountType<User>>;
   exsistById(id: string): Promise<boolean>;
   findByVerificationCodeandEmail(dto: VerifyUserDto): Promise<User | null>;
   findForLogin(email: string): Promise<User | null>;
   findWithPasswordById(id: string): Promise<User | null>;
   updateUser(dto: UpdateUserDto): Promise<User | null>;
+  updateContentPreferences(
+    userId: string,
+    showAdultContent: boolean,
+  ): Promise<User | null>;
+  confirmAdultContent(userId: string, confirmedAt: Date): Promise<User | null>;
+  acceptTermsAndPrivacy(
+    userId: string,
+    acceptedAt: Date,
+  ): Promise<User | null>;
   getMe(dto: GetMeQuery): Promise<User | null>;
   updateRefreshToken(userId: string, refreshToken: string): Promise<void>;
   updatePasswordAndClearRefreshToken(

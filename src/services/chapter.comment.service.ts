@@ -21,6 +21,14 @@ export class ChapterCommentService implements IChapterCommentService {
       throw new NotFoundError("Bolum bulunamadi.");
     }
 
+    const novel = await this.uow.novelRepository.findOneById(
+      chapter.novelId,
+      dto.userId,
+    );
+    if (!novel) {
+      throw new NotFoundError("Bolum bulunamadi.");
+    }
+
     return await this.uow.chapterCommentRepository.createRoot({
       ...dto,
       novelId: chapter.novelId,
@@ -41,6 +49,8 @@ export class ChapterCommentService implements IChapterCommentService {
       throw new NotFoundError("Ana yorum bulunamadi.");
     }
 
+    await this.ensureUsersCanInteract(dto.userId, rootComment.userId);
+
     if (rootComment.rootCommentId) {
       throw new BadRequestError("Yaniti sadece ana yorum altinda olusturabilirsiniz.");
     }
@@ -53,6 +63,8 @@ export class ChapterCommentService implements IChapterCommentService {
     if (!parentComment || parentComment.deletedAt) {
       throw new NotFoundError("Parent yorum bulunamadi.");
     }
+
+    await this.ensureUsersCanInteract(dto.userId, parentComment.userId);
 
     const parentRootId = parentComment.rootCommentId ?? parentComment.id;
     if (
@@ -130,9 +142,24 @@ export class ChapterCommentService implements IChapterCommentService {
       throw new NotFoundError("Yorum bulunamadi.");
     }
 
+    await this.ensureUsersCanInteract(userId, comment.userId);
+
     return await this.uow.chapterCommentLikeRepository.toggleLike(
       userId,
       commentId,
     );
+  }
+
+  private async ensureUsersCanInteract(userId: string, targetUserId: string) {
+    if (userId === targetUserId) return;
+
+    const blocked = await this.uow.userBlockRepository.existsBetween(
+      userId,
+      targetUserId,
+    );
+
+    if (blocked) {
+      throw new NotFoundError("Yorum bulunamadi.");
+    }
   }
 }

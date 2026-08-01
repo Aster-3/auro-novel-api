@@ -5,6 +5,7 @@ import {
   DELETED_USER_NICKNAME,
   presentUser,
 } from "../utils/deleted.user.presenter.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 import {
   GetUserFollowsDto,
   IUserFollowRepository,
@@ -31,6 +32,19 @@ export class UserFollowRepository implements IUserFollowRepository {
     return Boolean(result.affected);
   }
 
+  async removeBetween(firstUserId: string, secondUserId: string): Promise<void> {
+    await this.followRepo
+      .createQueryBuilder()
+      .delete()
+      .from(UserFollow)
+      .where(
+        `("followerId" = :firstUserId AND "followingId" = :secondUserId)
+        OR ("followerId" = :secondUserId AND "followingId" = :firstUserId)`,
+        { firstUserId, secondUserId },
+      )
+      .execute();
+  }
+
   async isFollowing(
     followerId: string,
     followingId: string,
@@ -46,7 +60,7 @@ export class UserFollowRepository implements IUserFollowRepository {
     const { userId, viewerId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
-    const [follows, total] = await this.followRepo
+    const query = this.followRepo
       .createQueryBuilder("follow")
       .innerJoinAndSelect("follow.follower", "follower")
       .where("follow.followingId = :userId", { userId })
@@ -62,8 +76,11 @@ export class UserFollowRepository implements IUserFollowRepository {
       ])
       .orderBy("follow.createdAt", "DESC")
       .take(limit)
-      .skip(skip)
-      .getManyAndCount();
+      .skip(skip);
+
+    applyBlockedUserVisibilityFilter(query, viewerId, "follower");
+
+    const [follows, total] = await query.getManyAndCount();
 
     const items = await this.addViewerFollowState(
       follows.map((follow) => presentUser(follow.follower)),
@@ -84,7 +101,7 @@ export class UserFollowRepository implements IUserFollowRepository {
     const { userId, viewerId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
-    const [follows, total] = await this.followRepo
+    const query = this.followRepo
       .createQueryBuilder("follow")
       .innerJoinAndSelect("follow.following", "following")
       .where("follow.followerId = :userId", { userId })
@@ -100,8 +117,11 @@ export class UserFollowRepository implements IUserFollowRepository {
       ])
       .orderBy("follow.createdAt", "DESC")
       .take(limit)
-      .skip(skip)
-      .getManyAndCount();
+      .skip(skip);
+
+    applyBlockedUserVisibilityFilter(query, viewerId, "following");
+
+    const [follows, total] = await query.getManyAndCount();
 
     const items = await this.addViewerFollowState(
       follows.map((follow) => presentUser(follow.following)),
@@ -116,18 +136,25 @@ export class UserFollowRepository implements IUserFollowRepository {
     );
   }
 
-  async getFollowCounts(userId: string): Promise<UserFollowCounts> {
+  async getFollowCounts(
+    userId: string,
+    viewerId?: string,
+  ): Promise<UserFollowCounts> {
+    const followersQuery = this.followRepo
+      .createQueryBuilder("follow")
+      .innerJoin("follow.follower", "follower")
+      .where("follow.followingId = :userId", { userId });
+    const followingQuery = this.followRepo
+      .createQueryBuilder("follow")
+      .innerJoin("follow.following", "following")
+      .where("follow.followerId = :userId", { userId });
+
+    applyBlockedUserVisibilityFilter(followersQuery, viewerId, "follower");
+    applyBlockedUserVisibilityFilter(followingQuery, viewerId, "following");
+
     const [followersCount, followingCount] = await Promise.all([
-      this.followRepo
-        .createQueryBuilder("follow")
-        .innerJoin("follow.follower", "follower")
-        .where("follow.followingId = :userId", { userId })
-        .getCount(),
-      this.followRepo
-        .createQueryBuilder("follow")
-        .innerJoin("follow.following", "following")
-        .where("follow.followerId = :userId", { userId })
-        .getCount(),
+      followersQuery.getCount(),
+      followingQuery.getCount(),
     ]);
 
     return { followersCount, followingCount };

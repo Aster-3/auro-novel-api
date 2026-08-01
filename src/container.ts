@@ -60,6 +60,7 @@ const replyService = new ReplyService(
   uow.replyLikeRepository,
   uow.commentRepository,
   uow.userRepository,
+  uow.userBlockRepository,
   uow.personalNotificationRepository,
   pushNotificationService,
 );

@@ -10,5 +10,8 @@ export interface ITagService {
   deleteTag(id: string): Promise<void>;
   searchTags(dto: SearchTagDto): Promise<FindAndCountType<Tags>>;
   getRandomTags(limit?: number): Promise<Tags[]>;
-  getNovelsByTagId(dto: GetTagNovelsDto): Promise<FindAndCountType<Novel>>;
+  getNovelsByTagId(
+    dto: GetTagNovelsDto,
+    allowAdultContent?: boolean,
+  ): Promise<FindAndCountType<Novel>>;
 }

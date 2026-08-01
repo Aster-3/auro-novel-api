@@ -7,12 +7,14 @@ import { IReplyLikeRepository } from "../interfaces/reply.like.repo.interface.js
 import { DeleteReplySchema } from "../schemas/delete.reply.schema.js";
 import { ICommentRepository } from "../interfaces/comment.repo.interface.js";
 import { IUserRepository } from "../interfaces/user.repo.interface.js";
+import { IUserBlockRepository } from "../interfaces/user.block.repo.interface.js";
 import { IPersonalNotificationRepository } from "../interfaces/personal.notification.repo.interface.js";
 import {
   NotificationTargetType,
   PersonalNotificationType,
 } from "../constants/notification.constants.js";
 import { PushNotificationService } from "./push.notification.service.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 
 export class ReplyService implements IReplyService {
   constructor(
@@ -20,11 +22,13 @@ export class ReplyService implements IReplyService {
     private replyLikeRepo: IReplyLikeRepository,
     private commentRepo: ICommentRepository,
     private userRepo: IUserRepository,
+    private userBlockRepo: IUserBlockRepository,
     private personalNotificationRepo: IPersonalNotificationRepository,
     private pushNotificationService: PushNotificationService,
   ) {}
 
   createReply = async (reply: CreateReplyWithUserDto) => {
+    await this.ensureReplyTargetVisible(reply);
     const createdReply = await this.replyRepo.create(reply);
     if (reply.parentReplyId) {
       await this.notifyParentReplyOwner(reply, createdReply.id);
@@ -43,6 +47,12 @@ export class ReplyService implements IReplyService {
   };
 
   toggleLike = async (userId: string, replyId: number) => {
+    const replyMeta = await this.replyRepo.getNotificationMetaById(replyId);
+    if (!replyMeta || replyMeta.deletedAt) {
+      throw new NotFoundError("Yanit bulunamadi.");
+    }
+    await this.ensureUsersCanInteract(userId, replyMeta.userId);
+
     const liked = await this.replyLikeRepo.toggleLike(userId, replyId);
 
     if (liked) {
@@ -51,6 +61,29 @@ export class ReplyService implements IReplyService {
 
     return liked;
   };
+
+  private async ensureReplyTargetVisible(reply: CreateReplyWithUserDto) {
+    const targetUserId = reply.parentReplyId
+      ? (await this.replyRepo.getNotificationMetaById(reply.parentReplyId))
+          ?.userId
+      : (await this.commentRepo.getNotificationMetaById(reply.rootCommentId))
+          ?.userId;
+
+    if (!targetUserId) {
+      throw new NotFoundError("Yanitlanacak icerik bulunamadi.");
+    }
+
+    await this.ensureUsersCanInteract(reply.userId, targetUserId);
+  }
+
+  private async ensureUsersCanInteract(userId: string, targetUserId: string) {
+    if (userId === targetUserId) return;
+
+    const blocked = await this.userBlockRepo.existsBetween(userId, targetUserId);
+    if (blocked) {
+      throw new NotFoundError("Yanitlanacak icerik bulunamadi.");
+    }
+  }
 
   private async notifyRootCommentOwner(
     reply: CreateReplyWithUserDto,

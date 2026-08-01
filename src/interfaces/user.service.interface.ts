@@ -9,6 +9,7 @@ import { GetMeQuery } from "../schemas/get.me.schema.js";
 import { GetNotificationsDto } from "../schemas/get.notifications.schema.js";
 import { GetUsersDto } from "../schemas/get.users.schema.js";
 import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js";
+import { UpdateContentPreferencesDto } from "../schemas/update.content.preferences.schema.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { UserLoginDto } from "../schemas/user.login.shema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
@@ -33,6 +34,7 @@ import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 import { GlobalNotificationWithSeenState } from "./global.notification.repo.interface.js";
 import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
 import { GoogleLoginDto } from "../schemas/google.login.schema.js";
+import { GetBlockedUsersDto } from "./user.block.repo.interface.js";
 
 export interface IUserService {
   create(dto: CreateUserDto): Promise<{
@@ -40,7 +42,30 @@ export interface IUserService {
     verificationEmailSent: boolean;
   }>;
   getOneUser(id: string): Promise<User>;
-  getUserProfile(id: string): Promise<PublicUserProfile>;
+  getUserProfile(id: string, viewerId?: string): Promise<PublicUserProfile>;
+  updateContentPreferences(
+    userId: string,
+    dto: UpdateContentPreferencesDto,
+  ): Promise<{
+    item: {
+      showAdultContent: boolean;
+      adultContentConfirmedAt?: Date | null;
+    };
+    accessToken: string;
+  }>;
+  confirmAdultContent(userId: string): Promise<{
+    item: {
+      showAdultContent: boolean;
+      adultContentConfirmedAt?: Date | null;
+    };
+    accessToken: string;
+  }>;
+  acceptTermsAndPrivacy(userId: string): Promise<{
+    item: {
+      termsAndPrivacyAcceptedAt?: Date | null;
+    };
+    accessToken: string;
+  }>;
   getUserReviews(
     dto: GetUserShowcaseDto,
     viewerId?: string,
@@ -51,10 +76,13 @@ export interface IUserService {
   ): Promise<FindAndCountType<any>>;
   getUserLibrary(
     dto: GetUserLibraryShowcaseDto,
+    allowAdultContent?: boolean,
+    viewerId?: string,
   ): Promise<FindAndCountType<any>>;
   getUserRecentActivity(
     userId: string,
     viewerId?: string,
+    allowAdultContent?: boolean,
   ): Promise<{
     recentNovels: {
       isAuthor: boolean;
@@ -78,7 +106,7 @@ export interface IUserService {
     userId: string,
     dto: DeleteMyAccountDto,
   ): Promise<{ message: string }>;
-  searchUsers(dto: GetUsersDto): Promise<FindAndCountType<User>>;
+  searchUsers(dto: GetUsersDto, viewerId?: string): Promise<FindAndCountType<User>>;
   verifyUser(dto: VerifyUserDto): Promise<User>;
   getAllVerifications(): Promise<UserVerification[]>;
   resendCode(email: string): Promise<{ message: string }>;
@@ -141,6 +169,25 @@ export interface IUserService {
     followerId: string,
     followingId: string,
   ): Promise<{ isFollowing: boolean; created: boolean }>;
+  blockUser(
+    blockerId: string,
+    blockedId: string,
+  ): Promise<{ isBlocked: boolean; created: boolean }>;
+  unblockUser(
+    blockerId: string,
+    blockedId: string,
+  ): Promise<{ isBlocked: boolean; removed: boolean }>;
+  getBlockStatus(
+    blockerId: string,
+    blockedId: string,
+  ): Promise<{
+    isBlocked: boolean;
+    isBlockedBy: boolean;
+    hasBlockBetween: boolean;
+  }>;
+  getBlockedUsers(
+    dto: GetBlockedUsersDto,
+  ): Promise<FindAndCountType<UserFollowListItem>>;
   unfollowUser(
     followerId: string,
     followingId: string,
@@ -149,7 +196,7 @@ export interface IUserService {
     followerId: string,
     followingId: string,
   ): Promise<UserFollowCounts & { isFollowing: boolean }>;
-  getFollowCounts(userId: string): Promise<UserFollowCounts>;
+  getFollowCounts(userId: string, viewerId?: string): Promise<UserFollowCounts>;
   getFollowers(
     dto: GetUserFollowsDto,
   ): Promise<FindAndCountType<UserFollowListItem>>;

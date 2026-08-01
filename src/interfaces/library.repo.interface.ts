@@ -3,21 +3,27 @@ import { GetMyLibraryDto } from "../schemas/get.my.library.schema.js";
 import { GetUserLibraryShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 
 export interface ILibraryRepository {
-  getMyLibrary(dto: GetMyLibraryDto): Promise<
+  getMyLibrary(dto: GetMyLibraryDto, viewerId?: string): Promise<
     FindAndCountType<{
       novelId: string;
       title: string;
       authorName: string;
+      authorIsDeleted: boolean;
       coverImageUrl?: string | null;
       isHidden: boolean;
       addedAt: Date;
     }>
   >;
-  getPublicUserLibrary(dto: GetUserLibraryShowcaseDto): Promise<
+  getPublicUserLibrary(
+    dto: GetUserLibraryShowcaseDto,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<
     FindAndCountType<{
       novelId: string;
       title: string;
       authorName: string;
+      authorIsDeleted: boolean;
       coverImageUrl?: string | null;
       isHidden: boolean;
       addedAt: Date;

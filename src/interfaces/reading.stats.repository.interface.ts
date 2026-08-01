@@ -29,6 +29,8 @@ export interface IReadingStatsRepository {
   getRecentReadsByUserId(
     userId: string,
     limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
   ): Promise<{ items: RecentReadItem[]; total: number }>;
   updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
   existControl(userId: string, novelId: string): Promise<boolean>;

@@ -19,13 +19,14 @@ export interface ICommentRepository {
   getTopCommentsOfLastWeek(): Promise<Comment[]>;
   getLast3CommentsWithCount(
     novelId: string,
+    viewerId?: string,
   ): Promise<{ items: any[]; total: number }>;
   getMyComment(novelId: string, userId: string): Promise<Comment | null>;
   isOwner(
     commentId: number,
     userId: string,
   ): Promise<{ novelId: string; isRecommend: boolean } | null>;
-  getOneById(id: number): Promise<Comment | null>;
+  getOneById(id: number, viewerId?: string): Promise<Comment | null>;
   getNotificationMetaById(
     id: number,
   ): Promise<{ id: number; userId: string; novelId: string } | null>;

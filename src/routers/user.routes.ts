@@ -3,6 +3,7 @@ import { validateSchema } from "../middlewares/validate.schema.js";
 import { paramsUuidSchema } from "../schemas/paramsUuidSchema.js";
 import { getUsersSchema } from "../schemas/get.users.schema.js";
 import { updateUserSchema } from "../schemas/update.user.schema.js";
+import { updateContentPreferencesSchema } from "../schemas/update.content.preferences.schema.js";
 import { getMeSchema } from "../schemas/get.me.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
@@ -26,7 +27,12 @@ import { deleteMyAccountSchema } from "../schemas/delete.my.account.schema.js";
 
 const router = Router({ strict: true });
 
-router.get("/", validateSchema(getUsersSchema), userController.getUsers);
+router.get(
+  "/",
+  optionalAuthMiddleware,
+  validateSchema(getUsersSchema),
+  userController.getUsers,
+);
 
 router.get(
   "/me",
@@ -65,6 +71,25 @@ router.patch(
   ]),
   validateSchema(updateUserSchema),
   userController.updateUser,
+);
+
+router.patch(
+  "/me/content-preferences",
+  authMiddleware,
+  validateSchema(updateContentPreferencesSchema),
+  userController.updateContentPreferences,
+);
+
+router.post(
+  "/me/adult-content-confirmation",
+  authMiddleware,
+  userController.confirmAdultContent,
+);
+
+router.post(
+  "/me/terms-and-privacy-acceptance",
+  authMiddleware,
+  userController.acceptTermsAndPrivacy,
 );
 
 router.delete(
@@ -164,6 +189,13 @@ router.delete(
 );
 
 router.get(
+  "/me/blocks",
+  authMiddleware,
+  validateSchema(getUserFollowsSchema.pick({ query: true })),
+  userController.getBlockedUsers,
+);
+
+router.get(
   "/:id/reviews",
   optionalAuthMiddleware,
   validateSchema(getUserShowcaseSchema),
@@ -179,6 +211,7 @@ router.get(
 
 router.get(
   "/:id/library",
+  optionalAuthMiddleware,
   validateSchema(getUserLibraryShowcaseSchema),
   userController.getUserLibrary,
 );
@@ -204,6 +237,27 @@ router.delete(
   userController.unfollowUser,
 );
 
+router.post(
+  "/:id/block",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.blockUser,
+);
+
+router.delete(
+  "/:id/block",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.unblockUser,
+);
+
+router.get(
+  "/:id/block-status",
+  authMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.getBlockStatus,
+);
+
 router.get(
   "/:id/follow-status",
   authMiddleware,
@@ -213,6 +267,7 @@ router.get(
 
 router.get(
   "/:id/follow-counts",
+  optionalAuthMiddleware,
   validateSchema(paramsUuidSchema),
   userController.getFollowCounts,
 );
@@ -237,6 +292,11 @@ router.get(
   userController.getAllVerifications,
 );
 
-router.get("/:id", validateSchema(paramsUuidSchema), userController.getOneUser);
+router.get(
+  "/:id",
+  optionalAuthMiddleware,
+  validateSchema(paramsUuidSchema),
+  userController.getOneUser,
+);
 
 export default router;

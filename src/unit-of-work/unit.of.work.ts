@@ -40,6 +40,7 @@ import {
   GlobalNotification,
   UserDevice,
   UserFollow,
+  UserBlock,
   UserReadChapter,
   PasswordReset,
   FeedbackSubmission,
@@ -75,6 +76,8 @@ import { IUserDeviceRepository } from "../interfaces/user.device.repo.interface.
 import { UserDeviceRepository } from "../repositories/user.device.repository.js";
 import { IUserFollowRepository } from "../interfaces/user.follow.repo.interface.js";
 import { UserFollowRepository } from "../repositories/user.follow.repository.js";
+import { IUserBlockRepository } from "../interfaces/user.block.repo.interface.js";
+import { UserBlockRepository } from "../repositories/user.block.repository.js";
 import { IUserReadChapterRepository } from "../interfaces/user.read.chapter.repo.interface.js";
 import { UserReadChapterRepository } from "../repositories/user.read.chapter.repository.js";
 import { IPasswordResetRepository } from "../interfaces/password.reset.repo.interface.js";
@@ -164,6 +167,14 @@ export class UnitOfWork implements IUnitOfWork {
       "userFollow",
       UserFollowRepository,
       UserFollow,
+    );
+  }
+
+  get userBlockRepository() {
+    return this.getRepo<IUserBlockRepository>(
+      "userBlock",
+      UserBlockRepository,
+      UserBlock,
     );
   }
 

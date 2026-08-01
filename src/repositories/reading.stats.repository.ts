@@ -5,6 +5,8 @@ import {
 } from "../interfaces/reading.stats.repository.interface.js";
 import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js";
 import { ReadingStats } from "../entities/ReadingStats.js";
+import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 export class ReadingStatsRepository implements IReadingStatsRepository {
   constructor(private readonly readingRepo: Repository<ReadingStats>) {}
@@ -72,8 +74,10 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
   async getRecentReadsByUserId(
     userId: string,
     limit: number,
+    allowAdultContent = false,
+    viewerId?: string,
   ): Promise<{ items: RecentReadItem[]; total: number }> {
-    const [stats, total] = await this.readingRepo
+    const query = this.readingRepo
       .createQueryBuilder("stats")
       .leftJoinAndSelect("stats.novel", "novel")
       .leftJoin("novel.author", "author")
@@ -85,10 +89,12 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
         "library.userId = stats.userId AND library.novelId = stats.novelId AND library.isHidden = false",
       )
       .where("stats.userId = :userId", { userId })
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("stats.lastReadAt", "DESC")
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
+    applyAdultContentFilter(query, allowAdultContent);
+    applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+
+    const [stats, total] = await query.getManyAndCount();
 
     return {
       items: stats.map((stat) => ({

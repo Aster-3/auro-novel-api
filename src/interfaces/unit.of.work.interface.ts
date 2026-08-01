@@ -20,6 +20,7 @@ import { IPersonalNotificationRepository } from "./personal.notification.repo.in
 import { IGlobalNotificationRepository } from "./global.notification.repo.interface.js";
 import { IUserDeviceRepository } from "./user.device.repo.interface.js";
 import { IUserFollowRepository } from "./user.follow.repo.interface.js";
+import { IUserBlockRepository } from "./user.block.repo.interface.js";
 import { IUserReadChapterRepository } from "./user.read.chapter.repo.interface.js";
 import { IPasswordResetRepository } from "./password.reset.repo.interface.js";
 import { IFeedbackSubmissionRepository } from "./feedback.submission.repo.interface.js";
@@ -48,6 +49,7 @@ export interface IUnitOfWork {
   globalNotificationRepository: IGlobalNotificationRepository;
   userDeviceRepository: IUserDeviceRepository;
   userFollowRepository: IUserFollowRepository;
+  userBlockRepository: IUserBlockRepository;
   userReadChapterRepository: IUserReadChapterRepository;
   passwordResetRepository: IPasswordResetRepository;
   feedbackSubmissionRepository: IFeedbackSubmissionRepository;

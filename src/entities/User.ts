@@ -28,6 +28,7 @@ import { ReadingStats } from "./ReadingStats.js";
 import { PersonalNotification } from "./PersonalNotification.js";
 import { UserDevice } from "./UserDevice.js";
 import { UserFollow } from "./UserFollow.js";
+import { UserBlock } from "./UserBlock.js";
 import { PasswordReset } from "./PasswordReset.js";
 import { ChapterComment } from "./ChapterComment.js";
 import { ChapterCommentLike } from "./ChapterCommentLike.js";
@@ -71,6 +72,15 @@ export class User {
 
   @Column({ type: "enum", enum: UserGender, nullable: true })
   gender?: UserGender | null;
+
+  @Column({ type: "boolean", default: false })
+  showAdultContent!: boolean;
+
+  @Column({ type: "timestamp", nullable: true })
+  adultContentConfirmedAt?: Date | null;
+
+  @Column({ type: "timestamp", nullable: true })
+  termsAndPrivacyAcceptedAt?: Date | null;
 
   @Column({ type: "enum", enum: UserRoles, default: UserRoles.USER })
   role!: UserRoles;
@@ -166,4 +176,10 @@ export class User {
 
   @OneToMany(() => UserFollow, (follow) => follow.following)
   followers!: UserFollow[];
+
+  @OneToMany(() => UserBlock, (block) => block.blocker)
+  blockedUsers!: UserBlock[];
+
+  @OneToMany(() => UserBlock, (block) => block.blocked)
+  blockedByUsers!: UserBlock[];
 }

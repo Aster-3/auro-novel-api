@@ -6,6 +6,7 @@ import { GetCommentRepliesDto } from "../schemas/get.comment.replies.schema.js";
 import { Comment } from "../entities/Comment.js";
 import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 import { presentUser } from "../utils/deleted.user.presenter.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 export class ReplyRepository implements IReplyRepository {
   constructor(private replyRepo: Repository<Reply>) {}
@@ -107,6 +108,9 @@ export class ReplyRepository implements IReplyRepository {
       .take(limit);
 
     if (userId) {
+      applyBlockedUserVisibilityFilter(query, userId, "user");
+      applyBlockedUserVisibilityFilter(query, userId, "parentUser");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")
@@ -180,6 +184,9 @@ export class ReplyRepository implements IReplyRepository {
       .take(limit);
 
     if (viewerId) {
+      applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+      applyBlockedUserVisibilityFilter(query, viewerId, "parentUser");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")

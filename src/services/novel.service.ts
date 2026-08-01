@@ -7,6 +7,7 @@ import { INovelService } from "../interfaces/novel.service.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
+import { presentAuthor } from "../utils/deleted.user.presenter.js";
 import { uploadToS3 } from "./s3.service.js";
 
 export class NovelService implements INovelService {
@@ -48,15 +49,17 @@ export class NovelService implements INovelService {
     return this.novelRepo.create(novelData);
   }
 
-  async getNovels(dto: GetNovelsDTo) {
-    return this.novelRepo.getNovels(dto);
+  async getNovels(
+    dto: GetNovelsDTo,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
+    return this.novelRepo.getNovels(dto, allowAdultContent, viewerId);
   }
 
-  async getNovelDetailWithId(id: string) {
-    const novel = await this.novelRepo.findOneById(id);
+  async getNovelDetailWithId(id: string, viewerId?: string) {
+    const novel = await this.novelRepo.findOneById(id, viewerId);
     if (!novel) throw new NotFoundError("Aradiginiz novel bulunamadi.");
-    const registeredUser = novel.author?.user;
-    const isRegisteredUser = Boolean(registeredUser?.id);
     const firstPublishedChapterId =
       await this.novelRepo.getFirstPublishedChapterId(id);
     const recommendationRate =
@@ -67,44 +70,65 @@ export class NovelService implements INovelService {
         : null;
     return {
       ...novel,
-      author: {
-        id: registeredUser?.id ?? novel.author.id,
-        authorName:
-          registeredUser?.nickname ?? novel.author.nickname ?? "Unknown Author",
-        isRegisteredUser,
-        isVerified: novel.author.isVerified,
-      },
+      author: presentAuthor(novel.author),
       recommendationRate,
       firstPublishedChapterId,
     };
   }
 
-  async getLastUpdatedNovels(limit: number = 15) {
-    const novels = await this.novelRepo.getLastUpdatedNovels(Number(limit));
-    return novels.map((novel) => ({
-      id: novel.id,
-      name: novel.name,
-      coverImage: novel.coverImage ?? null,
-      lastChapterDate: novel.lastChapterDate ?? null,
-      recommendRate: novel.totalReviewsCount
-        ? Math.round(
-            (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
-          )
-        : null,
-      chapterCount: novel.chapterCount,
-      authorName: novel.author.user
-        ? novel.author.user.nickname
-        : (novel.author.nickname ?? "Unknown Author"),
-    }));
+  async getLastUpdatedNovels(
+    limit: number = 15,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
+    const novels = await this.novelRepo.getLastUpdatedNovels(
+      Number(limit),
+      allowAdultContent,
+      viewerId,
+    );
+    return novels.map((novel) => {
+      const author = presentAuthor(novel.author);
+
+      return {
+        id: novel.id,
+        name: novel.name,
+        coverImage: novel.coverImage ?? null,
+        lastChapterDate: novel.lastChapterDate ?? null,
+        recommendRate: novel.totalReviewsCount
+          ? Math.round(
+              (novel.positiveReviewsCount / novel.totalReviewsCount) * 100,
+            )
+          : null,
+        chapterCount: novel.chapterCount,
+        authorName: author.authorName,
+        authorIsDeleted: author.isDeletedUser,
+      };
+    });
   }
 
-  async getWeeklyTrendingNovels(limit: number = 15) {
-    return await this.novelRepo.getWeeklyTrendingNovels(Number(limit));
+  async getWeeklyTrendingNovels(
+    limit: number = 15,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
+    return await this.novelRepo.getWeeklyTrendingNovels(
+      Number(limit),
+      allowAdultContent,
+      viewerId,
+    );
   }
 
-  async getRandomClassicNovels(limit: number = 15) {
+  async getRandomClassicNovels(
+    limit: number = 15,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     if (limit > 50) limit = 50;
-    return await this.novelRepo.getRandomClassicNovels(Number(limit));
+    return await this.novelRepo.getRandomClassicNovels(
+      Number(limit),
+      allowAdultContent,
+      viewerId,
+    );
   }
 
   async getAllNovelsWithStats() {
@@ -123,20 +147,48 @@ export class NovelService implements INovelService {
     await this.novelRepo.bulkUpdateWeeklyScores(data);
   }
 
-  async getNovelsWithTagId(tagId: string, limit: number = 15) {
+  async getNovelsWithTagId(
+    tagId: string,
+    limit: number = 15,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     if (limit > 50) limit = 50;
-    return await this.novelRepo.getNovelsWithTagId(tagId, limit);
+    return await this.novelRepo.getNovelsWithTagId(
+      tagId,
+      limit,
+      allowAdultContent,
+      viewerId,
+    );
   }
 
-  async getLastCreatedNovels(limit: number = 15) {
-    return await this.novelRepo.getLastCreatedNovels(limit);
+  async getLastCreatedNovels(
+    limit: number = 15,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
+    return await this.novelRepo.getLastCreatedNovels(
+      limit,
+      allowAdultContent,
+      viewerId,
+    );
   }
 
-  async getSimilarNovels(novelId: string, limit: number = 10) {
+  async getSimilarNovels(
+    novelId: string,
+    limit: number = 10,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
     const novelExists = await this.novelRepo.existControl({ id: novelId });
     if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
 
-    return await this.novelRepo.getSimilarNovels(novelId, limit);
+    return await this.novelRepo.getSimilarNovels(
+      novelId,
+      limit,
+      allowAdultContent,
+      viewerId,
+    );
   }
 
   async updateNovelCategories(

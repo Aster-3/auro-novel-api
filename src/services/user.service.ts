@@ -13,6 +13,7 @@ import { MailService } from "./mail.service.js";
 import { UserLoginDto } from "../schemas/user.login.shema.js";
 import { TokenService } from "./token.service.js";
 import { User } from "../entities/User.js";
+import { UpdateContentPreferencesDto } from "../schemas/update.content.preferences.schema.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
 import { GetMeQuery } from "../schemas/get.me.schema.js";
 import { UserLoginResponseDto } from "../dtos/login.dto.js";
@@ -44,6 +45,7 @@ import { GoogleLoginDto } from "../schemas/google.login.schema.js";
 import { getEnv } from "../utils/getEnv.js";
 import { AppDataSource } from "../database/data-source.js";
 import { UserVerification } from "../entities/UserVerification.js";
+import { AdultContentConfirmationRequiredError } from "../errors/adult.content.confirmation.required.error.js";
 
 const PASSWORD_RESET_CODE_EXPIRY_MS = 10 * 60000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
@@ -185,13 +187,15 @@ export class UserService implements IUserService {
     return user;
   };
 
-  getUserProfile = async (id: string) => {
+  getUserProfile = async (id: string, viewerId?: string) => {
+    await this.ensureUsersVisible(viewerId, id);
     const user = await this.uow.userRepository.findPublicProfileById(id);
     if (!user) throw new NotFoundError("Kullanici bulunamadi.");
     return user;
   };
 
   getUserReviews = async (dto: GetUserShowcaseDto, viewerId?: string) => {
+    await this.ensureUsersVisible(viewerId, dto.userId);
     const targetExists = await this.uow.userRepository.exsistById(dto.userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
@@ -201,6 +205,7 @@ export class UserService implements IUserService {
   };
 
   getUserReplies = async (dto: GetUserShowcaseDto, viewerId?: string) => {
+    await this.ensureUsersVisible(viewerId, dto.userId);
     const targetExists = await this.uow.userRepository.exsistById(dto.userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
@@ -209,16 +214,30 @@ export class UserService implements IUserService {
     return await this.uow.replyRepository.getRepliesByUserId(dto, viewerId);
   };
 
-  getUserLibrary = async (dto: GetUserLibraryShowcaseDto) => {
+  getUserLibrary = async (
+    dto: GetUserLibraryShowcaseDto,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) => {
+    await this.ensureUsersVisible(viewerId, dto.userId);
     const targetExists = await this.uow.userRepository.exsistById(dto.userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
     }
 
-    return await this.uow.libraryRepository.getPublicUserLibrary(dto);
+    return await this.uow.libraryRepository.getPublicUserLibrary(
+      dto,
+      allowAdultContent,
+      viewerId,
+    );
   };
 
-  getUserRecentActivity = async (userId: string, viewerId?: string) => {
+  getUserRecentActivity = async (
+    userId: string,
+    viewerId?: string,
+    allowAdultContent = false,
+  ) => {
+    await this.ensureUsersVisible(viewerId, userId);
     const targetProfile =
       await this.uow.userRepository.findPublicProfileById(userId);
     if (!targetProfile) {
@@ -230,6 +249,8 @@ export class UserService implements IUserService {
         ? this.uow.novelRepository.getRecentNovelsByAuthorId(
             targetProfile.authorId,
             3,
+            allowAdultContent,
+            viewerId,
           )
         : Promise.resolve({ items: [], total: 0 });
 
@@ -244,7 +265,12 @@ export class UserService implements IUserService {
           { id: userId, userId, page: 1, limit: 3 },
           viewerId,
         ),
-        this.uow.readingStatsRepository.getRecentReadsByUserId(userId, 3),
+        this.uow.readingStatsRepository.getRecentReadsByUserId(
+          userId,
+          3,
+          allowAdultContent,
+          viewerId,
+        ),
         this.uow.userReadChapterRepository.getReadProgressByUserId(userId),
       ]);
 
@@ -289,8 +315,8 @@ export class UserService implements IUserService {
     };
   };
 
-  searchUsers = async (dto: GetUsersDto) => {
-    return await this.uow.userRepository.searchUsers(dto);
+  searchUsers = async (dto: GetUsersDto, viewerId?: string) => {
+    return await this.uow.userRepository.searchUsers(dto, viewerId);
   };
 
   getAllVerifications = async () => {
@@ -421,6 +447,77 @@ export class UserService implements IUserService {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
     return withPremiumStatus(updated);
+  }
+
+  async updateContentPreferences(
+    userId: string,
+    dto: UpdateContentPreferencesDto,
+  ) {
+    const user = await this.uow.userRepository.findOneById(userId);
+    if (!user) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    if (dto.showAdultContent && !user.adultContentConfirmedAt) {
+      throw new AdultContentConfirmationRequiredError();
+    }
+
+    const updated = await this.uow.userRepository.updateContentPreferences(
+      userId,
+      dto.showAdultContent,
+    );
+    if (!updated) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    return {
+      item: {
+        showAdultContent: updated.showAdultContent,
+        adultContentConfirmedAt: updated.adultContentConfirmedAt,
+      },
+      accessToken: this.tokenService.generateAccessToken(
+        this.createAccessTokenPayload(updated),
+      ),
+    };
+  }
+
+  async confirmAdultContent(userId: string) {
+    const updated = await this.uow.userRepository.confirmAdultContent(
+      userId,
+      new Date(),
+    );
+    if (!updated) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    return {
+      item: {
+        showAdultContent: updated.showAdultContent,
+        adultContentConfirmedAt: updated.adultContentConfirmedAt,
+      },
+      accessToken: this.tokenService.generateAccessToken(
+        this.createAccessTokenPayload(updated),
+      ),
+    };
+  }
+
+  async acceptTermsAndPrivacy(userId: string) {
+    const updated = await this.uow.userRepository.acceptTermsAndPrivacy(
+      userId,
+      new Date(),
+    );
+    if (!updated) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    return {
+      item: {
+        termsAndPrivacyAcceptedAt: updated.termsAndPrivacyAcceptedAt,
+      },
+      accessToken: this.tokenService.generateAccessToken(
+        this.createAccessTokenPayload(updated),
+      ),
+    };
   }
 
   async getMe(dto: GetMeQuery): Promise<User> {
@@ -743,6 +840,8 @@ export class UserService implements IUserService {
       throw new NotFoundError("Takip edilecek kullanici bulunamadi.");
     }
 
+    await this.ensureUsersVisible(followerId, followingId);
+
     const created = await this.uow.userFollowRepository.follow(
       followerId,
       followingId,
@@ -753,6 +852,86 @@ export class UserService implements IUserService {
     }
 
     return { isFollowing: true, created };
+  }
+
+  async blockUser(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) {
+      throw new BadRequestError("Kullanici kendini engelleyemez.");
+    }
+
+    const targetExists = await this.uow.userRepository.exsistById(blockedId);
+    if (!targetExists) {
+      throw new NotFoundError("Engellenecek kullanici bulunamadi.");
+    }
+
+    await this.uow.startTransaction();
+
+    try {
+      const created = await this.uow.userBlockRepository.block(
+        blockerId,
+        blockedId,
+      );
+      await this.uow.userFollowRepository.removeBetween(blockerId, blockedId);
+      await this.uow.commit();
+      return { isBlocked: true, created };
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
+  }
+
+  async unblockUser(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) {
+      throw new BadRequestError("Kullanici kendi engelini kaldiramaz.");
+    }
+
+    const targetExists = await this.uow.userRepository.exsistById(blockedId);
+    if (!targetExists) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    const removed = await this.uow.userBlockRepository.unblock(
+      blockerId,
+      blockedId,
+    );
+
+    return { isBlocked: false, removed };
+  }
+
+  async getBlockStatus(blockerId: string, blockedId: string) {
+    const targetExists = await this.uow.userRepository.exsistById(blockedId);
+    if (!targetExists) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
+
+    if (blockerId === blockedId) {
+      return {
+        isBlocked: false,
+        isBlockedBy: false,
+        hasBlockBetween: false,
+      };
+    }
+
+    const [isBlocked, isBlockedBy] = await Promise.all([
+      this.uow.userBlockRepository.exists(blockerId, blockedId),
+      this.uow.userBlockRepository.exists(blockedId, blockerId),
+    ]);
+
+    return {
+      isBlocked,
+      isBlockedBy,
+      hasBlockBetween: isBlocked || isBlockedBy,
+    };
+  }
+
+  async getBlockedUsers(dto: {
+    userId: string;
+    page: number;
+    limit: number;
+  }) {
+    return await this.uow.userBlockRepository.getBlockedUsers(dto);
   }
 
   async unfollowUser(followerId: string, followingId: string) {
@@ -782,23 +961,40 @@ export class UserService implements IUserService {
     const [isFollowing, counts] = await Promise.all([
       followerId === followingId
         ? Promise.resolve(false)
-        : this.uow.userFollowRepository.isFollowing(followerId, followingId),
-      this.uow.userFollowRepository.getFollowCounts(followingId),
+        : this.uow.userBlockRepository
+            .existsBetween(followerId, followingId)
+            .then((blocked) =>
+              blocked
+                ? false
+                : this.uow.userFollowRepository.isFollowing(
+                    followerId,
+                    followingId,
+                  ),
+            ),
+      this.uow.userFollowRepository.getFollowCounts(followingId, followerId),
     ]);
 
-    return { isFollowing, ...counts };
+    const blockStatus =
+      followerId === followingId
+        ? { isBlocked: false, isBlockedBy: false, hasBlockBetween: false }
+        : await this.getBlockStatus(followerId, followingId);
+
+    return { isFollowing, ...blockStatus, ...counts };
   }
 
-  async getFollowCounts(userId: string) {
+  async getFollowCounts(userId: string, viewerId?: string) {
     const targetExists = await this.uow.userRepository.exsistById(userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
     }
 
-    return await this.uow.userFollowRepository.getFollowCounts(userId);
+    await this.ensureUsersVisible(viewerId, userId);
+
+    return await this.uow.userFollowRepository.getFollowCounts(userId, viewerId);
   }
 
   async getFollowers(dto: GetUserFollowsDto) {
+    await this.ensureUsersVisible(dto.viewerId, dto.userId);
     const targetExists = await this.uow.userRepository.exsistById(dto.userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
@@ -808,6 +1004,7 @@ export class UserService implements IUserService {
   }
 
   async getFollowing(dto: GetUserFollowsDto) {
+    await this.ensureUsersVisible(dto.viewerId, dto.userId);
     const targetExists = await this.uow.userRepository.exsistById(dto.userId);
     if (!targetExists) {
       throw new NotFoundError("Kullanici bulunamadi.");
@@ -855,6 +1052,21 @@ export class UserService implements IUserService {
   private isCodeResendOnCooldown(lastSentAt?: Date | null) {
     if (!lastSentAt) return false;
     return Date.now() - lastSentAt.getTime() < CODE_RESEND_COOLDOWN_MS;
+  }
+
+  private async ensureUsersVisible(viewerId: string | undefined, targetUserId: string) {
+    if (!viewerId || viewerId === targetUserId) {
+      return;
+    }
+
+    const hasBlockBetween = await this.uow.userBlockRepository.existsBetween(
+      viewerId,
+      targetUserId,
+    );
+
+    if (hasBlockBetween) {
+      throw new NotFoundError("Kullanici bulunamadi.");
+    }
   }
 
   private isReadEnoughToMarkChapter(readDurationInSeconds: number) {
@@ -966,6 +1178,7 @@ export class UserService implements IUserService {
       email: user.email,
       role: user.role,
       authProvider: user.authProvider,
+      showAdultContent: user.showAdultContent,
       isPremium: isPremiumActive(user.premiumUntil),
       premiumUntil: user.premiumUntil,
       subscriptionTier: user.subscriptionTier,

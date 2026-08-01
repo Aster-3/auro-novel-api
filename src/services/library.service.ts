@@ -18,13 +18,21 @@ export class LibraryService implements ILibraryService {
     await this.libraryRepo.removeNovelFromLibrary(novelId, userId);
   }
 
-  async getMyLibrary(dto: GetMyLibraryDto) {
+  async getMyLibrary(dto: GetMyLibraryDto, viewerId?: string) {
     console.log("Service DTO:", dto);
-    return await this.libraryRepo.getMyLibrary(dto);
+    return await this.libraryRepo.getMyLibrary(dto, viewerId);
   }
 
-  async getPublicUserLibrary(dto: GetUserLibraryShowcaseDto) {
-    return await this.libraryRepo.getPublicUserLibrary(dto);
+  async getPublicUserLibrary(
+    dto: GetUserLibraryShowcaseDto,
+    allowAdultContent = false,
+    viewerId?: string,
+  ) {
+    return await this.libraryRepo.getPublicUserLibrary(
+      dto,
+      allowAdultContent,
+      viewerId,
+    );
   }
 
   async isNovelInLibrary(novelId: string, userId: string): Promise<boolean> {

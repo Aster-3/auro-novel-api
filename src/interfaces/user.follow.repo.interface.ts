@@ -3,6 +3,7 @@ import { FindAndCountType } from "../constants/findAndCountType.js";
 export interface IUserFollowRepository {
   follow(followerId: string, followingId: string): Promise<boolean>;
   unfollow(followerId: string, followingId: string): Promise<boolean>;
+  removeBetween(firstUserId: string, secondUserId: string): Promise<void>;
   isFollowing(followerId: string, followingId: string): Promise<boolean>;
   getFollowers(
     dto: GetUserFollowsDto,
@@ -10,7 +11,7 @@ export interface IUserFollowRepository {
   getFollowing(
     dto: GetUserFollowsDto,
   ): Promise<FindAndCountType<UserFollowListItem>>;
-  getFollowCounts(userId: string): Promise<UserFollowCounts>;
+  getFollowCounts(userId: string, viewerId?: string): Promise<UserFollowCounts>;
 }
 
 export interface GetUserFollowsDto {

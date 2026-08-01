@@ -22,7 +22,10 @@ export class CommentService implements ICommentService {
   ) {}
 
   createComment = async (dto: CreateCommentDto) => {
-    const novel = await this.uow.novelRepository.findOneById(dto.novelId);
+    const novel = await this.uow.novelRepository.findOneById(
+      dto.novelId,
+      dto.userId,
+    );
     if (!novel) {
       throw new NotFoundError("Novel not found");
     }
@@ -97,7 +100,10 @@ export class CommentService implements ICommentService {
   };
 
   getCommentsByNovelId = async (dto: GetCommentsDto, userId: string) => {
-    const novel = await this.uow.novelRepository.findOneById(dto.novelId);
+    const novel = await this.uow.novelRepository.findOneById(
+      dto.novelId,
+      userId,
+    );
     if (!novel) {
       throw new NotFoundError("Novel not found");
     }
@@ -109,11 +115,30 @@ export class CommentService implements ICommentService {
     return await this.uow.commentRepository.getTopCommentsOfLastWeek();
   };
 
-  getCommentReplies(dto: GetCommentRepliesDto) {
+  async getCommentReplies(dto: GetCommentRepliesDto) {
+    if (dto.userId) {
+      const commentMeta = await this.uow.commentRepository.getNotificationMetaById(
+        dto.id,
+      );
+      if (!commentMeta) {
+        throw new NotFoundError("Yorum bulunamadi.");
+      }
+      await this.ensureUsersCanInteract(dto.userId, commentMeta.userId);
+    }
+
     return this.uow.replyRepository.getCommentReplies(dto);
   }
 
   async toggleLike(userId: string, commentId: number) {
+    const commentMeta =
+      await this.uow.commentRepository.getNotificationMetaById(commentId);
+
+    if (!commentMeta) {
+      throw new NotFoundError("Yorum bulunamadi.");
+    }
+
+    await this.ensureUsersCanInteract(userId, commentMeta.userId);
+
     const liked = await this.uow.commentLikeRepository.toggleLike(
       userId,
       commentId,
@@ -126,18 +151,21 @@ export class CommentService implements ICommentService {
     return liked;
   }
 
-  getLast3CommentsByNovelId(novelId: string) {
-    return this.uow.novelRepository.findOneById(novelId).then((novel) => {
+  getLast3CommentsByNovelId(novelId: string, viewerId?: string) {
+    return this.uow.novelRepository.findOneById(novelId, viewerId).then((novel) => {
       if (!novel) {
         throw new NotFoundError("Novel not found");
       }
 
-      return this.uow.commentRepository.getLast3CommentsWithCount(novelId);
+      return this.uow.commentRepository.getLast3CommentsWithCount(
+        novelId,
+        viewerId,
+      );
     });
   }
 
   async getMyComment(novelId: string, userId: string) {
-    const novel = await this.uow.novelRepository.findOneById(novelId);
+    const novel = await this.uow.novelRepository.findOneById(novelId, userId);
     if (!novel) {
       throw new NotFoundError("Novel not found");
     }
@@ -145,8 +173,21 @@ export class CommentService implements ICommentService {
     return this.uow.commentRepository.getMyComment(novelId, userId);
   }
 
-  getOneCommentById(id: number) {
-    return this.uow.commentRepository.getOneById(id);
+  getOneCommentById(id: number, viewerId?: string) {
+    return this.uow.commentRepository.getOneById(id, viewerId);
+  }
+
+  private async ensureUsersCanInteract(userId: string, targetUserId: string) {
+    if (userId === targetUserId) return;
+
+    const blocked = await this.uow.userBlockRepository.existsBetween(
+      userId,
+      targetUserId,
+    );
+
+    if (blocked) {
+      throw new NotFoundError("Yorum bulunamadi.");
+    }
   }
 
   private async notifyCommentOwnerForLike(userId: string, commentId: number) {

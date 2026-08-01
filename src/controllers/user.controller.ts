@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { IUserService } from "../interfaces/user.service.interface.js";
 import { uploadToS3 } from "../services/s3.service.js";
 import { ILibraryService } from "../interfaces/library.service.interface.js";
+import { canShowAdultContent } from "../utils/adult.content.visibility.js";
 
 export class UserController {
   constructor(
@@ -11,7 +12,7 @@ export class UserController {
 
   getOneUser = async (req: Request, res: Response) => {
     const { id } = req.params as any;
-    const user = await this.userService.getUserProfile(id);
+    const user = await this.userService.getUserProfile(id, req.user?.id);
     res.status(200).json(user);
   };
 
@@ -41,10 +42,14 @@ export class UserController {
 
   getUserLibrary = async (req: Request, res: Response) => {
     const { id: userId } = req.params as any;
-    const library = await this.userService.getUserLibrary({
-      userId,
-      ...res.locals.validatedData,
-    });
+    const library = await this.userService.getUserLibrary(
+      {
+        userId,
+        ...res.locals.validatedData,
+      },
+      canShowAdultContent(req.user),
+      req.user?.id,
+    );
     res.status(200).json(library);
   };
 
@@ -53,6 +58,7 @@ export class UserController {
     const activity = await this.userService.getUserRecentActivity(
       userId,
       req.user?.id,
+      canShowAdultContent(req.user),
     );
     res.status(200).json(activity);
   };
@@ -64,7 +70,10 @@ export class UserController {
   };
 
   getUsers = async (req: Request, res: Response) => {
-    const users = await this.userService.searchUsers(res.locals.validatedData);
+    const users = await this.userService.searchUsers(
+      res.locals.validatedData,
+      req.user?.id,
+    );
     res.status(200).json(users);
   };
 
@@ -74,7 +83,9 @@ export class UserController {
   };
 
   updateUser = async (req: Request, res: Response) => {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files =
+      (req.files as { [fieldname: string]: Express.Multer.File[] } | undefined) ??
+      {};
     const updateData = { ...req.body, id: req.user?.id };
 
     if (files.profileImageUrl) {
@@ -96,6 +107,36 @@ export class UserController {
 
     const updatedUser = await this.userService.updateUser(updateData);
     res.status(200).json(updatedUser);
+  };
+
+  updateContentPreferences = async (req: Request, res: Response) => {
+    const result = await this.userService.updateContentPreferences(
+      req.user?.id!,
+      req.body,
+    );
+
+    res.status(200).json({
+      message: "Icerik tercihleri guncellendi.",
+      ...result,
+    });
+  };
+
+  confirmAdultContent = async (req: Request, res: Response) => {
+    const result = await this.userService.confirmAdultContent(req.user?.id!);
+
+    res.status(200).json({
+      message: "Yetiskin icerik onayi kaydedildi.",
+      ...result,
+    });
+  };
+
+  acceptTermsAndPrivacy = async (req: Request, res: Response) => {
+    const result = await this.userService.acceptTermsAndPrivacy(req.user?.id!);
+
+    res.status(200).json({
+      message: "Kullanim kosullari ve gizlilik politikasi onayi kaydedildi.",
+      ...result,
+    });
   };
 
   getMe = async (req: Request, res: Response) => {
@@ -256,6 +297,42 @@ export class UserController {
     });
   };
 
+  blockUser = async (req: Request, res: Response) => {
+    const blockerId = req.user?.id!;
+    const { id: blockedId } = req.params as any;
+    const result = await this.userService.blockUser(blockerId, blockedId);
+    res.status(200).json({
+      message: result.created ? "User blocked" : "User already blocked",
+      ...result,
+    });
+  };
+
+  unblockUser = async (req: Request, res: Response) => {
+    const blockerId = req.user?.id!;
+    const { id: blockedId } = req.params as any;
+    const result = await this.userService.unblockUser(blockerId, blockedId);
+    res.status(200).json({
+      message: result.removed ? "User unblocked" : "User was not blocked",
+      ...result,
+    });
+  };
+
+  getBlockStatus = async (req: Request, res: Response) => {
+    const blockerId = req.user?.id!;
+    const { id: blockedId } = req.params as any;
+    const status = await this.userService.getBlockStatus(blockerId, blockedId);
+    res.status(200).json(status);
+  };
+
+  getBlockedUsers = async (req: Request, res: Response) => {
+    const userId = req.user?.id!;
+    const blocks = await this.userService.getBlockedUsers({
+      userId,
+      ...res.locals.validatedData,
+    });
+    res.status(200).json(blocks);
+  };
+
   getFollowStatus = async (req: Request, res: Response) => {
     const followerId = req.user?.id!;
     const { id: followingId } = req.params as any;
@@ -268,7 +345,7 @@ export class UserController {
 
   getFollowCounts = async (req: Request, res: Response) => {
     const { id: userId } = req.params as any;
-    const counts = await this.userService.getFollowCounts(userId);
+    const counts = await this.userService.getFollowCounts(userId, req.user?.id);
     res.status(200).json(counts);
   };
 

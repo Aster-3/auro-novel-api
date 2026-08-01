@@ -18,7 +18,12 @@ import { coverImageUpload } from "../middlewares/upload.middleware.js";
 import { getSimilarNovelsSchema } from "../schemas/get.similar.novels.schema.js";
 const router = Router();
 
-router.get("/", validateSchema(getNovelsSchema), novelController.getNovels); ///OKEY
+router.get(
+  "/",
+  optionalAuthMiddleware,
+  validateSchema(getNovelsSchema),
+  novelController.getNovels,
+); ///OKEY
 
 router.post(
   "/",
@@ -28,16 +33,33 @@ router.post(
   novelController.createNovel,
 ); ///OKEY
 
-router.get("/last-updated", novelController.getLastUpdatedNovels); ///OKEY
+router.get(
+  "/last-updated",
+  optionalAuthMiddleware,
+  novelController.getLastUpdatedNovels,
+); ///OKEY
 
-router.get("/weekly-trending", novelController.getWeeklyTrendingNovels); ///OKEY
+router.get(
+  "/weekly-trending",
+  optionalAuthMiddleware,
+  novelController.getWeeklyTrendingNovels,
+); ///OKEY
 
-router.get("/classics", novelController.getRandomClassicNovels); ///OKEY
+router.get(
+  "/classics",
+  optionalAuthMiddleware,
+  novelController.getRandomClassicNovels,
+); ///OKEY
 
-router.get("/last-created", novelController.getLastCreatedNovels); ///OKEY
+router.get(
+  "/last-created",
+  optionalAuthMiddleware,
+  novelController.getLastCreatedNovels,
+); ///OKEY
 
 router.get(
   "/with-tag/:id",
+  optionalAuthMiddleware,
   validateSchema(paramsUuidSchema),
   novelController.getNovelsWithTagId,
 ); ///OKEY
@@ -56,6 +78,7 @@ router.get(
 
 router.get(
   "/:id/similar",
+  optionalAuthMiddleware,
   validateSchema(getSimilarNovelsSchema),
   novelController.getSimilarNovels,
 );
@@ -68,6 +91,7 @@ router.post(
 
 router.get(
   "/:id",
+  optionalAuthMiddleware,
   validateSchema(paramsUuidSchema),
   novelController.getOneNovel,
 ); ///OKEY
@@ -124,6 +148,7 @@ router.post(
 
 router.get(
   "/:novelId/comments/last3",
+  optionalAuthMiddleware,
   validateSchema(paramsNovelIdSchema),
   novelController.getLast3CommentsByNovelId,
 ); ///OKEY

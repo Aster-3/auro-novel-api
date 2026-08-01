@@ -7,6 +7,7 @@ import { getTagNovelsSchema } from "../schemas/get.tag.novels.schema.js";
 import { tagController } from "../container.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { adminMiddleware } from "../middlewares/admin.middleware.js";
+import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.get("/random", tagController.getRandomTags);
 
 router.get(
   "/:id",
+  optionalAuthMiddleware,
   validateSchema(getTagNovelsSchema),
   tagController.getNovelsByTagId,
 );

@@ -26,22 +26,55 @@ export type SimilarNovelItem = Pick<
 
 export interface INovelRepository {
   create(novel: CreateNovelDTo): Promise<Novel>;
-  getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<NovelListItem>>;
+  getNovels(
+    dto: GetNovelsDTo,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<FindAndCountType<NovelListItem>>;
   getNovelsByAuthorUserId(
     userId: string,
     dto: QueryPageAndLimitDto,
+    viewerId?: string,
   ): Promise<FindAndCountType<NovelListItem>>;
   getRecentNovelsByAuthorId(
     authorId: string,
     limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
   ): Promise<{ items: NovelListItem[]; total: number }>;
-  getLastUpdatedNovels(limit: number): Promise<Novel[]>;
-  getWeeklyTrendingNovels(limit: number): Promise<Novel[]>;
-  getRandomClassicNovels(limit: number): Promise<Novel[]>;
-  getNovelsWithTagId(tagId: string, limit: number): Promise<Novel[]>;
-  getLastCreatedNovels(limit: number): Promise<Novel[]>;
-  getSimilarNovels(novelId: string, limit: number): Promise<SimilarNovelItem[]>;
-  findOneById(id: string): Promise<Novel | null>;
+  getLastUpdatedNovels(
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getWeeklyTrendingNovels(
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getRandomClassicNovels(
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getNovelsWithTagId(
+    tagId: string,
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getLastCreatedNovels(
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getSimilarNovels(
+    novelId: string,
+    limit: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<SimilarNovelItem[]>;
+  findOneById(id: string, viewerId?: string): Promise<Novel | null>;
   getFirstPublishedChapterId(novelId: string): Promise<string | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;

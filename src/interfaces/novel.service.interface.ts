@@ -7,9 +7,10 @@ import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 
 export type NovelDetailResponse = Omit<Novel, "author"> & {
   author: {
-    id: string;
+    id: string | null;
     authorName: string;
     isRegisteredUser: boolean;
+    isDeletedUser: boolean;
     isVerified: boolean;
   };
   recommendationRate: number | null;
@@ -22,8 +23,16 @@ export interface INovelService {
     isAdmin: boolean,
     file?: Express.Multer.File,
   ): Promise<Novel>;
-  getNovels(dto: GetNovelsDTo): Promise<FindAndCountType<NovelListItem>>;
-  getLastUpdatedNovels(limit?: number): Promise<
+  getNovels(
+    dto: GetNovelsDTo,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<FindAndCountType<NovelListItem>>;
+  getLastUpdatedNovels(
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<
     {
       id: string;
       name: string;
@@ -32,13 +41,36 @@ export interface INovelService {
       recommendRate: number | null;
       chapterCount: number;
       authorName: string;
+      authorIsDeleted: boolean;
     }[]
   >;
-  getWeeklyTrendingNovels(limit?: number): Promise<Novel[]>;
-  getRandomClassicNovels(limit?: number): Promise<Novel[]>;
-  getNovelsWithTagId(tagId: string, limit?: number): Promise<Novel[]>;
-  getLastCreatedNovels(limit?: number): Promise<Novel[]>;
-  getSimilarNovels(novelId: string, limit?: number): Promise<SimilarNovelItem[]>;
+  getWeeklyTrendingNovels(
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getRandomClassicNovels(
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getNovelsWithTagId(
+    tagId: string,
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getLastCreatedNovels(
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<Novel[]>;
+  getSimilarNovels(
+    novelId: string,
+    limit?: number,
+    allowAdultContent?: boolean,
+    viewerId?: string,
+  ): Promise<SimilarNovelItem[]>;
   refreshWeeklyTrendData(): Promise<void>;
   getAllNovelsWithStats(): Promise<
     {
@@ -49,7 +81,10 @@ export interface INovelService {
       totalLibraryCount: number;
     }[]
   >;
-  getNovelDetailWithId(id: string): Promise<NovelDetailResponse>;
+  getNovelDetailWithId(
+    id: string,
+    viewerId?: string,
+  ): Promise<NovelDetailResponse>;
   updateNovelCategories(
     novelId: string,
     categoryIds: number[],

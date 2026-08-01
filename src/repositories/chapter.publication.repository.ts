@@ -88,7 +88,6 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       .leftJoin("author.user", "authorUser")
       .innerJoinAndSelect("pub.volume", "volume")
       .where("pub.chapterId = :id", { id })
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .getOne();
 
     if (!publication) return null;
@@ -172,7 +171,6 @@ export class ChapterPublicationRepository implements IChapterPublicationReposito
       .andWhere("pub.publicationStatus = :published", {
         published: PublicationStatus.PUBLISHED,
       })
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .getOne();
 
     if (!publication) return null;

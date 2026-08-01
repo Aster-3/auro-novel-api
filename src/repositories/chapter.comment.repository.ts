@@ -8,6 +8,7 @@ import {
 } from "../schemas/create.chapter.comment.schema.js";
 import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js";
 import { presentUser } from "../utils/deleted.user.presenter.js";
+import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 
 export class ChapterCommentRepository implements IChapterCommentRepository {
   constructor(private commentRepo: Repository<ChapterComment>) {}
@@ -104,6 +105,8 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       .take(limit);
 
     if (userId) {
+      applyBlockedUserVisibilityFilter(query, userId, "user");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")
@@ -142,6 +145,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       .take(limit);
 
     if (userId) {
+      applyBlockedUserVisibilityFilter(query, userId, "user");
+      applyBlockedUserVisibilityFilter(query, userId, "parentUser");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")
@@ -174,6 +180,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       .where("comment.id = :id", { id });
 
     if (userId) {
+      applyBlockedUserVisibilityFilter(query, userId, "user");
+      applyBlockedUserVisibilityFilter(query, userId, "parentUser");
+
       query.addSelect((subQuery) => {
         return subQuery
           .select("COUNT(like.userId)", "cnt")
