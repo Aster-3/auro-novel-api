@@ -10,7 +10,6 @@ import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { Chapter, Volume } from "../entities/_index.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import { NovelType, SeriesStatus } from "../constants/series.constants.js";
 import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
@@ -266,11 +265,8 @@ export class NovelRepository implements INovelRepository {
       .innerJoin("pub.chapter", "chapter")
       .innerJoin("pub.volume", "volume")
       .where("chapter.novelId = :novelId", { novelId })
-      .andWhere("pub.publicationStatus = :published", {
-        published: PublicationStatus.PUBLISHED,
-      })
       .orderBy("volume.orderIndex", "ASC")
-      .addOrderBy("pub.orderIndex", "ASC")
+      .addOrderBy("pub.sortKey", "ASC")
       .select("pub.chapterId", "chapterId")
       .getRawOne<{ chapterId: string }>();
 
@@ -589,9 +585,6 @@ export class NovelRepository implements INovelRepository {
       .createQueryBuilder("ChapterPublication", "pub")
       .innerJoin("pub.chapter", "ch")
       .where("ch.novelId = :novelId", { novelId })
-      .andWhere("pub.publicationStatus = :status", {
-        status: PublicationStatus.PUBLISHED,
-      })
       .select("COUNT(pub.chapterId)", "count")
       .addSelect('MAX(pub."publishedAt")', "lastDate")
       .getRawOne();

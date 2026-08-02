@@ -8,11 +8,10 @@ import { uuidControlSchema } from "../schemas/uuid.control.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { chapterController } from "../container.js";
 import { createPublicationSchema } from "../schemas/publish.chapter.schema.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
-import z from "zod";
 import { createChapterCommentSchema } from "../schemas/create.chapter.comment.schema.js";
 import { getChapterCommentsSchema } from "../schemas/get.chapter.comments.schema.js";
 import { chapterCommentController } from "../container.js";
+import { moveChapterSchema } from "../schemas/move.chapter.schema.js";
 
 const router = Router();
 
@@ -21,14 +20,14 @@ router.post(
   authMiddleware,
   validateSchema(createChapterSchema),
   chapterController.createChapter,
-); ///OKEY
+);
 
 router.get(
   "/:id",
   optionalAuthMiddleware,
   validateSchema(uuidControlSchema("params", "id")),
   chapterController.getOneChapter,
-); /// OKEY
+);
 
 router.get(
   "/:id/offline",
@@ -55,14 +54,21 @@ router.get(
   authMiddleware,
   validateSchema(uuidControlSchema("params", "id")),
   chapterController.getOneDraftChapter,
-); /// OKEY
+);
 
 router.post(
   "/:id/publish",
   authMiddleware,
   validateSchema(createPublicationSchema),
   chapterController.publishChapter,
-); ///OKEY
+);
+
+router.patch(
+  "/:id/move",
+  authMiddleware,
+  validateSchema(moveChapterSchema),
+  chapterController.moveChapter,
+);
 
 router.patch(
   "/:id",
@@ -76,22 +82,6 @@ router.delete(
   authMiddleware,
   validateSchema(deleteChapterSchema),
   chapterController.deleteChapter,
-);
-
-router.patch(
-  "/:id/publication-status",
-  authMiddleware,
-  validateSchema(
-    z.object({
-      body: z.object({
-        publicationStatus: z.enum(
-          PublicationStatus,
-          "Geçersiz yayınlanma durumu",
-        ),
-      }),
-    }),
-  ),
-  chapterController.changePublicationStatus,
 );
 
 export default router;

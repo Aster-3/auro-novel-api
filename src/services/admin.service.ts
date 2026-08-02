@@ -21,7 +21,6 @@ import {
 } from "../entities/_index.js";
 import { SeriesStatus } from "../constants/series.constants.js";
 import { UserRoles, UserStatus } from "../constants/user.constants.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import {
   AdminListChaptersDto,
   AdminListCommentsDto,
@@ -113,9 +112,7 @@ export class AdminService implements IAdminService {
       novelRepo.count({ where: { status: SeriesStatus.DRAFT } }),
       novelRepo.count({ where: { isBanned: true } }),
       chapterRepo.count(),
-      AppDataSource.getRepository(ChapterPublication).count({
-        where: { publicationStatus: PublicationStatus.PUBLISHED },
-      }),
+      AppDataSource.getRepository(ChapterPublication).count(),
       commentRepo.count(),
       replyRepo.count(),
       userRepo.find({
@@ -660,26 +657,30 @@ export class AdminService implements IAdminService {
       throw new ConflictError("volumeId", "Gecersiz cilt ID.");
     }
 
-    const lastOrder =
-      await this.uow.chapterPublicationRepository.getLastChapterOrderInVolume(
-        volumeId,
+    const hasEmptyPrevious =
+      await this.uow.volumeRepository.hasAnyEmptyPreviousVolume(
+        dto.novelId,
+        volume.orderIndex,
       );
-    const orderIndex = dto.orderIndex ?? lastOrder + 1;
 
-    if (orderIndex > lastOrder + 1 || orderIndex <= lastOrder) {
+    if (hasEmptyPrevious) {
       throw new ConflictError(
-        "orderIndex",
-        "Bolum siralamasi gecersiz. Mevcut son siradan sonra gelmelidir.",
+        "volumeId",
+        "Ilk bos cilt atlanamaz. Lutfen onceki ciltleri doldurun.",
       );
     }
+
+    const lastSortKey =
+      await this.uow.chapterPublicationRepository.getLastSortKeyInVolume(
+        volumeId,
+      );
 
     await this.uow.startTransaction();
     try {
       await this.uow.chapterPublicationRepository.create({
         chapterId,
         volumeId,
-        orderIndex,
-        publicationStatus: dto.publicationStatus,
+        sortKey: lastSortKey + 1000,
         publishedAt: new Date(),
       });
       await this.uow.novelRepository.refreshChapterStats(dto.novelId);
@@ -701,7 +702,6 @@ export class AdminService implements IAdminService {
       sort,
       search,
       novelId,
-      publicationStatus,
       hasPublication,
     } = dto;
     const query = AppDataSource.getRepository(Chapter)
@@ -716,11 +716,6 @@ export class AdminService implements IAdminService {
       query.andWhere("chapter.title ILIKE :search", { search: `%${search}%` });
     }
     if (novelId) query.andWhere("chapter.novelId = :novelId", { novelId });
-    if (publicationStatus) {
-      query.andWhere("publication.publicationStatus = :publicationStatus", {
-        publicationStatus,
-      });
-    }
     if (hasPublication === true) {
       query.andWhere("publication.chapterId IS NOT NULL");
     } else if (hasPublication === false) {
@@ -757,33 +752,50 @@ export class AdminService implements IAdminService {
     return this.getChapterById(id);
   }
 
-  async updateChapterPublicationStatus(
-    id: string,
-    publicationStatus: PublicationStatus,
-  ) {
-    const publication = await AppDataSource.getRepository(
-      ChapterPublication,
-    ).findOne({ where: { chapterId: id }, relations: { chapter: true } });
-    if (!publication) {
-      throw new NotFoundError("Bolum yayini bulunamadi.");
-    }
-    await this.uow.chapterPublicationRepository.changePublicationStatus(
-      id,
-      publicationStatus,
-    );
-    await this.uow.novelRepository.refreshChapterStats(
-      publication.chapter.novelId,
-    );
-  }
-
   async deleteChapter(id: string) {
     const chapter = await AppDataSource.getRepository(Chapter).findOne({
       where: { id },
       select: { id: true, novelId: true },
     });
     if (!chapter) throw new NotFoundError("Bolum bulunamadi.");
-    await this.uow.chapterRepository.deleteChapter(id);
-    await this.uow.novelRepository.refreshChapterStats(chapter.novelId);
+
+    const publicationMeta =
+      await this.uow.chapterPublicationRepository.getChapterForMeta(id);
+
+    if (publicationMeta) {
+      const hasOtherChaptersInVolume =
+        await this.uow.chapterPublicationRepository.otherChaptersExistInVolume(
+          id,
+          publicationMeta.volumeId,
+        );
+
+      if (!hasOtherChaptersInVolume) {
+        const hasPopulatedVolumeAfter =
+          await this.uow.volumeRepository.hasPopulatedVolumeAfter(
+            publicationMeta.novelId,
+            publicationMeta.volumeOrder,
+          );
+
+        if (hasPopulatedVolumeAfter) {
+          throw new ConflictError(
+            "chapterId",
+            "Dolu ciltler arasinda bos cilt birakilamaz.",
+          );
+        }
+      }
+    }
+
+    await this.uow.startTransaction();
+    try {
+      await this.uow.chapterRepository.deleteChapter(id);
+      await this.uow.novelRepository.refreshChapterStats(chapter.novelId);
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
   }
 
   async getComments(dto: AdminListCommentsDto) {

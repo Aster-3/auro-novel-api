@@ -166,14 +166,6 @@ export class AdminController {
     res.json({ message: "Bolum guncellendi.", item });
   };
 
-  updateChapterPublicationStatus = async (req: Request, res: Response) => {
-    await this.adminService.updateChapterPublicationStatus(
-      this.getParam(req, "id"),
-      req.body.publicationStatus,
-    );
-    res.json({ message: "Bolum yayin durumu guncellendi." });
-  };
-
   publishChapter = async (req: Request, res: Response) => {
     const item = await this.adminService.publishChapter(
       this.getParam(req, "id"),

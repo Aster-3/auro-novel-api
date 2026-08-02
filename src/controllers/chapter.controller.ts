@@ -47,11 +47,23 @@ export class ChapterController {
     const isAdmin = req.user?.role === "admin";
     const authorId = req.user?.id || "";
     await this.chapterService.publishChapter(
-      { ...req.body, id: id },
+      { ...req.body, id },
       authorId,
       isAdmin,
     );
     res.status(201).json();
+  };
+
+  moveChapter = async (req: Request, res: Response) => {
+    const { id } = req.params as any;
+    const userId = req.user?.id || "";
+    const isAdmin = req.user?.role === "admin";
+    await this.chapterService.moveChapter(
+      { ...req.body, id },
+      userId,
+      isAdmin,
+    );
+    res.sendStatus(204);
   };
 
   deleteChapter = async (req: Request, res: Response) => {
@@ -67,25 +79,10 @@ export class ChapterController {
     const userId = req.user?.id || "";
     const isAdmin = req.user?.role === "admin";
     await this.chapterService.updateChapter(
-      { ...req.body, id: id },
+      { ...req.body, id },
       userId,
       isAdmin,
     );
     res.sendStatus(204);
   };
-
-  changePublicationStatus = async (req: Request, res: Response) => {
-    const { id } = req.params as any;
-    const { publicationStatus } = req.body;
-    const userId = req.user?.id || "";
-    const isAdmin = req.user?.role === "admin";
-    await this.chapterService.changePublicationStatus({
-      chapterId: id,
-      publicationStatus,
-      authorId: userId,
-      isAdmin,
-    });
-    res.sendStatus(204);
-  };
-
 }

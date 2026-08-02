@@ -116,17 +116,11 @@ export class VolumeRepository implements IVolumeRepository {
   ): Promise<boolean> {
     const emptyPrevious = await this.volumeRepo
       .createQueryBuilder("volume")
+      .leftJoin("volume.chapters", "publication")
       .where("volume.novelId = :novelId", { novelId })
       .andWhere("volume.orderIndex < :currentOrderIndex", { currentOrderIndex })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select("1")
-          .from("chapter", "chapter")
-          .where("chapter.volumeId = volume.id")
-          .getQuery();
-        return "NOT EXISTS " + subQuery;
-      })
+      .groupBy("volume.id")
+      .having('COUNT(publication."chapterId") = 0')
       .getOne();
 
     return !!emptyPrevious;
@@ -136,19 +130,7 @@ export class VolumeRepository implements IVolumeRepository {
     novelId: string,
     currentOrderIndex: number,
   ): Promise<boolean> {
-    const unpublishedVolume = await this.volumeRepo
-      .createQueryBuilder("volume")
-      // Sadece yayınlanmış bölümleri joinle
-      .leftJoin("volume.chapters", "chapter", "chapter.isPublished = :pub", {
-        pub: true,
-      })
-      .where("volume.novelId = :novelId", { novelId })
-      .andWhere("volume.orderIndex < :currentOrderIndex", { currentOrderIndex })
-      .groupBy("volume.id")
-      .having("COUNT(chapter.id) = 0")
-      .getOne();
-
-    return !!unpublishedVolume;
+    return this.hasAnyEmptyPreviousVolume(novelId, currentOrderIndex);
   }
 
   async findOldestEmptyOrLatestVolume(novelId: string) {
@@ -175,12 +157,11 @@ export class VolumeRepository implements IVolumeRepository {
   async hasPublishedInNextVolumes(novelId: string, currentOrderIndex: number) {
     const nextPublishedVolume = await this.volumeRepo
       .createQueryBuilder("volume")
-      .innerJoin("volume.chapters", "chapter")
+      .innerJoin("volume.chapters", "publication")
       .where("volume.novelId = :novelId", { novelId })
       .andWhere("volume.orderIndex > :currentVolumeOrder", {
         currentVolumeOrder: currentOrderIndex,
       })
-      .andWhere("chapter.isPublished = :pub", { pub: true })
       .select("volume.id")
       .getOne();
 
@@ -219,14 +200,19 @@ export class VolumeRepository implements IVolumeRepository {
     novelId: string,
     currentOrderIndex: number,
   ): Promise<boolean> {
-    const hasLaterPopulatedVolume = await this.volumeRepo.exists({
+    return !(await this.hasPopulatedVolumeAfter(novelId, currentOrderIndex));
+  }
+
+  async hasPopulatedVolumeAfter(
+    novelId: string,
+    currentOrderIndex: number,
+  ): Promise<boolean> {
+    return await this.volumeRepo.exists({
       where: {
-        novelId: novelId,
+        novelId,
         orderIndex: MoreThan(currentOrderIndex),
         chapters: { chapterId: Not(IsNull()) },
       },
     });
-
-    return !hasLaterPopulatedVolume;
   }
 }

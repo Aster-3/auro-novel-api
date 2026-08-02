@@ -41,6 +41,10 @@ export interface IVolumeRepository {
     novelId: string,
     currentOrderIndex: number,
   ): Promise<boolean>;
+  hasPopulatedVolumeAfter(
+    novelId: string,
+    currentOrderIndex: number,
+  ): Promise<boolean>;
   isVolumeEmpty(volumeId: string): Promise<boolean>;
   checkIfLastVolume(novelId: string, volumeId: string): Promise<boolean>;
 }

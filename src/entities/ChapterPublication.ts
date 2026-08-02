@@ -9,10 +9,9 @@ import {
 } from "typeorm";
 import { Chapter } from "./Chapter.js";
 import { Volume } from "./Volume.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 
 @Entity()
-@Index(["volumeId", "orderIndex"], { unique: true })
+@Index(["volumeId", "sortKey"], { unique: true })
 export class ChapterPublication {
   @PrimaryColumn("uuid")
   chapterId!: string;
@@ -34,23 +33,15 @@ export class ChapterPublication {
 
   @Column({
     type: "decimal",
-    precision: 6,
-    scale: 2,
-    default: 1.0,
+    precision: 12,
+    scale: 4,
+    default: 1000.0,
     transformer: {
       to: (value: number) => value,
       from: (value: string) => parseFloat(value),
     },
   })
-  orderIndex!: number;
-
-  @Index()
-  @Column({
-    type: "enum",
-    enum: PublicationStatus,
-    default: PublicationStatus.PUBLISHED,
-  })
-  publicationStatus!: PublicationStatus;
+  sortKey!: number;
 
   @Index()
   @Column({ type: "timestamp" })

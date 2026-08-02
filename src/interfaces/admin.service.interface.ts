@@ -1,7 +1,6 @@
 import { CreateGlobalNotificationDto } from "./global.notification.repo.interface.js";
 import { GlobalNotification } from "../entities/GlobalNotification.js";
 import { PushDispatchResult } from "../services/push.notification.service.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import {
   AdminListChaptersDto,
   AdminListCommentsDto,
@@ -68,10 +67,6 @@ export interface IAdminService {
   getChapters(dto: AdminListChaptersDto): Promise<any>;
   getChapterById(id: string): Promise<any>;
   updateChapter(id: string, dto: AdminUpdateChapterDto): Promise<any>;
-  updateChapterPublicationStatus(
-    id: string,
-    publicationStatus: PublicationStatus,
-  ): Promise<void>;
   deleteChapter(id: string): Promise<void>;
   getComments(dto: AdminListCommentsDto): Promise<any>;
   deleteComment(id: number): Promise<void>;

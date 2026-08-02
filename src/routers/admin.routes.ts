@@ -44,7 +44,6 @@ import {
   adminCreateVolumeSchema,
   adminPublishChapterSchema,
   adminUpdateChapterSchema,
-  adminUpdateChapterPublicationSchema,
   adminUpdateNotificationSchema,
   adminUpdateNovelSchema,
   adminUpdateUserSchema,
@@ -201,12 +200,6 @@ router.patch(
   "/chapters/:id",
   validateSchema(adminUpdateChapterSchema),
   adminController.updateChapter,
-);
-
-router.patch(
-  "/chapters/:id/publication-status",
-  validateSchema(adminUpdateChapterPublicationSchema),
-  adminController.updateChapterPublicationStatus,
 );
 
 router.delete(

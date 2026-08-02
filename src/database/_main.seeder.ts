@@ -2,7 +2,6 @@ import * as argon2 from "argon2";
 import { DataSource } from "typeorm";
 import { Seeder, SeederFactoryManager } from "typeorm-extension";
 import { BannerTargetType } from "../constants/banner.constants.js";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import { FeedbackSubmissionType } from "../constants/feedback.constants.js";
 import {
   NotificationTargetType,
@@ -415,11 +414,8 @@ export default class MainSeeder implements Seeder {
             volume: chapterIndex <= 3 ? novelVolumes[0] : novelVolumes[1],
             volumeId:
               chapterIndex <= 3 ? novelVolumes[0].id : novelVolumes[1].id,
-            orderIndex: chapterIndex,
-            publicationStatus:
-              chapterIndex === 6 && novelIndex % 2 === 1
-                ? PublicationStatus.UNPUBLISHED
-                : PublicationStatus.PUBLISHED,
+            sortKey:
+              (chapterIndex <= 3 ? chapterIndex : chapterIndex - 3) * 1000,
             publishedAt: addDays(new Date(), -(novelIndex * 8 + chapterIndex)),
           }),
         );

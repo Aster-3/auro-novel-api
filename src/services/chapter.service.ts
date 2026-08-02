@@ -1,13 +1,15 @@
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import { ConflictError } from "../errors/conflict.error.js";
-import { ForbiddenError } from "../errors/forbidden.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { IChapterService } from "../interfaces/chapter.service.interface.js";
 import { IUnitOfWork } from "../interfaces/unit.of.work.interface.js";
 import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
+import { MoveChapterDTO } from "../schemas/move.chapter.schema.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
 import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
+
+const SORT_KEY_STEP = 1000;
+const MIN_SORT_GAP = 1;
 
 export class ChapterService implements IChapterService {
   constructor(private uow: IUnitOfWork) {}
@@ -55,63 +57,18 @@ export class ChapterService implements IChapterService {
       );
     }
 
-    if (!dto.volumeId) {
-      const suggestedVolume =
-        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
-          dto.novelId,
-        );
-      if (!suggestedVolume) {
-        throw new ConflictError(
-          "volumeId",
-          "Bolum eklemek icin en az bir cilt olusturmalisiniz.",
-        );
-      }
-      dto.volumeId = suggestedVolume.id;
-    } else {
-      const volume = await this.uow.volumeRepository.getOneById(dto.volumeId);
-
-      if (!volume || volume.novelId !== dto.novelId) {
-        throw new ConflictError("volumeId", "Gecersiz cilt ID.");
-      }
-
-      const lastAddableVolume =
-        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
-          dto.novelId,
-        );
-
-      if (
-        !lastAddableVolume ||
-        volume.orderIndex > lastAddableVolume.orderIndex
-      ) {
-        throw new ConflictError(
-          "volumeId",
-          "En fazla bir cilt atlanabilir. Lutfen onceki ciltleri doldurun.",
-        );
-      }
-    }
-
-    const lastOrder =
-      await this.uow.chapterPublicationRepository.getLastChapterOrderInVolume(
-        dto.volumeId,
+    const volumeId = await this.resolvePublishVolumeId(dto);
+    const lastSortKey =
+      await this.uow.chapterPublicationRepository.getLastSortKeyInVolume(
+        volumeId,
       );
-
-    if (!dto.orderIndex || !isAdmin) {
-      dto.orderIndex = lastOrder + 1;
-    }
-
-    if (dto.orderIndex > lastOrder + 1 || dto.orderIndex <= lastOrder) {
-      throw new ConflictError(
-        "orderIndex",
-        "Bolum siralamasi gecersiz. Mevcut son siradan sonra gelmelidir.",
-      );
-    }
 
     await this.uow.startTransaction();
     try {
       await this.uow.chapterPublicationRepository.create({
         chapterId: dto.id,
-        volumeId: dto.volumeId,
-        orderIndex: dto.orderIndex,
+        volumeId,
+        sortKey: lastSortKey + SORT_KEY_STEP,
         publishedAt: new Date(),
       });
 
@@ -123,6 +80,212 @@ export class ChapterService implements IChapterService {
     } finally {
       await this.uow.release();
     }
+  }
+
+  private async resolvePublishVolumeId(dto: CreatePublicationDTO) {
+    if (!dto.volumeId) {
+      const suggestedVolume =
+        await this.uow.volumeRepository.findOldestEmptyOrLatestVolume(
+          dto.novelId,
+        );
+      if (!suggestedVolume) {
+        throw new ConflictError(
+          "volumeId",
+          "Bolum eklemek icin en az bir cilt olusturmalisiniz.",
+        );
+      }
+      return suggestedVolume.id;
+    }
+
+    const volume = await this.uow.volumeRepository.getOneById(dto.volumeId);
+
+    if (!volume || volume.novelId !== dto.novelId) {
+      throw new ConflictError("volumeId", "Gecersiz cilt ID.");
+    }
+
+    const hasEmptyPrevious =
+      await this.uow.volumeRepository.hasAnyEmptyPreviousVolume(
+        dto.novelId,
+        volume.orderIndex,
+      );
+
+    if (hasEmptyPrevious) {
+      throw new ConflictError(
+        "volumeId",
+        "Ilk bos cilt atlanamaz. Lutfen onceki ciltleri doldurun.",
+      );
+    }
+
+    return volume.id;
+  }
+
+  async moveChapter(
+    dto: MoveChapterDTO,
+    authorId: string,
+    isAdmin: boolean,
+  ): Promise<void> {
+    const chapterMeta =
+      await this.uow.chapterPublicationRepository.getChapterForMeta(dto.id);
+
+    if (!chapterMeta) {
+      throw new NotFoundError("Bolum bulunamadi veya henuz yayinlanmamis.");
+    }
+
+    if (!isAdmin && chapterMeta.authorId !== authorId) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu bolume erisim izniniz yok.",
+      );
+    }
+
+    const targetVolumeId = dto.targetVolumeId ?? chapterMeta.volumeId;
+    const targetVolume = await this.uow.volumeRepository.getOneById(
+      targetVolumeId,
+    );
+
+    if (!targetVolume || targetVolume.novelId !== chapterMeta.novelId) {
+      throw new ConflictError("targetVolumeId", "Gecersiz hedef cilt ID.");
+    }
+
+    await this.ensureMoveKeepsVolumeContinuity(chapterMeta, targetVolume);
+    const sortKey = await this.calculateSortKeyForPlacement(
+      targetVolumeId,
+      dto.placement,
+      dto.id,
+    );
+
+    await this.uow.startTransaction();
+    try {
+      await this.uow.chapterPublicationRepository.updatePlacement(
+        dto.id,
+        targetVolumeId,
+        sortKey,
+      );
+      await this.uow.novelRepository.refreshChapterStats(chapterMeta.novelId);
+      await this.uow.commit();
+    } catch (error) {
+      await this.uow.rollback();
+      throw error;
+    } finally {
+      await this.uow.release();
+    }
+  }
+
+  private async ensureMoveKeepsVolumeContinuity(
+    chapterMeta: { id: string; volumeId: string; volumeOrder: number; novelId: string },
+    targetVolume: { id: string; orderIndex: number; novelId: string },
+  ) {
+    const hasEmptyPreviousTarget =
+      await this.uow.volumeRepository.hasAnyEmptyPreviousVolume(
+        chapterMeta.novelId,
+        targetVolume.orderIndex,
+      );
+
+    if (hasEmptyPreviousTarget) {
+      throw new ConflictError(
+        "targetVolumeId",
+        "Dolu ciltler arasinda bos cilt birakilamaz.",
+      );
+    }
+
+    if (targetVolume.id === chapterMeta.volumeId) return;
+
+    const hasOtherChaptersInSource =
+      await this.uow.chapterPublicationRepository.otherChaptersExistInVolume(
+        chapterMeta.id,
+        chapterMeta.volumeId,
+      );
+
+    if (hasOtherChaptersInSource) return;
+
+    const sourceIsLastPopulated =
+      !(await this.uow.volumeRepository.hasPopulatedVolumeAfter(
+        chapterMeta.novelId,
+        chapterMeta.volumeOrder,
+      ));
+
+    if (!sourceIsLastPopulated || targetVolume.orderIndex > chapterMeta.volumeOrder) {
+      throw new ConflictError(
+        "targetVolumeId",
+        "Dolu ciltler arasinda bos cilt birakilamaz.",
+      );
+    }
+  }
+
+  private async calculateSortKeyForPlacement(
+    volumeId: string,
+    placement: MoveChapterDTO["placement"],
+    movingChapterId: string,
+    rebalanced = false,
+  ): Promise<number> {
+    let previous: number | null = null;
+    let next: number | null = null;
+
+    if (placement.type === "start") {
+      next = await this.uow.chapterPublicationRepository.getFirstSortKeyInVolume(
+        volumeId,
+        movingChapterId,
+      );
+    } else if (placement.type === "end") {
+      previous =
+        await this.uow.chapterPublicationRepository.getLastSortKeyInVolume(
+          volumeId,
+          movingChapterId,
+        );
+    } else {
+      if (placement.chapterId === movingChapterId) {
+        throw new ConflictError(
+          "placement",
+          "Bolum kendi konumuna gore tasinamaz.",
+        );
+      }
+
+      const anchorSortKey =
+        await this.uow.chapterPublicationRepository.getSortKeyByChapterIdInVolume(
+          placement.chapterId,
+          volumeId,
+        );
+
+      if (anchorSortKey === null) {
+        throw new ConflictError(
+          "placement.chapterId",
+          "Referans bolum hedef ciltte bulunamadi.",
+        );
+      }
+
+      if (placement.type === "before") {
+        previous =
+          await this.uow.chapterPublicationRepository.getPreviousSortKeyInVolume(
+            volumeId,
+            anchorSortKey,
+            movingChapterId,
+          );
+        next = anchorSortKey;
+      } else {
+        previous = anchorSortKey;
+        next = await this.uow.chapterPublicationRepository.getNextSortKeyInVolume(
+          volumeId,
+          anchorSortKey,
+          movingChapterId,
+        );
+      }
+    }
+
+    if (previous === null && next === null) return SORT_KEY_STEP;
+    if (previous === null) return next! / 2;
+    if (next === null) return previous + SORT_KEY_STEP;
+
+    if (next - previous < MIN_SORT_GAP && !rebalanced) {
+      await this.uow.chapterPublicationRepository.rebalanceVolume(volumeId);
+      return this.calculateSortKeyForPlacement(
+        volumeId,
+        placement,
+        movingChapterId,
+        true,
+      );
+    }
+
+    return (previous + next) / 2;
   }
 
   async updateChapter(
@@ -163,10 +326,10 @@ export class ChapterService implements IChapterService {
       );
     }
 
-    const isPublished =
+    const publicationMeta =
       await this.uow.chapterPublicationRepository.getChapterForMeta(chapterId);
 
-    if (!isPublished) {
+    if (!publicationMeta) {
       await this.uow.chapterRepository.deleteChapter(chapterId);
       return;
     }
@@ -174,20 +337,20 @@ export class ChapterService implements IChapterService {
     const hasOtherChaptersInVolume =
       await this.uow.chapterPublicationRepository.otherChaptersExistInVolume(
         chapterId,
-        isPublished.volumeId,
+        publicationMeta.volumeId,
       );
 
     if (!hasOtherChaptersInVolume) {
-      const isLastVolumeWithChapters =
-        await this.uow.volumeRepository.isLastVolumeWithChapters(
-          isPublished.novelId,
-          isPublished.volumeOrder,
+      const hasPopulatedVolumeAfter =
+        await this.uow.volumeRepository.hasPopulatedVolumeAfter(
+          publicationMeta.novelId,
+          publicationMeta.volumeOrder,
         );
 
-      if (!isLastVolumeWithChapters) {
+      if (hasPopulatedVolumeAfter) {
         throw new ConflictError(
           "chapterId",
-          "Cilt bos birakilamayacagi icin bu bolum silinemez.",
+          "Dolu ciltler arasinda bos cilt birakilamaz.",
         );
       }
     }
@@ -195,11 +358,7 @@ export class ChapterService implements IChapterService {
     await this.uow.startTransaction();
     try {
       await this.uow.chapterRepository.deleteChapter(chapterId);
-      await this.uow.chapterPublicationRepository.closeGapInVolume(
-        isPublished.volumeId,
-        isPublished.chapterOrder,
-      );
-      await this.uow.novelRepository.refreshChapterStats(isPublished.novelId);
+      await this.uow.novelRepository.refreshChapterStats(publicationMeta.novelId);
       await this.uow.commit();
     } catch (error) {
       await this.uow.rollback();
@@ -217,25 +376,15 @@ export class ChapterService implements IChapterService {
       throw new NotFoundError("Bolum mevcut degil.");
     }
 
-    const isOwner = data.authorId === userId;
-    const privilegedUser = isAdmin || isOwner;
-
-    if (
-      data.publicationStatus === PublicationStatus.UNPUBLISHED &&
-      !privilegedUser
-    ) {
-      throw new ForbiddenError("Bu bolum yayindan kaldirilmistir.");
-    }
-
     const [nextChapter, previousChapterId] = await Promise.all([
       this.uow.chapterPublicationRepository.getNextChapter(
         data.novelId,
-        data.chapterOrder,
+        data.sortKey,
         data.volumeOrder,
       ),
       this.uow.chapterPublicationRepository.getPreviousChapter(
         data.novelId,
-        data.chapterOrder,
+        data.sortKey,
         data.volumeOrder,
       ),
     ]);
@@ -403,34 +552,5 @@ export class ChapterService implements IChapterService {
       generatedAt: new Date().toISOString(),
       chapters,
     };
-  }
-
-  async changePublicationStatus({
-    chapterId,
-    publicationStatus,
-    authorId,
-    isAdmin,
-  }: {
-    chapterId: string;
-    publicationStatus: PublicationStatus;
-    authorId: string;
-    isAdmin: boolean;
-  }) {
-    const chapterMeta =
-      await this.uow.chapterPublicationRepository.getChapterForMeta(chapterId);
-    if (!chapterMeta) {
-      throw new NotFoundError("Bolum bulunamadi veya yayinda degil.");
-    }
-    const isOwner = chapterMeta.authorId === authorId;
-    if (!isAdmin && !isOwner) {
-      throw new ConflictError(
-        "invalid_access",
-        "Bu bolume erisim izniniz yok.",
-      );
-    }
-    await this.uow.chapterPublicationRepository.changePublicationStatus(
-      chapterId,
-      publicationStatus,
-    );
   }
 }

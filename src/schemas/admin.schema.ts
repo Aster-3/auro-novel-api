@@ -1,5 +1,4 @@
 import * as z from "zod";
-import { PublicationStatus } from "../constants/chapter.constants.js";
 import {
   UserRoles,
   UserStatus,
@@ -130,11 +129,6 @@ export const adminPublishChapterSchema = z.object({
   body: z.object({
     novelId: z.uuid("Gecersiz roman id."),
     volumeId: z.uuid("Gecersiz cilt id.").optional(),
-    orderIndex: z.coerce.number().min(1).optional(),
-    publicationStatus: z
-      .enum(PublicationStatus)
-      .optional()
-      .default(PublicationStatus.PUBLISHED),
   }),
 });
 
@@ -195,17 +189,7 @@ export const adminListChaptersSchema = z.object({
     ...adminPaginationQuery,
     search: z.string().trim().optional(),
     novelId: z.uuid().optional(),
-    publicationStatus: z.enum(PublicationStatus).optional(),
     hasPublication: queryBooleanSchema.optional(),
-  }),
-});
-
-export const adminUpdateChapterPublicationSchema = z.object({
-  params: z.object({
-    id: z.uuid("Gecersiz bolum id."),
-  }),
-  body: z.object({
-    publicationStatus: z.enum(PublicationStatus),
   }),
 });
 
