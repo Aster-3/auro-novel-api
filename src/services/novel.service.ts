@@ -16,6 +16,68 @@ export class NovelService implements INovelService {
     private authorRepo: IAuthorRepository,
   ) {}
 
+  private calculateWeeklyRankingScore(item: {
+    createdAt: Date | string;
+    viewCount: number | string;
+    totalReviewsCount: number | string;
+    positiveReviewsCount: number | string;
+    totalLibraryCount: number | string;
+    snapshotId: string | null;
+    totalViews: number | string | null;
+    totalReviews: number | string | null;
+    totalPositiveReviews: number | string | null;
+    totalLibraryCountSnapshot: number | string | null;
+  }) {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const isNewNovel = new Date(item.createdAt).getTime() >= sevenDaysAgo;
+
+    if (!item.snapshotId && !isNewNovel) {
+      return 0;
+    }
+
+    const baselineViews = item.snapshotId ? Number(item.totalViews ?? 0) : 0;
+    const baselineReviews = item.snapshotId
+      ? Number(item.totalReviews ?? 0)
+      : 0;
+    const baselinePositiveReviews = item.snapshotId
+      ? Number(item.totalPositiveReviews ?? 0)
+      : 0;
+    const baselineLibraryCount = item.snapshotId
+      ? Number(item.totalLibraryCountSnapshot ?? 0)
+      : 0;
+
+    const weeklyViews = Math.max(Number(item.viewCount) - baselineViews, 0);
+    const weeklyReviews = Math.max(
+      Number(item.totalReviewsCount) - baselineReviews,
+      0,
+    );
+    const weeklyPositiveReviews = Math.max(
+      Number(item.positiveReviewsCount) - baselinePositiveReviews,
+      0,
+    );
+    const weeklyLibraryAdds = Math.max(
+      Number(item.totalLibraryCount) - baselineLibraryCount,
+      0,
+    );
+
+    const reviewRatio =
+      weeklyReviews > 0
+        ? Math.min(weeklyPositiveReviews / weeklyReviews, 1)
+        : 0;
+
+    let score =
+      Math.log1p(weeklyViews) * 1.2 +
+      Math.log1p(weeklyReviews) * 6 +
+      Math.log1p(weeklyLibraryAdds) * 4 +
+      reviewRatio * Math.log1p(weeklyReviews) * 3;
+
+    if (weeklyReviews < 2 && weeklyLibraryAdds < 3 && weeklyViews < 50) {
+      score *= 0.4;
+    }
+
+    return Number(score.toFixed(4));
+  }
+
   async create(
     dto: CreateNovelDTo,
     isAdmin: boolean,
@@ -58,8 +120,18 @@ export class NovelService implements INovelService {
   }
 
   async getNovelDetailWithId(id: string, viewerId?: string) {
-    const novel = await this.novelRepo.findOneById(id, viewerId);
+    const novel = await this.novelRepo.findOneById(id, viewerId, {
+      includeBanned: true,
+    });
     if (!novel) throw new NotFoundError("Aradiginiz novel bulunamadi.");
+
+    if (
+      this.isNovelActivelyBanned(novel) &&
+      novel.author?.userId !== viewerId
+    ) {
+      throw new NotFoundError("Aradiginiz novel bulunamadi.");
+    }
+
     const firstPublishedChapterId =
       await this.novelRepo.getFirstPublishedChapterId(id);
     const recommendationRate =
@@ -108,11 +180,20 @@ export class NovelService implements INovelService {
 
   async getWeeklyTrendingNovels(
     limit: number = 15,
+    page: number = 1,
     allowAdultContent = false,
     viewerId?: string,
   ) {
+    const maxWeeklyTrendingItems = 200;
+    const safeLimit = Math.min(Math.max(Number(limit) || 15, 1), 50);
+    const safePage = Math.max(Number(page) || 1, 1);
+    const offset = (safePage - 1) * safeLimit;
+
+    if (offset >= maxWeeklyTrendingItems) return [];
+
     return await this.novelRepo.getWeeklyTrendingNovels(
-      Number(limit),
+      Math.min(safeLimit, maxWeeklyTrendingItems - offset),
+      safePage,
       allowAdultContent,
       viewerId,
     );
@@ -138,13 +219,14 @@ export class NovelService implements INovelService {
   async refreshWeeklyTrendData() {
     const trendData = await this.novelRepo.getWeeklyTrendData();
     const data = trendData.map((item) => {
-      const { totalReviewsCount, totalReviews } = item;
       return {
         id: item.id,
-        weeklyScore: totalReviewsCount - (totalReviews || 0),
+        weeklyScore: this.calculateWeeklyRankingScore(item),
       };
     });
     await this.novelRepo.bulkUpdateWeeklyScores(data);
+    await this.novelRepo.bulkCreateWeeklyRankSnapshots(data, 200);
+    await this.novelRepo.deleteOldWeeklyRankSnapshots(2);
   }
 
   async getNovelsWithTagId(
@@ -198,6 +280,7 @@ export class NovelService implements INovelService {
     isAdmin: boolean,
   ) {
     await this.ensureNovelAccess(novelId, userId, isAdmin);
+    await this.ensureNovelCanBeModified(novelId);
     await this.novelRepo.updateNovelCategories(novelId, categoryIds);
   }
 
@@ -208,6 +291,7 @@ export class NovelService implements INovelService {
     isAdmin: boolean,
   ) {
     await this.ensureNovelAccess(novelId, userId, isAdmin);
+    await this.ensureNovelCanBeModified(novelId);
     await this.novelRepo.updateNovelTags(novelId, tagIds);
   }
 
@@ -219,6 +303,7 @@ export class NovelService implements INovelService {
     const novelExists = await this.novelRepo.existControl({ id: dto.id });
     if (!novelExists) throw new NotFoundError("...");
     await this.ensureNovelAccess(dto.id, userId, isAdmin);
+    await this.ensureNovelCanBeModified(dto.id);
 
     const updateData = {
       ...dto,
@@ -238,6 +323,7 @@ export class NovelService implements INovelService {
     const novelExists = await this.novelRepo.existControl({ id: novelId });
     if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
     await this.ensureNovelAccess(novelId, userId, isAdmin);
+    await this.ensureNovelCanBeModified(novelId);
     await this.novelRepo.deleteNovel(novelId);
   }
 
@@ -253,7 +339,17 @@ export class NovelService implements INovelService {
     if (isAdmin) return;
     const isOwner = await this.novelRepo.isOwnerControl(novelId, userId);
     if (!isOwner) {
-      throw new ForbiddenError("Bu roman uzerinde islem yapma yetkiniz yok.");
+      throw new ForbiddenError("Bu roman üzerinde işlem yapma yetkiniz yok.");
     }
+  }
+
+  private async ensureNovelCanBeModified(novelId: string) {
+    if (await this.novelRepo.isActivelyBanned(novelId)) {
+      throw new ForbiddenError("Banlı roman üzerinde işlem yapılamaz.");
+    }
+  }
+
+  private isNovelActivelyBanned(novel: { bannedUntil?: Date | null }) {
+    return Boolean(novel.bannedUntil && novel.bannedUntil > new Date());
   }
 }

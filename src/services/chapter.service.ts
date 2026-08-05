@@ -1,4 +1,5 @@
 import { ConflictError } from "../errors/conflict.error.js";
+import { ForbiddenError } from "../errors/forbidden.error.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 import { IChapterService } from "../interfaces/chapter.service.interface.js";
 import { IUnitOfWork } from "../interfaces/unit.of.work.interface.js";
@@ -56,6 +57,7 @@ export class ChapterService implements IChapterService {
         "Bu romanin sahibi degilsiniz.",
       );
     }
+    this.ensureLoadedNovelCanBeModified(draft.novel);
 
     const volumeId = await this.resolvePublishVolumeId(dto);
     const lastSortKey =
@@ -137,6 +139,7 @@ export class ChapterService implements IChapterService {
         "Bu bolume erisim izniniz yok.",
       );
     }
+    await this.ensureNovelCanBeModified(chapterMeta.novelId, authorId, isAdmin);
 
     const targetVolumeId = dto.targetVolumeId ?? chapterMeta.volumeId;
     const targetVolume = await this.uow.volumeRepository.getOneById(
@@ -307,6 +310,7 @@ export class ChapterService implements IChapterService {
         "Bu bolume erisim izniniz yok.",
       );
     }
+    this.ensureLoadedNovelCanBeModified(chapter.novel);
 
     await this.uow.chapterRepository.updateChapter(dto);
   }
@@ -330,9 +334,17 @@ export class ChapterService implements IChapterService {
       await this.uow.chapterPublicationRepository.getChapterForMeta(chapterId);
 
     if (!publicationMeta) {
+      const draft = await this.uow.chapterRepository.getOneDraftChapterById(
+        chapterId,
+      );
+      if (!draft) {
+        throw new NotFoundError("Bolum bulunamadi.");
+      }
+      this.ensureLoadedNovelCanBeModified(draft.novel);
       await this.uow.chapterRepository.deleteChapter(chapterId);
       return;
     }
+    await this.ensureNovelCanBeModified(publicationMeta.novelId, authorId, isAdmin);
 
     const hasOtherChaptersInVolume =
       await this.uow.chapterPublicationRepository.otherChaptersExistInVolume(
@@ -370,7 +382,11 @@ export class ChapterService implements IChapterService {
 
   async getChapterForReading(id: string, userId: string, isAdmin: boolean) {
     const data =
-      await this.uow.chapterPublicationRepository.getChapterForReading(id);
+      await this.uow.chapterPublicationRepository.getChapterForReading(
+        id,
+        userId,
+        isAdmin,
+      );
 
     if (!data) {
       throw new NotFoundError("Bolum mevcut degil.");
@@ -552,5 +568,38 @@ export class ChapterService implements IChapterService {
       generatedAt: new Date().toISOString(),
       chapters,
     };
+  }
+
+  private async ensureNovelCanBeModified(
+    novelId: string,
+    userId: string,
+    isAdmin: boolean,
+  ) {
+    const novel = await this.uow.novelRepository.findOneById(
+      novelId,
+      undefined,
+      { includeBanned: true },
+    );
+
+    if (!novel) {
+      throw new NotFoundError("Roman bulunamadi.");
+    }
+
+    if (!isAdmin && novel.author?.userId !== userId) {
+      throw new ConflictError(
+        "invalid_access",
+        "Bu romanin sahibi degilsiniz.",
+      );
+    }
+
+    this.ensureLoadedNovelCanBeModified(novel);
+  }
+
+  private ensureLoadedNovelCanBeModified(
+    novel: { bannedUntil?: Date | null } | null | undefined,
+  ) {
+    if (novel?.bannedUntil && novel.bannedUntil > new Date()) {
+      throw new ForbiddenError("Banli roman uzerinde islem yapilamaz.");
+    }
   }
 }

@@ -1,7 +1,9 @@
 import { Repository } from "typeorm";
 import { PersonalNotification } from "../entities/PersonalNotification.js";
 import {
+  CreateAggregatedNotificationDto,
   CreateNotificationDto,
+  AggregatedNotificationResult,
   IPersonalNotificationRepository,
 } from "../interfaces/personal.notification.repo.interface.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
@@ -19,12 +21,86 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
       targetType: dto.targetType,
       targetId: dto.targetId ?? null,
       targetUrl: dto.targetUrl ?? null,
+      aggregationKey: null,
+      actorCount: 1,
       titleSnapshot: dto.titleSnapshot ?? null,
-      bodySnapshot: dto.bodySnapshot ?? null,
       data: dto.data ? JSON.stringify(dto.data) : null,
+      lastActivityAt: new Date(),
     });
 
     await this.notificationRepo.save(notification);
+  }
+
+  async createOrUpdateAggregatedNotification(
+    dto: CreateAggregatedNotificationDto,
+    pushThrottleMs: number,
+  ): Promise<AggregatedNotificationResult> {
+    const now = new Date();
+    const existing = await this.notificationRepo
+      .createQueryBuilder("notification")
+      .addSelect("notification.userId")
+      .addSelect("notification.aggregationKey")
+      .addSelect("notification.lastPushedAt")
+      .where("notification.userId = :userId", { userId: dto.userId })
+      .andWhere("notification.aggregationKey = :aggregationKey", {
+        aggregationKey: dto.aggregationKey,
+      })
+      .getOne();
+
+    if (!existing) {
+      const notification = this.notificationRepo.create({
+        userId: dto.userId,
+        actorUserId: dto.actorUserId ?? null,
+        type: dto.type,
+        targetType: dto.targetType,
+        targetId: dto.targetId ?? null,
+        targetUrl: dto.targetUrl ?? null,
+        aggregationKey: dto.aggregationKey,
+        actorCount: 1,
+        titleSnapshot: dto.titleSnapshot ?? null,
+        data: dto.data ? JSON.stringify(dto.data) : null,
+        lastActivityAt: now,
+        lastPushedAt: now,
+      });
+
+      return {
+        notification: await this.notificationRepo.save(notification),
+        shouldSendPush: true,
+      };
+    }
+
+    const lastPushedAt = existing.lastPushedAt;
+    const shouldSendPush =
+      !lastPushedAt || now.getTime() - lastPushedAt.getTime() >= pushThrottleMs;
+
+    existing.actorUserId = dto.actorUserId ?? null;
+    existing.targetType = dto.targetType;
+    existing.targetId = dto.targetId ?? null;
+    existing.targetUrl = dto.targetUrl ?? null;
+    existing.actorCount = (existing.actorCount || 1) + 1;
+    existing.titleSnapshot = dto.titleSnapshot ?? null;
+    existing.data = dto.data ? JSON.stringify(dto.data) : null;
+    existing.isRead = false;
+    existing.readAt = null;
+    existing.lastActivityAt = now;
+    if (shouldSendPush) {
+      existing.lastPushedAt = now;
+    }
+
+    return {
+      notification: await this.notificationRepo.save(existing),
+      shouldSendPush,
+    };
+  }
+
+  async updateNotificationSnapshots(
+    notificationId: string,
+    titleSnapshot: string,
+  ): Promise<void> {
+    await this.notificationRepo.update(
+      { id: notificationId },
+      { titleSnapshot },
+    );
   }
 
   async getUserNotifications(
@@ -33,22 +109,33 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     const { userId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
-    const [notifications, totalCount] = await this.notificationRepo
+    const recentRows = await this.notificationRepo
       .createQueryBuilder("notification")
-      .leftJoinAndSelect("notification.actorUser", "actorUser")
-      .select([
-        "notification",
-        "actorUser.id",
-        "actorUser.username",
-        "actorUser.nickname",
-        "actorUser.profileImageUrl",
-      ])
+      .select("notification.id", "id")
       .where("notification.userId = :userId", { userId })
-      .orderBy("notification.createdAt", "DESC")
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+      .orderBy("notification.lastActivityAt", "DESC")
+      .addOrderBy("notification.createdAt", "DESC")
+      .limit(200)
+      .getRawMany<{ id: string }>();
 
+    const totalCount = recentRows.length;
+    const pageIds = recentRows.slice(skip, skip + limit).map((row) => row.id);
+    const notifications = pageIds.length
+      ? await this.notificationRepo
+          .createQueryBuilder("notification")
+          .leftJoinAndSelect("notification.actorUser", "actorUser")
+          .select([
+            "notification",
+            "actorUser.id",
+            "actorUser.username",
+            "actorUser.nickname",
+            "actorUser.profileImageUrl",
+          ])
+          .where("notification.id IN (:...pageIds)", { pageIds })
+          .orderBy("notification.lastActivityAt", "DESC")
+          .addOrderBy("notification.createdAt", "DESC")
+          .getMany()
+      : [];
     const nextPage = page + 1;
     const totalPages = Math.ceil(totalCount / limit);
 

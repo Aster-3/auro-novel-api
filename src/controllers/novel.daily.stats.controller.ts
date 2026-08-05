@@ -5,10 +5,12 @@ export class NovelDailyStatsController {
 
   getDashboardStats = async (req: any, res: any) => {
     const { novelId } = req.params;
+    const { limit } = res.locals.validatedData;
     const authorId = req.user?.id;
     const stats = await this.novelDailyStatsService.getDashboardStats(
       novelId,
       authorId,
+      limit,
     );
     res.json(stats);
   };

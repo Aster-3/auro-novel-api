@@ -83,7 +83,8 @@ export const adminCreateNovelSchema = z.object({
     type: z.enum(NovelType).optional().default(NovelType.USER_GENERATED),
     freeLimit: z.coerce.number().int().min(0).optional().default(0),
     isAdultContent: queryBooleanSchema.optional().default(false),
-    isBanned: queryBooleanSchema.optional().default(false),
+    bannedUntil: z.coerce.date().nullable().optional().default(null),
+    banReason: z.string().trim().max(500).nullable().optional().default(null),
   }),
 });
 
@@ -178,7 +179,8 @@ export const adminUpdateNovelSchema = z.object({
       status: z.enum(SeriesStatus).optional(),
       type: z.enum(NovelType).optional(),
       freeLimit: z.coerce.number().int().min(0).optional(),
-      isBanned: queryBooleanSchema.optional(),
+      bannedUntil: z.coerce.date().nullable().optional(),
+      banReason: z.string().trim().max(500).nullable().optional(),
       isAdultContent: queryBooleanSchema.optional(),
     })
     .strict(),
@@ -229,8 +231,8 @@ export const adminUpdateNotificationSchema = z.object({
     .object({
       title: z.string().trim().min(1).max(255).optional(),
       summary: z.string().trim().min(1).max(500).optional(),
-      content: z.string().trim().min(1).optional(),
-      priority: z.coerce.number().int().min(0).max(100).optional(),
+      content: z.string().trim().min(1).nullable().optional(),
+      targetUrl: z.url("Gecersiz hedef URL.").nullable().optional(),
       isPublished: z.boolean().optional(),
       publishedAt: z.coerce.date().nullable().optional(),
       expiresAt: z.coerce.date().nullable().optional(),

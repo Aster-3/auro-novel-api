@@ -4,28 +4,39 @@ import {
   INovelRepository,
   NovelListItem,
   SimilarNovelItem,
+  WeeklyRankStatus,
+  WeeklyTrendingNovelItem,
 } from "../interfaces/novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { QueryPageAndLimitDto } from "../schemas/queryPageAndLimitSchema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
-import { Chapter, Volume } from "../entities/_index.js";
+import { Chapter, NovelWeeklyRankSnapshot, Volume } from "../entities/_index.js";
 import { NovelType, SeriesStatus } from "../constants/series.constants.js";
 import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
+import { getIstanbulDateString } from "../utils/date.string.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
 
-  private toNovelListItem(novel: Novel): NovelListItem {
-    return {
+  private getTodayDateString() {
+    return getIstanbulDateString();
+  }
+
+  private toNovelListItem(
+    novel: Novel,
+    options: { includeModeration?: boolean } = {},
+  ): NovelListItem {
+    const item: NovelListItem = {
       id: novel.id,
       name: novel.name,
       coverImage: novel.coverImage ?? null,
       synopsis: novel.synopsis ?? null,
       status: novel.status,
       chapterCount: novel.chapterCount,
+      averageChapterWordCount: novel.averageChapterWordCount,
       viewCount: novel.viewCount,
       totalReviewsCount: novel.totalReviewsCount,
       recommendationRate:
@@ -35,12 +46,68 @@ export class NovelRepository implements INovelRepository {
             )
           : null,
     };
+
+    if (options.includeModeration) {
+      item.bannedUntil = novel.bannedUntil ?? null;
+      item.banReason = novel.banReason ?? null;
+    }
+
+    return item;
   }
 
   private withVisibleAuthor(query: SelectQueryBuilder<Novel>) {
     return query
       .leftJoin("novel.author", "authorVisibility")
       .leftJoin("authorVisibility.user", "authorUserVisibility");
+  }
+
+  private applyActiveBanFilter(query: SelectQueryBuilder<Novel>) {
+    return query.andWhere(
+      '(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())',
+    );
+  }
+
+  private getRankStatus(rankChange: number | null): WeeklyRankStatus {
+    if (rankChange === null) return "new";
+    if (rankChange > 0) return "up";
+    if (rankChange < 0) return "down";
+    return "same";
+  }
+
+  private async getPreviousWeeklyRanks(novelIds: string[]) {
+    if (!novelIds.length) return new Map<string, number>();
+
+    const snapshotRepo = this.novelRepo.manager.getRepository(
+      NovelWeeklyRankSnapshot,
+    );
+    const latestSnapshot = await snapshotRepo
+      .createQueryBuilder("snapshot")
+      .select('MAX(snapshot."recordedAt")', "recordedAt")
+      .getRawOne<{ recordedAt: string | null }>();
+
+    if (!latestSnapshot?.recordedAt) return new Map<string, number>();
+
+    const previousSnapshot = await snapshotRepo
+      .createQueryBuilder("snapshot")
+      .select('MAX(snapshot."recordedAt")', "recordedAt")
+      .where('snapshot."recordedAt" < :latestRecordedAt', {
+        latestRecordedAt: latestSnapshot.recordedAt,
+      })
+      .getRawOne<{ recordedAt: string | null }>();
+
+    if (!previousSnapshot?.recordedAt) return new Map<string, number>();
+
+    const rows = await snapshotRepo
+      .createQueryBuilder("snapshot")
+      .select('snapshot."novelId"', "novelId")
+      .addSelect('snapshot."rank"', "rank")
+      .where('snapshot."recordedAt" = :recordedAt', {
+        recordedAt: previousSnapshot.recordedAt,
+      })
+      .andWhere('snapshot."novelId" IN (:...novelIds)', { novelIds })
+      .getRawMany<{ novelId: string; rank: number }>();
+
+    return new Map(rows.map((row) => [row.novelId, Number(row.rank)]));
   }
 
   async create(createNovelDto: CreateNovelDTo) {
@@ -76,6 +143,14 @@ export class NovelRepository implements INovelRepository {
     });
   }
 
+  async isActivelyBanned(novelId: string) {
+    return this.novelRepo
+      .createQueryBuilder("novel")
+      .where("novel.id = :novelId", { novelId })
+      .andWhere('novel."bannedUntil" > NOW()')
+      .getExists();
+  }
+
   async getNovels(
     dto: GetNovelsDTo,
     allowAdultContent = false,
@@ -92,6 +167,7 @@ export class NovelRepository implements INovelRepository {
         "novel.synopsis",
         "novel.status",
         "novel.chapterCount",
+        "novel.averageChapterWordCount",
         "novel.viewCount",
         "novel.positiveReviewsCount",
         "novel.totalReviewsCount",
@@ -99,6 +175,7 @@ export class NovelRepository implements INovelRepository {
       .skip((page - 1) * limit)
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
 
     if (name) query.andWhere("novel.name ILIKE :name", { name: `%${name}%` });
@@ -139,6 +216,9 @@ export class NovelRepository implements INovelRepository {
         "novel.synopsis",
         "novel.status",
         "novel.chapterCount",
+        "novel.averageChapterWordCount",
+        "novel.bannedUntil",
+        "novel.banReason",
         "novel.viewCount",
         "novel.positiveReviewsCount",
         "novel.totalReviewsCount",
@@ -150,7 +230,9 @@ export class NovelRepository implements INovelRepository {
 
     const [novels, total] = await query.getManyAndCount();
 
-    const items = novels.map((novel) => this.toNovelListItem(novel));
+    const items = novels.map((novel) =>
+      this.toNovelListItem(novel, { includeModeration: true }),
+    );
     const totalPage = Math.ceil(total / limit);
     const nextPage = page < totalPage ? page + 1 : null;
     return {
@@ -178,6 +260,7 @@ export class NovelRepository implements INovelRepository {
         "novel.synopsis",
         "novel.status",
         "novel.chapterCount",
+        "novel.averageChapterWordCount",
         "novel.viewCount",
         "novel.positiveReviewsCount",
         "novel.totalReviewsCount",
@@ -188,6 +271,7 @@ export class NovelRepository implements INovelRepository {
       .orderBy("novel.createdAt", "DESC")
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
 
     const [novels, total] = await query.getManyAndCount();
@@ -198,7 +282,11 @@ export class NovelRepository implements INovelRepository {
     };
   }
 
-  async findOneById(id: string, viewerId?: string) {
+  async findOneById(
+    id: string,
+    viewerId?: string,
+    options: { includeBanned?: boolean } = {},
+  ) {
     const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
@@ -209,6 +297,9 @@ export class NovelRepository implements INovelRepository {
       .where("novel.id = :id", { id });
 
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
+    if (!options.includeBanned) {
+      this.applyActiveBanFilter(query);
+    }
 
     return query.getOne();
   }
@@ -243,6 +334,7 @@ export class NovelRepository implements INovelRepository {
       .orderBy("novel.lastChapterDate", "DESC", "NULLS LAST")
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
     return query.getMany();
   }
@@ -275,9 +367,11 @@ export class NovelRepository implements INovelRepository {
 
   async getWeeklyTrendingNovels(
     limit: number,
+    page: number = 1,
     allowAdultContent = false,
     viewerId?: string,
-  ): Promise<Novel[]> {
+  ): Promise<WeeklyTrendingNovelItem[]> {
+    const offset = (page - 1) * limit;
     const query = this.withVisibleAuthor(
       this.novelRepo.createQueryBuilder("novel"),
     )
@@ -289,10 +383,34 @@ export class NovelRepository implements INovelRepository {
       ])
       .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
       .orderBy("novel.weeklyRankingScore", "DESC")
+      .addOrderBy("novel.id", "ASC")
+      .skip(offset)
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
-    return query.getMany();
+
+    const novels = await query.getMany();
+    const previousRanks = await this.getPreviousWeeklyRanks(
+      novels.map((novel) => novel.id),
+    );
+
+    return novels.map((novel, index) => {
+      const rank = offset + index + 1;
+      const previousRank = previousRanks.get(novel.id) ?? null;
+      const rankChange = previousRank === null ? null : previousRank - rank;
+
+      return {
+        id: novel.id,
+        name: novel.name,
+        coverImage: novel.coverImage ?? null,
+        weeklyRankingScore: Number(novel.weeklyRankingScore),
+        rank,
+        previousRank,
+        rankChange,
+        rankStatus: this.getRankStatus(rankChange),
+      };
+    });
   }
 
   async getRandomClassicNovels(
@@ -320,6 +438,7 @@ export class NovelRepository implements INovelRepository {
       .addOrderBy("novel.totalReviewsCount", "DESC")
       .take(poolLimit);
     applyAdultContentFilter(candidatesQuery, allowAdultContent);
+    this.applyActiveBanFilter(candidatesQuery);
     applyBlockedUserVisibilityFilter(
       candidatesQuery,
       viewerId,
@@ -357,6 +476,7 @@ export class NovelRepository implements INovelRepository {
       .orderBy("novel.rankingScore", "DESC")
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
     return query.getMany();
   }
@@ -374,6 +494,7 @@ export class NovelRepository implements INovelRepository {
       .orderBy("novel.createdAt", "DESC")
       .take(limit);
     applyAdultContentFilter(query, allowAdultContent);
+    this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
     return query.getMany();
   }
@@ -396,6 +517,7 @@ export class NovelRepository implements INovelRepository {
       viewerId,
       "authorUserVisibility",
     );
+    this.applyActiveBanFilter(sourceNovelQuery);
 
     const sourceNovel = await sourceNovelQuery.getOne();
 
@@ -435,7 +557,7 @@ export class NovelRepository implements INovelRepository {
       .addSelect(similarityScoreExpression, "similarityScore")
       .where("novel.id != :novelId", { novelId })
       .andWhere("novel.status != :draft", { draft: SeriesStatus.DRAFT })
-      .andWhere('novel."isBanned" = false')
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .groupBy("novel.id")
       .orderBy('"similarityScore"', "DESC")
       .addOrderBy('"sharedTagCount"', "DESC")
@@ -466,7 +588,7 @@ export class NovelRepository implements INovelRepository {
   async getWeeklyTrendData(): Promise<any[]> {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const dateString = sevenDaysAgo.toISOString().split("T")[0];
+    const dateString = getIstanbulDateString(sevenDaysAgo);
 
     return await this.novelRepo
       .createQueryBuilder("novel")
@@ -476,7 +598,19 @@ export class NovelRepository implements INovelRepository {
         "stats.novelId = novel.id AND stats.recordedAt = :dateString",
         { dateString },
       )
-      .select(["novel.id", "novel.totalReviewsCount", "stats.totalReviews"])
+      .where("novel.status != :draft", { draft: SeriesStatus.DRAFT })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
+      .select("novel.id", "id")
+      .addSelect("novel.createdAt", "createdAt")
+      .addSelect("novel.viewCount", "viewCount")
+      .addSelect("novel.totalReviewsCount", "totalReviewsCount")
+      .addSelect("novel.positiveReviewsCount", "positiveReviewsCount")
+      .addSelect("novel.totalLibraryCount", "totalLibraryCount")
+      .addSelect("stats.id", "snapshotId")
+      .addSelect("stats.totalViews", "totalViews")
+      .addSelect("stats.totalReviews", "totalReviews")
+      .addSelect("stats.totalPositiveReviews", "totalPositiveReviews")
+      .addSelect("stats.totalLibraryCount", "totalLibraryCountSnapshot")
       .getRawMany();
   }
 
@@ -492,6 +626,60 @@ export class NovelRepository implements INovelRepository {
         })),
       )
       .orUpdate(["weeklyRankingScore"], ["id"])
+      .execute();
+  }
+
+  async bulkCreateWeeklyRankSnapshots(
+    data: { id: string; weeklyScore: number }[],
+    limit = 200,
+  ) {
+    if (!data.length) return;
+
+    const recordedAt = this.getTodayDateString();
+    const rankedData = [...data]
+      .sort((a, b) => {
+        if (b.weeklyScore !== a.weeklyScore) {
+          return b.weeklyScore - a.weeklyScore;
+        }
+        return a.id.localeCompare(b.id);
+      })
+      .slice(0, limit)
+      .map((item, index) => ({
+        novelId: item.id,
+        rankingScore: item.weeklyScore,
+        rank: index + 1,
+        recordedAt,
+      }));
+
+    await this.novelRepo.manager
+      .createQueryBuilder()
+      .insert()
+      .into(NovelWeeklyRankSnapshot)
+      .values(rankedData)
+      .orUpdate(["rankingScore", "rank"], ["novelId", "recordedAt"])
+      .execute();
+  }
+
+  async deleteOldWeeklyRankSnapshots(daysToKeep = 2) {
+    const snapshotRepo = this.novelRepo.manager.getRepository(
+      NovelWeeklyRankSnapshot,
+    );
+    const datesToKeep = await snapshotRepo
+      .createQueryBuilder("snapshot")
+      .select('snapshot."recordedAt"', "recordedAt")
+      .groupBy('snapshot."recordedAt"')
+      .orderBy('snapshot."recordedAt"', "DESC")
+      .take(daysToKeep)
+      .getRawMany<{ recordedAt: string }>();
+
+    const recordedDates = datesToKeep.map((row) => row.recordedAt);
+    if (recordedDates.length < daysToKeep) return;
+
+    await snapshotRepo
+      .createQueryBuilder()
+      .delete()
+      .from(NovelWeeklyRankSnapshot)
+      .where('"recordedAt" NOT IN (:...recordedDates)', { recordedDates })
       .execute();
   }
 
@@ -547,7 +735,13 @@ export class NovelRepository implements INovelRepository {
   }
 
   async incrementViewCount(novelId: string) {
-    await this.novelRepo.increment({ id: novelId }, "viewCount", 1);
+    await this.novelRepo
+      .createQueryBuilder()
+      .update(Novel)
+      .set({ viewCount: () => '"viewCount" + 1' })
+      .where("id = :id", { id: novelId })
+      .andWhere('("bannedUntil" IS NULL OR "bannedUntil" <= NOW())')
+      .execute();
   }
 
   async updateNovel(dto: UpdateNovelDTO) {
@@ -587,11 +781,16 @@ export class NovelRepository implements INovelRepository {
       .where("ch.novelId = :novelId", { novelId })
       .select("COUNT(pub.chapterId)", "count")
       .addSelect('MAX(pub."publishedAt")', "lastDate")
+      .addSelect('AVG(ch."wordCount")', "averageWordCount")
       .getRawOne();
 
     await this.novelRepo.update(novelId, {
       chapterCount: parseInt(stats.count) || 0,
       lastChapterDate: stats.lastDate || null,
+      averageChapterWordCount:
+        stats.averageWordCount === null || stats.averageWordCount === undefined
+          ? null
+          : Math.round(Number(stats.averageWordCount)),
     });
   }
 }

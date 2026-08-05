@@ -16,6 +16,8 @@ import {
 import { PushNotificationService } from "./push.notification.service.js";
 import { NotFoundError } from "../errors/not.found.error.js";
 
+const LIKE_NOTIFICATION_PUSH_THROTTLE_MS = 60 * 60 * 1000;
+
 export class ReplyService implements IReplyService {
   constructor(
     private replyRepo: IReplyRepository,
@@ -101,7 +103,7 @@ export class ReplyService implements IReplyService {
       const actor = await this.userRepo.findOneById(reply.userId);
       const actorName = actor?.nickname || "Bir kullanici";
       const titleSnapshot = `${actorName} yorumuna yanit verdi`;
-      const bodySnapshot = reply.content;
+      const pushBody = reply.content;
 
       await this.personalNotificationRepo.createNotification({
         userId: commentMeta.userId,
@@ -110,7 +112,6 @@ export class ReplyService implements IReplyService {
         targetType: NotificationTargetType.COMMENT,
         targetId: String(commentMeta.id),
         titleSnapshot,
-        bodySnapshot,
         data: {
           novelId: commentMeta.novelId,
           commentId: commentMeta.id,
@@ -120,7 +121,7 @@ export class ReplyService implements IReplyService {
 
       await this.pushNotificationService.sendToUser(commentMeta.userId, {
         title: titleSnapshot,
-        body: bodySnapshot,
+        body: pushBody,
         data: {
           notificationType: "personal_notification",
           type: PersonalNotificationType.COMMENT_REPLY,
@@ -161,7 +162,7 @@ export class ReplyService implements IReplyService {
       const actor = await this.userRepo.findOneById(reply.userId);
       const actorName = actor?.nickname || "Bir kullanici";
       const titleSnapshot = `${actorName} yanitina yanit verdi`;
-      const bodySnapshot = reply.content;
+      const pushBody = reply.content;
 
       await this.personalNotificationRepo.createNotification({
         userId: parentReplyMeta.userId,
@@ -170,7 +171,6 @@ export class ReplyService implements IReplyService {
         targetType: NotificationTargetType.REPLY,
         targetId: String(parentReplyMeta.id),
         titleSnapshot,
-        bodySnapshot,
         data: {
           novelId: commentMeta.novelId,
           commentId: commentMeta.id,
@@ -181,7 +181,7 @@ export class ReplyService implements IReplyService {
 
       await this.pushNotificationService.sendToUser(parentReplyMeta.userId, {
         title: titleSnapshot,
-        body: bodySnapshot,
+        body: pushBody,
         data: {
           notificationType: "personal_notification",
           type: PersonalNotificationType.REPLY_REPLY,
@@ -216,32 +216,50 @@ export class ReplyService implements IReplyService {
 
       const actor = await this.userRepo.findOneById(userId);
       const actorName = actor?.nickname || "Bir kullanici";
-      const titleSnapshot = `${actorName} yanitini begendi`;
-      const bodySnapshot = "Yanitin yeni bir begeni aldi.";
+      const pushBody = "Yanitin yeni bir begeni aldi.";
+      const targetUrl = `https://auronovel.com/novels/${commentMeta.novelId}/comments/${commentMeta.id}/replies/${replyMeta.id}`;
 
-      await this.personalNotificationRepo.createNotification({
-        userId: replyMeta.userId,
-        actorUserId: userId,
-        type: PersonalNotificationType.REPLY_LIKE,
-        targetType: NotificationTargetType.REPLY,
-        targetId: String(replyMeta.id),
+      const aggregation =
+        await this.personalNotificationRepo.createOrUpdateAggregatedNotification(
+          {
+            userId: replyMeta.userId,
+            actorUserId: userId,
+            type: PersonalNotificationType.REPLY_LIKE,
+            targetType: NotificationTargetType.REPLY,
+            targetId: String(replyMeta.id),
+            targetUrl,
+            aggregationKey: `${PersonalNotificationType.REPLY_LIKE}:${replyMeta.id}`,
+            data: {
+              novelId: commentMeta.novelId,
+              commentId: commentMeta.id,
+              replyId: replyMeta.id,
+            },
+          },
+          LIKE_NOTIFICATION_PUSH_THROTTLE_MS,
+        );
+
+      const titleSnapshot = this.formatReplyLikeTitle(
+        actorName,
+        aggregation.notification.actorCount,
+      );
+      await this.personalNotificationRepo.updateNotificationSnapshots(
+        aggregation.notification.id,
         titleSnapshot,
-        bodySnapshot,
-        data: {
-          novelId: commentMeta.novelId,
-          commentId: commentMeta.id,
-          replyId: replyMeta.id,
-        },
-      });
+      );
+
+      if (!aggregation.shouldSendPush) {
+        return;
+      }
 
       await this.pushNotificationService.sendToUser(replyMeta.userId, {
         title: titleSnapshot,
-        body: bodySnapshot,
+        body: pushBody,
         data: {
           notificationType: "personal_notification",
           type: PersonalNotificationType.REPLY_LIKE,
           targetType: NotificationTargetType.REPLY,
           targetId: String(replyMeta.id),
+          targetUrl,
           novelId: commentMeta.novelId,
           commentId: commentMeta.id,
           replyId: replyMeta.id,
@@ -250,5 +268,13 @@ export class ReplyService implements IReplyService {
     } catch (error) {
       console.error("Reply begeni bildirimi gonderilemedi:", error);
     }
+  }
+
+  private formatReplyLikeTitle(actorName: string, actorCount: number) {
+    if (actorCount <= 1) {
+      return `${actorName} yanitini begendi`;
+    }
+
+    return `${actorName} ve ${actorCount - 1} kisi yanitini begendi`;
   }
 }

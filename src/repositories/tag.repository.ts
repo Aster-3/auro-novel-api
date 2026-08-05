@@ -50,6 +50,7 @@ export class TagRepository implements ITagRepository {
       .createQueryBuilder("tag")
       .innerJoin("tag.novels", "novel")
       .select(["tag.id", "tag.name"])
+      .where('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .groupBy("tag.id")
       .having("COUNT(novel.id) >= 2")
       .orderBy("RANDOM()")
@@ -77,6 +78,7 @@ export class TagRepository implements ITagRepository {
         "novel.lastChapterDate",
         "novel.createdAt",
       ])
+      .where('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .orderBy("novel.rankingScore", "DESC")
       .addOrderBy("novel.createdAt", "DESC")
       .skip((page - 1) * limit)

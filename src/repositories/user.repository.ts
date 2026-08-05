@@ -78,6 +78,7 @@ export class UserRepository implements IUserRepository {
         profileBackgroundImageUrl: true,
         description: true,
         gender: true,
+        usernameChangedAt: true,
         showAdultContent: true,
         adultContentConfirmedAt: true,
         termsAndPrivacyAcceptedAt: true,
@@ -193,6 +194,7 @@ export class UserRepository implements IUserRepository {
         email: true,
         profileImageUrl: true,
         profileBackgroundImageUrl: true,
+        usernameChangedAt: true,
         role: true,
         authProvider: true,
         status: true,
@@ -225,6 +227,15 @@ export class UserRepository implements IUserRepository {
   async updateUser(dto: UpdateUserDto) {
     const updatedUser = await this.userRepo.save(dto);
     return this.getUserForTokenRefresh(updatedUser.id);
+  }
+
+  async updateUsername(
+    userId: string,
+    username: string,
+    usernameChangedAt: Date,
+  ) {
+    await this.userRepo.update({ id: userId }, { username, usernameChangedAt });
+    return this.getUserForTokenRefresh(userId);
   }
 
   async updateContentPreferences(
@@ -279,6 +290,14 @@ export class UserRepository implements IUserRepository {
     await this.userRepo.update({ id: userId }, { password, refreshToken: null });
   }
 
+  async updatePasswordAndRefreshToken(
+    userId: string,
+    password: string,
+    refreshToken: string,
+  ) {
+    await this.userRepo.update({ id: userId }, { password, refreshToken });
+  }
+
   async clearRefreshToken(userId: string) {
     await this.userRepo.update({ id: userId }, { refreshToken: null });
   }
@@ -294,6 +313,7 @@ export class UserRepository implements IUserRepository {
         profileImageUrl: true,
         role: true,
         authProvider: true,
+        usernameChangedAt: true,
         showAdultContent: true,
         adultContentConfirmedAt: true,
         termsAndPrivacyAcceptedAt: true,

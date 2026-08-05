@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -49,6 +50,13 @@ export class PersonalNotification {
   @Column({ type: "text", nullable: true })
   targetUrl?: string | null;
 
+  @Index()
+  @Column({ type: "varchar", length: 255, nullable: true, select: false })
+  aggregationKey?: string | null;
+
+  @Column({ type: "int", default: 1 })
+  actorCount!: number;
+
   @Column({
     type: "jsonb",
     nullable: true,
@@ -71,14 +79,17 @@ export class PersonalNotification {
   @Column({ type: "varchar", length: 255, nullable: true })
   titleSnapshot?: string | null;
 
-  @Column({ type: "varchar", length: 500, nullable: true })
-  bodySnapshot?: string | null;
-
   @Column({ type: "boolean", default: false })
   isRead!: boolean;
 
   @Column({ type: "timestamp", nullable: true })
   readAt?: Date | null;
+
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  lastActivityAt!: Date;
+
+  @Column({ type: "timestamp", nullable: true, select: false })
+  lastPushedAt?: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

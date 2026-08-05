@@ -109,6 +109,14 @@ export class UserController {
     res.status(200).json(updatedUser);
   };
 
+  updateUsername = async (req: Request, res: Response) => {
+    const updatedUser = await this.userService.updateUsername(
+      req.user?.id!,
+      req.body,
+    );
+    res.status(200).json(updatedUser);
+  };
+
   updateContentPreferences = async (req: Request, res: Response) => {
     const result = await this.userService.updateContentPreferences(
       req.user?.id!,

@@ -3,6 +3,7 @@ import { validateSchema } from "../middlewares/validate.schema.js";
 import { paramsUuidSchema } from "../schemas/paramsUuidSchema.js";
 import { getUsersSchema } from "../schemas/get.users.schema.js";
 import { updateUserSchema } from "../schemas/update.user.schema.js";
+import { updateUsernameSchema } from "../schemas/update.username.schema.js";
 import { updateContentPreferencesSchema } from "../schemas/update.content.preferences.schema.js";
 import { getMeSchema } from "../schemas/get.me.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -71,6 +72,13 @@ router.patch(
   ]),
   validateSchema(updateUserSchema),
   userController.updateUser,
+);
+
+router.patch(
+  "/me/username",
+  authMiddleware,
+  validateSchema(updateUsernameSchema),
+  userController.updateUsername,
 );
 
 router.patch(

@@ -4,16 +4,29 @@ import { CreateChapterDTO } from "../schemas/create.chapter.schema.js";
 import { IChapterRepository } from "../interfaces/chapter.repo.interface.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
+import { wordCounter } from "../utils/wordCounter.js";
 
 export class ChapterRepository implements IChapterRepository {
   constructor(private chapterRepo: Repository<Chapter>) {}
 
   async createChapter(dto: CreateChapterDTO) {
-    await this.chapterRepo.save(dto);
+    await this.chapterRepo.save({
+      ...dto,
+      wordCount: wordCounter(dto.content),
+    });
   }
 
   async updateChapter(dto: UpdateChapterDTO) {
-    await this.chapterRepo.update({ id: dto.id }, dto);
+    const { id, ...updateData } = dto;
+    await this.chapterRepo.update(
+      { id },
+      {
+        ...updateData,
+        ...(updateData.content !== undefined
+          ? { wordCount: wordCounter(updateData.content) }
+          : {}),
+      },
+    );
   }
 
   async deleteChapter(id: string) {
@@ -29,6 +42,7 @@ export class ChapterRepository implements IChapterRepository {
         content: true,
         novel: {
           id: true,
+          bannedUntil: true,
           author: {
             userId: true,
           },

@@ -38,11 +38,13 @@ import {
 import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
+import { UpdateUsernameDto } from "../schemas/update.username.schema.js";
 import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
 import { isPremiumActive, withPremiumStatus } from "../utils/premium.status.js";
 import { UserAuthProvider, UserStatus } from "../constants/user.constants.js";
 import { GoogleLoginDto } from "../schemas/google.login.schema.js";
 import { getEnv } from "../utils/getEnv.js";
+import { LibrarySortOption } from "../constants/series.constants.js";
 import { AppDataSource } from "../database/data-source.js";
 import { UserVerification } from "../entities/UserVerification.js";
 import { AdultContentConfirmationRequiredError } from "../errors/adult.content.confirmation.required.error.js";
@@ -50,6 +52,7 @@ import { AdultContentConfirmationRequiredError } from "../errors/adult.content.c
 const PASSWORD_RESET_CODE_EXPIRY_MS = 10 * 60000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 const CODE_RESEND_COOLDOWN_MS = 60 * 1000;
+const USERNAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_REQUEST_MESSAGE =
   "Eger bu e-posta ile kayitli bir hesap varsa sifre sifirlama kodu gonderildi.";
 
@@ -254,8 +257,7 @@ export class UserService implements IUserService {
           )
         : Promise.resolve({ items: [], total: 0 });
 
-    const [novels, reviews, replies, reads, readProgressByNovel] =
-      await Promise.all([
+    const [novels, reviews, replies, reads] = await Promise.all([
         recentNovelsPromise,
         this.uow.commentRepository.getReviewsByUserId(
           { id: userId, userId, page: 1, limit: 3 },
@@ -265,34 +267,18 @@ export class UserService implements IUserService {
           { id: userId, userId, page: 1, limit: 3 },
           viewerId,
         ),
-        this.uow.readingStatsRepository.getRecentReadsByUserId(
-          userId,
-          3,
+        this.uow.libraryRepository.getPublicUserLibrary(
+          {
+            id: userId,
+            userId,
+            page: 1,
+            limit: 3,
+            sortBy: LibrarySortOption.LAST_READED,
+          },
           allowAdultContent,
           viewerId,
         ),
-        this.uow.userReadChapterRepository.getReadProgressByUserId(userId),
       ]);
-
-    const recentReadItems = reads.items.map((item) => {
-      const readChapterCount =
-        readProgressByNovel.get(item.novelId)?.readChapterCount ?? 0;
-      const totalChapterCount = item.novel?.chapterCount ?? 0;
-      const readingProgressPercent =
-        totalChapterCount > 0
-          ? Math.min(
-              100,
-              Math.round((readChapterCount / totalChapterCount) * 100),
-            )
-          : 0;
-
-      return {
-        ...item,
-        readChapterCount,
-        totalChapterCount,
-        readingProgressPercent,
-      };
-    });
 
     return {
       recentNovels: {
@@ -308,9 +294,9 @@ export class UserService implements IUserService {
         total: replies.total,
         items: replies.items,
       },
-      recentReads: {
+      libraryNovels: {
         total: reads.total,
-        items: recentReadItems,
+        items: reads.items,
       },
     };
   };
@@ -446,6 +432,50 @@ export class UserService implements IUserService {
     if (!updated) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
+    return withPremiumStatus(updated);
+  }
+
+  async updateUsername(
+    userId: string,
+    dto: UpdateUsernameDto,
+  ): Promise<User> {
+    const user = await this.uow.userRepository.findOneById(userId);
+    if (!user) {
+      throw new NotFoundError("Kullanıcı bulunamadı.");
+    }
+
+    if (user.username === dto.username) {
+      throw new BadRequestError("Yeni kullanıcı adı mevcut kullanıcı adı ile aynı olamaz.");
+    }
+
+    if (user.usernameChangedAt) {
+      const nextChangeAt = new Date(
+        user.usernameChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_MS,
+      );
+      const remainingMs = nextChangeAt.getTime() - Date.now();
+
+      if (remainingMs > 0) {
+        throw new BadRequestError(
+          `Kullanıcı adı haftada sadece bir kez değiştirilebilir. Kalan süre: ${this.formatRemainingCooldown(remainingMs)}`,
+        );
+      }
+    }
+
+    const usernameAvailable =
+      await this.uow.userRepository.findOneByUsername(dto.username);
+    if (usernameAvailable) {
+      throw new ConflictError("username", "Kullanıcı adı zaten alınmış.");
+    }
+
+    const updated = await this.uow.userRepository.updateUsername(
+      userId,
+      dto.username,
+      new Date(),
+    );
+    if (!updated) {
+      throw new NotFoundError("Kullanıcı bulunamadı.");
+    }
+
     return withPremiumStatus(updated);
   }
 
@@ -663,6 +693,10 @@ export class UserService implements IUserService {
   };
 
   changePassword = async (userId: string, dto: ChangePasswordDto) => {
+    if (dto.newPassword !== dto.newPasswordConfirm) {
+      throw new BadRequestError("Yeni sifreler eslesmiyor.");
+    }
+
     if (dto.currentPassword === dto.newPassword) {
       throw new BadRequestError("Yeni sifre mevcut sifre ile ayni olamaz.");
     }
@@ -683,13 +717,25 @@ export class UserService implements IUserService {
     }
 
     const hashedPassword = await argon2.hash(dto.newPassword);
+    const accessToken = this.tokenService.generateAccessToken(
+      this.createAccessTokenPayload(user),
+    );
+    const refreshToken = this.tokenService.generateRefreshToken({
+      id: user.id,
+    });
 
-    await this.uow.userRepository.updatePasswordAndClearRefreshToken(
+    await this.uow.userRepository.updatePasswordAndRefreshToken(
       user.id,
       hashedPassword,
+      refreshToken,
     );
 
-    return { message: "Sifreniz basariyla degistirildi." };
+    return {
+      message: "Sifreniz basariyla degistirildi.",
+      user: new UserLoginResponseDto(user),
+      accessToken,
+      refreshToken,
+    };
   };
 
   async getReadingStats(userId: string) {
@@ -1018,7 +1064,7 @@ export class UserService implements IUserService {
       const actor = await this.uow.userRepository.findOneById(followerId);
       const actorName = actor?.nickname || "Bir kullanici";
       const titleSnapshot = `${actorName} seni takip etmeye basladi`;
-      const bodySnapshot = "Yeni bir takipcin var.";
+      const pushBody = "Yeni bir takipcin var.";
 
       await this.uow.personalNotificationRepository.createNotification({
         userId: followingId,
@@ -1027,7 +1073,6 @@ export class UserService implements IUserService {
         targetType: NotificationTargetType.USER,
         targetId: followerId,
         titleSnapshot,
-        bodySnapshot,
         data: {
           followerId,
         },
@@ -1035,7 +1080,7 @@ export class UserService implements IUserService {
 
       await this.pushNotificationService.sendToUser(followingId, {
         title: titleSnapshot,
-        body: bodySnapshot,
+        body: pushBody,
         data: {
           notificationType: "personal_notification",
           type: PersonalNotificationType.FOLLOW,
@@ -1054,6 +1099,15 @@ export class UserService implements IUserService {
     return Date.now() - lastSentAt.getTime() < CODE_RESEND_COOLDOWN_MS;
   }
 
+  private formatRemainingCooldown(remainingMs: number) {
+    const totalMinutes = Math.max(1, Math.ceil(remainingMs / (60 * 1000)));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${days} Gün ${hours} Saat ${minutes} Dakika`;
+  }
+
   private async ensureUsersVisible(viewerId: string | undefined, targetUserId: string) {
     if (!viewerId || viewerId === targetUserId) {
       return;
@@ -1070,7 +1124,7 @@ export class UserService implements IUserService {
   }
 
   private isReadEnoughToMarkChapter(readDurationInSeconds: number) {
-    return readDurationInSeconds > 30;
+    return readDurationInSeconds >= 15;
   }
 
   private ensureUserCanAuthenticate(user: User) {

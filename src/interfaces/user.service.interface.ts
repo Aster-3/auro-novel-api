@@ -11,6 +11,7 @@ import { GetUsersDto } from "../schemas/get.users.schema.js";
 import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js";
 import { UpdateContentPreferencesDto } from "../schemas/update.content.preferences.schema.js";
 import { UpdateUserDto } from "../schemas/update.user.schema.js";
+import { UpdateUsernameDto } from "../schemas/update.username.schema.js";
 import { UserLoginDto } from "../schemas/user.login.shema.js";
 import { VerifyUserDto } from "../schemas/verify.user.schema.js";
 import { UserDevice } from "../entities/UserDevice.js";
@@ -97,7 +98,7 @@ export interface IUserService {
       total: number;
       items: any[];
     };
-    recentReads: {
+    libraryNovels: {
       total: number;
       items: any[];
     };
@@ -121,6 +122,7 @@ export interface IUserService {
     refreshToken?: string;
   }>;
   updateUser(dto: UpdateUserDto): Promise<User>;
+  updateUsername(userId: string, dto: UpdateUsernameDto): Promise<User>;
   getMe(dto: GetMeQuery): Promise<User | null>;
   refreshToken(refreshToken: string): Promise<{
     user: UserLoginResponseDto;
@@ -131,7 +133,12 @@ export interface IUserService {
   changePassword(
     userId: string,
     dto: ChangePasswordDto,
-  ): Promise<{ message: string }>;
+  ): Promise<{
+    message: string;
+    user: UserLoginResponseDto;
+    accessToken: string;
+    refreshToken: string;
+  }>;
   getReadingStats(userId: string): Promise<ReadingStats[]>;
   getUserNovelStats(
     userId: string,

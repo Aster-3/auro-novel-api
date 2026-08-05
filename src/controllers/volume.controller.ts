@@ -31,7 +31,13 @@ export class VolumeController {
 
   getVolumeByNovelId = async (req: any, res: any) => {
     const { id } = req.params;
-    const volumes = await this.volumeService.getVolumeByNovelId(id);
+    const isAdmin = req.user?.role === "admin";
+    const userId = req.user?.id;
+    const volumes = await this.volumeService.getVolumeByNovelId(
+      id,
+      userId,
+      isAdmin,
+    );
     res.json({ volumes });
   };
 

@@ -7,7 +7,11 @@ export interface IVolumeService {
     userId: string,
   ): Promise<void>;
   deleteVolume(id: string, isAdmin: boolean, userId: string): Promise<void>;
-  getVolumeByNovelId(novelId: string): Promise<CreateVolumeDTO[]>;
+  getVolumeByNovelId(
+    novelId: string,
+    userId?: string,
+    isAdmin?: boolean,
+  ): Promise<CreateVolumeDTO[]>;
   updateVolume(
     volumeId: string,
     name: string,

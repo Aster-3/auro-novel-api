@@ -45,6 +45,7 @@ import {
   PushDispatchResult,
   PushNotificationService,
 } from "./push.notification.service.js";
+import { wordCounter } from "../utils/wordCounter.js";
 import { uploadToS3 } from "./s3.service.js";
 import { isPremiumActive, withPremiumStatus } from "../utils/premium.status.js";
 import { createAccountRecoveryHash } from "../utils/account.recovery.hash.js";
@@ -110,7 +111,10 @@ export class AdminService implements IAdminService {
       novelRepo.count(),
       novelRepo.count({ where: { status: SeriesStatus.ONGOING } }),
       novelRepo.count({ where: { status: SeriesStatus.DRAFT } }),
-      novelRepo.count({ where: { isBanned: true } }),
+      novelRepo
+        .createQueryBuilder("novel")
+        .where('novel."bannedUntil" > NOW()')
+        .getCount(),
       chapterRepo.count(),
       AppDataSource.getRepository(ChapterPublication).count(),
       commentRepo.count(),
@@ -135,7 +139,8 @@ export class AdminService implements IAdminService {
           name: true,
           coverImage: true,
           status: true,
-          isBanned: true,
+          bannedUntil: true,
+          banReason: true,
           createdAt: true,
         },
         order: { createdAt: "DESC" },
@@ -436,8 +441,12 @@ export class AdminService implements IAdminService {
     if (type) {
       query.andWhere("novel.type = :type", { type });
     }
-    if (isBanned !== undefined) {
-      query.andWhere("novel.isBanned = :isBanned", { isBanned });
+    if (isBanned === true) {
+      query.andWhere('novel."bannedUntil" > NOW()');
+    } else if (isBanned === false) {
+      query.andWhere(
+        '(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())',
+      );
     }
     if (isAdultContent !== undefined) {
       query.andWhere("novel.isAdultContent = :isAdultContent", {
@@ -612,6 +621,7 @@ export class AdminService implements IAdminService {
       novelId,
       title: dto.title,
       content: dto.content,
+      wordCount: wordCounter(dto.content),
     });
 
     return await AppDataSource.getRepository(Chapter).save(chapter);
@@ -747,8 +757,31 @@ export class AdminService implements IAdminService {
   }
 
   async updateChapter(id: string, dto: AdminUpdateChapterDto) {
-    const result = await AppDataSource.getRepository(Chapter).update(id, dto);
+    const chapter = dto.content !== undefined
+      ? await AppDataSource.getRepository(Chapter).findOne({
+          where: { id },
+          select: { id: true, novelId: true },
+        })
+      : null;
+
+    const result = await AppDataSource.getRepository(Chapter).update(id, {
+      ...dto,
+      ...(dto.content !== undefined
+        ? { wordCount: wordCounter(dto.content) }
+        : {}),
+    });
     if (!result.affected) throw new NotFoundError("Bolum bulunamadi.");
+
+    if (chapter && dto.content !== undefined) {
+      const isPublished = await AppDataSource.getRepository(
+        ChapterPublication,
+      ).exists({ where: { chapterId: id } });
+
+      if (isPublished) {
+        await this.uow.novelRepository.refreshChapterStats(chapter.novelId);
+      }
+    }
+
     return this.getChapterById(id);
   }
 
@@ -922,6 +955,7 @@ export class AdminService implements IAdminService {
           data: {
             notificationType: "global_notification",
             notificationId: announcement.id,
+            targetUrl: announcement.targetUrl,
           },
         });
       } catch (error) {
@@ -941,10 +975,15 @@ export class AdminService implements IAdminService {
       updateData.publishedAt = new Date();
     }
 
-    const result = await AppDataSource.getRepository(GlobalNotification).update(
-      id,
-      updateData as any,
-    );
+    const repo = AppDataSource.getRepository(GlobalNotification);
+    const existing = await repo.findOne({ where: { id } });
+    if (!existing) throw new NotFoundError("Duyuru bulunamadi.");
+    this.ensureAnnouncementHasAction({
+      ...existing,
+      ...updateData,
+    });
+
+    const result = await repo.update(id, updateData as any);
     if (!result.affected) throw new NotFoundError("Duyuru bulunamadi.");
     return this.getAnnouncementById(id);
   }
@@ -955,6 +994,14 @@ export class AdminService implements IAdminService {
 
     if (affectedRows === 0) {
       throw new NotFoundError("Duyuru bulunamadi.");
+    }
+  }
+
+  private ensureAnnouncementHasAction(notification: GlobalNotification) {
+    if (!notification.content && !notification.targetUrl) {
+      throw new BadRequestError(
+        "Duyuru icin content veya targetUrl alanlarindan en az biri zorunludur.",
+      );
     }
   }
 }

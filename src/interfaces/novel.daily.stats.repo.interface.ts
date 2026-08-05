@@ -16,4 +16,5 @@ export interface INovelDailyStatsRepository {
       totalLibraryCount: number;
     }[],
   ): Promise<void>;
+  deleteOlderThan(daysToKeep: number): Promise<void>;
 }

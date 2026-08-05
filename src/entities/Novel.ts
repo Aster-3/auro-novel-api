@@ -59,14 +59,21 @@ export class Novel {
   @Column({ type: "int", default: 0 })
   chapterCount!: number;
 
+  @Column({ type: "int", nullable: true })
+  averageChapterWordCount!: number | null;
+
   @Column({ type: "float", default: 0 })
   rankingScore!: number;
 
   @Column({ type: "timestamp", nullable: true, default: null })
   lastChapterDate!: Date | null;
 
-  @Column({ type: "boolean", default: false })
-  isBanned!: boolean;
+  @Index("IDX_novel_bannedUntil")
+  @Column({ type: "timestamp", nullable: true, default: null })
+  bannedUntil!: Date | null;
+
+  @Column({ type: "varchar", length: 500, nullable: true })
+  banReason!: string | null;
 
   @Column({ type: "boolean", default: false })
   isAdultContent!: boolean;

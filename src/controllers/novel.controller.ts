@@ -83,9 +83,10 @@ export class NovelController {
   };
 
   getWeeklyTrendingNovels = async (req: Request, res: Response) => {
-    const { limit } = req.query as any;
+    const { limit, page } = req.query as any;
     const novels = await this.novelService.getWeeklyTrendingNovels(
       limit ? parseInt(limit) : undefined,
+      page ? parseInt(page) : undefined,
       canShowAdultContent(req.user),
       req.user?.id,
     );

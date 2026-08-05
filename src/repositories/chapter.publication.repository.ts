@@ -7,7 +7,6 @@ import {
 } from "../interfaces/chapter.publication.repo.interface.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
-import { wordCounter } from "../utils/wordCounter.js";
 
 const SORT_KEY_STEP = 1000;
 
@@ -57,8 +56,19 @@ export class ChapterPublicationRepository
   ) {
     const { id, page, limit, sort } = dto;
 
-    const novel = await this.novelRepo.findOneById(id);
+    const novel = await this.novelRepo.findOneById(id, userId, {
+      includeBanned: true,
+    });
     if (!novel) throw new NotFoundError("Roman bulunamadi.");
+
+    if (
+      novel.bannedUntil &&
+      novel.bannedUntil > new Date() &&
+      !isAdmin &&
+      novel.author?.userId !== userId
+    ) {
+      throw new NotFoundError("Roman bulunamadi.");
+    }
 
     const ordered = this.withDisplayOrders(await this.getOrderedPublications(id));
     const sorted = sort === "desc" ? [...ordered].reverse() : ordered;
@@ -76,6 +86,7 @@ export class ChapterPublicationRepository
         volumeName: publication.volume.name,
         volumeId: publication.volumeId,
         publishedAt: publication.publishedAt,
+        wordCount: publication.chapter.wordCount,
       }),
     );
 
@@ -88,16 +99,26 @@ export class ChapterPublicationRepository
     };
   }
 
-  async getChapterForReading(id: string) {
-    const publication = await this.publicationRepo.findOne({
-      where: { chapterId: id },
-      relations: {
-        volume: true,
-        chapter: { novel: { author: true } },
-      },
-    });
+  async getChapterForReading(id: string, userId?: string, isAdmin = false) {
+    const publication = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("chapter.novel", "novel")
+      .leftJoinAndSelect("novel.author", "author")
+      .where("pub.chapterId = :id", { id })
+      .getOne();
 
     if (!publication) return null;
+
+    if (
+      publication.chapter.novel.bannedUntil &&
+      publication.chapter.novel.bannedUntil > new Date() &&
+      !isAdmin &&
+      publication.chapter.novel.author?.userId !== userId
+    ) {
+      return null;
+    }
 
     const ordered = this.withDisplayOrders(
       await this.getOrderedPublications(publication.chapter.novelId),
@@ -156,19 +177,20 @@ export class ChapterPublicationRepository
         volumeOrder: publication.volume.orderIndex,
         publishedAt: publication.publishedAt,
         updatedAt: publication.chapter.updatedAt,
-        wordCount: wordCounter(publication.chapter.content),
+        wordCount: publication.chapter.wordCount,
       }),
     );
   }
 
   async getPublishedChapterForOffline(chapterId: string) {
-    const publication = await this.publicationRepo.findOne({
-      where: { chapterId },
-      relations: {
-        volume: true,
-        chapter: { novel: true },
-      },
-    });
+    const publication = await this.publicationRepo
+      .createQueryBuilder("pub")
+      .innerJoinAndSelect("pub.volume", "volume")
+      .innerJoinAndSelect("pub.chapter", "chapter")
+      .innerJoinAndSelect("chapter.novel", "novel")
+      .where("pub.chapterId = :chapterId", { chapterId })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
+      .getOne();
 
     if (!publication) return null;
 
@@ -190,7 +212,7 @@ export class ChapterPublicationRepository
       volumeOrder: publication.volume.orderIndex,
       publishedAt: publication.publishedAt,
       updatedAt: publication.chapter.updatedAt,
-      wordCount: wordCounter(publication.chapter.content),
+      wordCount: publication.chapter.wordCount,
     };
   }
 
@@ -217,7 +239,7 @@ export class ChapterPublicationRepository
         volumeOrder: publication.volume.orderIndex,
         publishedAt: publication.publishedAt,
         updatedAt: publication.chapter.updatedAt,
-        wordCount: wordCounter(publication.chapter.content),
+        wordCount: publication.chapter.wordCount,
       }),
     );
   }

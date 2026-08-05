@@ -1,6 +1,10 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { Novel } from "../entities/Novel.js";
-import { NovelListItem, SimilarNovelItem } from "./novel.repo.interface.js";
+import {
+  NovelListItem,
+  SimilarNovelItem,
+  WeeklyTrendingNovelItem,
+} from "./novel.repo.interface.js";
 import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
@@ -46,9 +50,10 @@ export interface INovelService {
   >;
   getWeeklyTrendingNovels(
     limit?: number,
+    page?: number,
     allowAdultContent?: boolean,
     viewerId?: string,
-  ): Promise<Novel[]>;
+  ): Promise<WeeklyTrendingNovelItem[]>;
   getRandomClassicNovels(
     limit?: number,
     allowAdultContent?: boolean,

@@ -4,6 +4,7 @@ export interface INovelDailyStatsService {
   getDashboardStats(
     novelId: string,
     authorId: string,
+    limit?: number,
   ): Promise<NovelStatsResponse>;
   createDailySnapshot(novelId: string): Promise<void>;
   bulkCreateDailySnapshots(
@@ -15,12 +16,23 @@ export interface INovelDailyStatsService {
       totalLibraryCount: number;
     }[],
   ): Promise<void>;
+  deleteOldDailySnapshots(daysToKeep?: number): Promise<void>;
 }
 
 export interface DashboardStats {
   current: number;
+  periodGain: number;
   change: number;
+  changePercent: number;
   status: TrendState;
+}
+
+export interface DailyNovelStats {
+  date: string;
+  views: number;
+  reviews: number;
+  libraryAdds: number;
+  recommendationRate: number;
 }
 
 export interface NovelStatsResponse {
@@ -28,6 +40,7 @@ export interface NovelStatsResponse {
   totalReviews: DashboardStats;
   totalRecommendations: DashboardStats;
   totalLibraryCount: DashboardStats;
+  daily: DailyNovelStats[];
 }
 
 export enum TrendState {

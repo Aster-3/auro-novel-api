@@ -7,6 +7,8 @@ import { authorController } from "../container.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { adminMiddleware } from "../middlewares/admin.middleware.js";
 import { queryPageAndLimitSchema } from "../schemas/queryPageAndLimitSchema.js";
+import { getNovelStatsSchema } from "../schemas/get.novel.stats.schema.js";
+import { novelDailyStatsController } from "../container.js";
 
 const router = Router();
 
@@ -20,6 +22,13 @@ router.get(
 );
 
 router.get("/me", authMiddleware, authorController.getMe);
+
+router.get(
+  "/novels/:novelId/stats",
+  authMiddleware,
+  validateSchema(getNovelStatsSchema),
+  novelDailyStatsController.getDashboardStats,
+);
 
 router.post(
   "/",

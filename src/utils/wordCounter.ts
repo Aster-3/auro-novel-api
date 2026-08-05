@@ -1,13 +1,27 @@
 export const wordCounter = (htmlStr: string) => {
   if (!htmlStr) return 0;
 
-  // 1. HTML etiketlerini boşlukla değiştir (Böylece <p> bitince kelime bitmiş sayılır)
-  // 2. Ardından tüm boşluk karakterlerini normalize et
+  const htmlEntities: Record<string, string> = {
+    nbsp: " ",
+    amp: "&",
+    quot: '"',
+    apos: "'",
+    lt: "<",
+    gt: ">",
+  };
+
   const plainText = htmlStr
-    .replace(/<[^>]*>/g, " ") // Tüm <...> yapılarını boşlukla değiştir
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code) =>
+      String.fromCodePoint(parseInt(code, 16)),
+    )
+    .replace(/&([a-z]+);/gi, (match, entity) => htmlEntities[entity] ?? match)
+    .replace(/\s+/g, " ")
     .trim();
 
-  // 3. Şimdi temizlenmiş metni say
   const matches = plainText.match(/\S+/g);
   return matches ? matches.length : 0;
 };

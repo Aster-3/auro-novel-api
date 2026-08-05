@@ -38,6 +38,11 @@ export interface IUserRepository {
   findForLogin(email: string): Promise<User | null>;
   findWithPasswordById(id: string): Promise<User | null>;
   updateUser(dto: UpdateUserDto): Promise<User | null>;
+  updateUsername(
+    userId: string,
+    username: string,
+    usernameChangedAt: Date,
+  ): Promise<User | null>;
   updateContentPreferences(
     userId: string,
     showAdultContent: boolean,
@@ -52,6 +57,11 @@ export interface IUserRepository {
   updatePasswordAndClearRefreshToken(
     userId: string,
     password: string,
+  ): Promise<void>;
+  updatePasswordAndRefreshToken(
+    userId: string,
+    password: string,
+    refreshToken: string,
   ): Promise<void>;
   clearRefreshToken(userId: string): Promise<void>;
   getUserForTokenRefresh(userId: string): Promise<User | null>;

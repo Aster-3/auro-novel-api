@@ -15,6 +15,8 @@ import {
 } from "../constants/notification.constants.js";
 import { PushNotificationService } from "./push.notification.service.js";
 
+const LIKE_NOTIFICATION_PUSH_THROTTLE_MS = 60 * 60 * 1000;
+
 export class CommentService implements ICommentService {
   constructor(
     private uow: IUnitOfWork,
@@ -201,31 +203,49 @@ export class CommentService implements ICommentService {
 
       const actor = await this.uow.userRepository.findOneById(userId);
       const actorName = actor?.nickname || "Bir kullanici";
-      const titleSnapshot = `${actorName} yorumunu begendi`;
-      const bodySnapshot = "Yorumun yeni bir begeni aldi.";
+      const pushBody = "Yorumun yeni bir begeni aldi.";
+      const targetUrl = `https://auronovel.com/novels/${commentMeta.novelId}/comments/${commentMeta.id}`;
 
-      await this.uow.personalNotificationRepository.createNotification({
-        userId: commentMeta.userId,
-        actorUserId: userId,
-        type: PersonalNotificationType.COMMENT_LIKE,
-        targetType: NotificationTargetType.COMMENT,
-        targetId: String(commentMeta.id),
+      const aggregation =
+        await this.uow.personalNotificationRepository.createOrUpdateAggregatedNotification(
+          {
+            userId: commentMeta.userId,
+            actorUserId: userId,
+            type: PersonalNotificationType.COMMENT_LIKE,
+            targetType: NotificationTargetType.COMMENT,
+            targetId: String(commentMeta.id),
+            targetUrl,
+            aggregationKey: `${PersonalNotificationType.COMMENT_LIKE}:${commentMeta.id}`,
+            data: {
+              novelId: commentMeta.novelId,
+              commentId: commentMeta.id,
+            },
+          },
+          LIKE_NOTIFICATION_PUSH_THROTTLE_MS,
+        );
+
+      const titleSnapshot = this.formatCommentLikeTitle(
+        actorName,
+        aggregation.notification.actorCount,
+      );
+      await this.uow.personalNotificationRepository.updateNotificationSnapshots(
+        aggregation.notification.id,
         titleSnapshot,
-        bodySnapshot,
-        data: {
-          novelId: commentMeta.novelId,
-          commentId: commentMeta.id,
-        },
-      });
+      );
+
+      if (!aggregation.shouldSendPush) {
+        return;
+      }
 
       await this.pushNotificationService.sendToUser(commentMeta.userId, {
         title: titleSnapshot,
-        body: bodySnapshot,
+        body: pushBody,
         data: {
           notificationType: "personal_notification",
           type: PersonalNotificationType.COMMENT_LIKE,
           targetType: NotificationTargetType.COMMENT,
           targetId: String(commentMeta.id),
+          targetUrl,
           novelId: commentMeta.novelId,
           commentId: commentMeta.id,
         },
@@ -233,5 +253,13 @@ export class CommentService implements ICommentService {
     } catch (error) {
       console.error("Yorum begeni bildirimi gonderilemedi:", error);
     }
+  }
+
+  private formatCommentLikeTitle(actorName: string, actorCount: number) {
+    if (actorCount <= 1) {
+      return `${actorName} yorumunu begendi`;
+    }
+
+    return `${actorName} ve ${actorCount - 1} kisi yorumunu begendi`;
   }
 }

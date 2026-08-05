@@ -27,6 +27,9 @@ export class Chapter {
   @Column({ type: "text" })
   content!: string;
 
+  @Column({ type: "int", default: 0 })
+  wordCount!: number;
+
   @Column({ type: "uuid" })
   novelId!: string;
 

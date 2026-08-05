@@ -13,16 +13,31 @@ export type NovelListItem = Pick<
   | "synopsis"
   | "status"
   | "chapterCount"
+  | "averageChapterWordCount"
   | "viewCount"
   | "totalReviewsCount"
 > & {
   recommendationRate: number | null;
+  bannedUntil?: Date | null;
+  banReason?: string | null;
 };
 
 export type SimilarNovelItem = Pick<
   Novel,
   "id" | "name" | "coverImage"
 >;
+
+export type WeeklyRankStatus = "new" | "up" | "down" | "same";
+
+export type WeeklyTrendingNovelItem = Pick<
+  Novel,
+  "id" | "name" | "coverImage" | "weeklyRankingScore"
+> & {
+  rank: number;
+  previousRank: number | null;
+  rankChange: number | null;
+  rankStatus: WeeklyRankStatus;
+};
 
 export interface INovelRepository {
   create(novel: CreateNovelDTo): Promise<Novel>;
@@ -49,9 +64,10 @@ export interface INovelRepository {
   ): Promise<Novel[]>;
   getWeeklyTrendingNovels(
     limit: number,
+    page?: number,
     allowAdultContent?: boolean,
     viewerId?: string,
-  ): Promise<Novel[]>;
+  ): Promise<WeeklyTrendingNovelItem[]>;
   getRandomClassicNovels(
     limit: number,
     allowAdultContent?: boolean,
@@ -74,9 +90,14 @@ export interface INovelRepository {
     allowAdultContent?: boolean,
     viewerId?: string,
   ): Promise<SimilarNovelItem[]>;
-  findOneById(id: string, viewerId?: string): Promise<Novel | null>;
+  findOneById(
+    id: string,
+    viewerId?: string,
+    options?: { includeBanned?: boolean },
+  ): Promise<Novel | null>;
   getFirstPublishedChapterId(novelId: string): Promise<string | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
+  isActivelyBanned(novelId: string): Promise<boolean>;
   updateNovelCategories(novelId: string, categoryIds: number[]): Promise<void>;
   updateNovelTags(novelId: string, tagIds: string[]): Promise<void>;
   incrementViewCount(novelId: string): Promise<void>;
@@ -90,13 +111,26 @@ export interface INovelRepository {
   getWeeklyTrendData(): Promise<
     {
       id: string;
+      createdAt: Date;
+      viewCount: number;
       totalReviewsCount: number;
-      totalReviews: number;
+      positiveReviewsCount: number;
+      totalLibraryCount: number;
+      snapshotId: string | null;
+      totalViews: number | null;
+      totalReviews: number | null;
+      totalPositiveReviews: number | null;
+      totalLibraryCountSnapshot: number | null;
     }[]
   >;
   bulkUpdateWeeklyScores(
     scores: { id: string; weeklyScore: number }[],
   ): Promise<void>;
+  bulkCreateWeeklyRankSnapshots(
+    scores: { id: string; weeklyScore: number }[],
+    limit?: number,
+  ): Promise<void>;
+  deleteOldWeeklyRankSnapshots(daysToKeep?: number): Promise<void>;
   getAllNovelsWithStats(): Promise<
     {
       id: string;

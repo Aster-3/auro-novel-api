@@ -1,6 +1,7 @@
 import { Repository } from "typeorm";
 import { NovelDailyStats } from "../entities/NovelDailyStats.js";
 import { INovelDailyStatsRepository } from "../interfaces/novel.daily.stats.repo.interface.js";
+import { getIstanbulDateString } from "../utils/date.string.js";
 
 export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
   constructor(private novelDailyStatsRepo: Repository<NovelDailyStats>) {}
@@ -13,7 +14,7 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
   }
 
   async createDailySnapshot(novelId: string) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getIstanbulDateString();
     const stats = this.novelDailyStatsRepo.create({
       novelId,
       recordedAt: today,
@@ -34,7 +35,7 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
   }
 
   async bulkCreate(snapshots: any[]) {
-    const recordedAt = new Date().toISOString().split("T")[0];
+    const recordedAt = getIstanbulDateString();
 
     const entities = snapshots.map((s) => ({
       novelId: s.id,
@@ -50,6 +51,19 @@ export class NovelDailyStatsRepository implements INovelDailyStatsRepository {
       .insert()
       .into(NovelDailyStats)
       .values(entities)
+      .execute();
+  }
+
+  async deleteOlderThan(daysToKeep: number) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysToKeep);
+    const cutoffDate = getIstanbulDateString(cutoff);
+
+    await this.novelDailyStatsRepo
+      .createQueryBuilder()
+      .delete()
+      .from(NovelDailyStats)
+      .where('"recordedAt" < :cutoffDate', { cutoffDate })
       .execute();
   }
 }

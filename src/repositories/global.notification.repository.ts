@@ -18,7 +18,6 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
     const notification = this.notificationRepo.create({
       ...dto,
       isPublished: dto.isPublished ?? true,
-      priority: dto.priority ?? 0,
       publishedAt:
         dto.publishedAt ?? (dto.isPublished === false ? null : new Date()),
     });
@@ -43,8 +42,7 @@ export class GlobalNotificationRepository implements IGlobalNotificationReposito
           );
         }),
       )
-      .orderBy("notification.priority", "DESC")
-      .addOrderBy("notification.publishedAt", "DESC")
+      .orderBy("notification.publishedAt", "DESC")
       .addOrderBy("notification.createdAt", "DESC")
       .skip(skip)
       .take(limit);

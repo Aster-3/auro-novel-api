@@ -4,6 +4,7 @@ import {
   MinLength,
   MaxLength,
   IsNotEmpty,
+  Matches,
 } from "class-validator";
 
 export class CreateUserDto {
@@ -25,6 +26,8 @@ export class CreateUserDto {
 
   @MaxLength(255, { message: "Şifre en fazla 255 karakter olabilir." })
   @MinLength(8, { message: "Şifre en az 8 karakter olabilir." })
+  @Matches(/[a-z]/, { message: "Şifre en az bir küçük harf içermelidir." })
+  @Matches(/[A-Z]/, { message: "Şifre en az bir büyük harf içermelidir." })
   @IsString({ message: "Şifre bir metin olmalıdır." })
   @IsNotEmpty({ message: "Şifre alanı zorunludur." })
   password!: string;

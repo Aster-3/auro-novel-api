@@ -95,6 +95,7 @@ export class CommentRepository implements ICommentRepository {
       .innerJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
       .where("comment.createdAt >= :oneWeekAgo", { oneWeekAgo })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("comment.likeCount", "DESC")
       .take(10)
@@ -281,7 +282,9 @@ export class CommentRepository implements ICommentRepository {
     const query = this.commentRepo
       .createQueryBuilder("comment")
       .leftJoinAndSelect("comment.user", "user")
+      .innerJoin("comment.novel", "novel")
       .where("comment.id = :id", { id })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .select([
         "comment.id",
         "comment.content",
@@ -325,6 +328,7 @@ export class CommentRepository implements ICommentRepository {
       .innerJoin("novel.author", "author")
       .leftJoin("author.user", "authorUser")
       .where("comment.userId = :userId", { userId })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
@@ -380,14 +384,13 @@ export class CommentRepository implements ICommentRepository {
   }
 
   async getNotificationMetaById(id: number) {
-    const comment = await this.commentRepo.findOne({
-      where: { id },
-      select: {
-        id: true,
-        userId: true,
-        novelId: true,
-      },
-    });
+    const comment = await this.commentRepo
+      .createQueryBuilder("comment")
+      .innerJoin("comment.novel", "novel")
+      .where("comment.id = :id", { id })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
+      .select(["comment.id", "comment.userId", "comment.novelId"])
+      .getOne();
 
     if (!comment) {
       return null;

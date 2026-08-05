@@ -12,6 +12,7 @@ export const createDailySnapshot = async (
       try {
         const novelsWithStats = await novelService.getAllNovelsWithStats();
         await novelDailyStatsService.bulkCreateDailySnapshots(novelsWithStats);
+        await novelDailyStatsService.deleteOldDailySnapshots(90);
       } catch (error) {
         console.error("Error creating daily snapshots:", error);
       }

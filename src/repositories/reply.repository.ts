@@ -98,9 +98,12 @@ export class ReplyRepository implements IReplyRepository {
       .createQueryBuilder("reply")
       .withDeleted() // Silinmiş parent'ları görebilmek için bu şart
       .leftJoinAndSelect("reply.user", "user")
+      .innerJoin("reply.comment", "rootComment")
+      .innerJoin("rootComment.novel", "novel")
       .leftJoinAndSelect("reply.parentReply", "parentReply")
       .leftJoinAndSelect("parentReply.user", "parentUser")
       .where("reply.rootCommentId = :rootCommentId", { rootCommentId })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       // KRİTİK FİLTRE: Ana listenin kendisinde silinmişleri istemiyoruz
       .andWhere("reply.deletedAt IS NULL")
       .orderBy("reply.createdAt", "ASC")
@@ -178,6 +181,7 @@ export class ReplyRepository implements IReplyRepository {
       .leftJoinAndSelect("parentReply.user", "parentUser")
       .where("reply.userId = :userId", { userId })
       .andWhere("reply.deletedAt IS NULL")
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
       .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("reply.createdAt", "DESC")
       .skip(skip)

@@ -1,4 +1,6 @@
 import { ConflictError } from "../errors/conflict.error.js";
+import { ForbiddenError } from "../errors/forbidden.error.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { IVolumeRepository } from "../interfaces/volume.repo.interface.js";
 import { IVolumeService } from "../interfaces/volume.service.interface.js";
@@ -19,6 +21,7 @@ export class VolumeService implements IVolumeService {
         "Bu romanin sahibi degilsiniz.",
       );
     }
+    await this.ensureNovelCanBeModified(dto.novelId, isAdmin);
 
     const lastVolume = await this.volumeRepo.getLastVolume(dto.novelId);
     const nextOrder = lastVolume ? Math.floor(lastVolume.orderIndex) + 1 : 1;
@@ -48,6 +51,7 @@ export class VolumeService implements IVolumeService {
         "Bu romanin sahibi degilsiniz.",
       );
     }
+    await this.ensureNovelCanBeModified(volume.novelId, isAdmin);
 
     await this.ensureVolumeCanBeDeleted(volumeId);
     await this.volumeRepo.deleteAndCloseGap(
@@ -57,7 +61,27 @@ export class VolumeService implements IVolumeService {
     );
   }
 
-  async getVolumeByNovelId(novelId: string) {
+  async getVolumeByNovelId(
+    novelId: string,
+    userId?: string,
+    isAdmin = false,
+  ) {
+    const novel = await this.novelRepo.findOneById(novelId, userId, {
+      includeBanned: true,
+    });
+    if (!novel) {
+      throw new NotFoundError("Roman bulunamadi.");
+    }
+
+    if (
+      novel.bannedUntil &&
+      novel.bannedUntil > new Date() &&
+      !isAdmin &&
+      novel.author?.userId !== userId
+    ) {
+      throw new NotFoundError("Roman bulunamadi.");
+    }
+
     return await this.volumeRepo.getVolumeByNovelId(novelId);
   }
 
@@ -67,8 +91,8 @@ export class VolumeService implements IVolumeService {
     isAdmin: boolean,
     userId: string,
   ) {
-    const exist = await this.volumeRepo.existControl(volumeId);
-    if (!exist) {
+    const volume = await this.volumeRepo.getOneById(volumeId);
+    if (!volume) {
       throw new ConflictError(
         "volume_not_found",
         "Guncellenmek istenen cilt mevcut degil.",
@@ -83,8 +107,25 @@ export class VolumeService implements IVolumeService {
         "Bu romanin sahibi degilsiniz.",
       );
     }
+    await this.ensureNovelCanBeModified(volume.novelId, isAdmin);
 
     await this.volumeRepo.update(volumeId, name);
+  }
+
+  private async ensureNovelCanBeModified(novelId: string, isAdmin: boolean) {
+    if (isAdmin) return;
+
+    const novel = await this.novelRepo.findOneById(novelId, undefined, {
+      includeBanned: true,
+    });
+
+    if (!novel) {
+      throw new NotFoundError("Roman bulunamadi.");
+    }
+
+    if (novel.bannedUntil && novel.bannedUntil > new Date()) {
+      throw new ForbiddenError("Banli roman uzerinde islem yapilamaz.");
+    }
   }
 
   private async ensureVolumeCanBeDeleted(volumeId: string) {

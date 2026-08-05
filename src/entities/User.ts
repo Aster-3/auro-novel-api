@@ -73,6 +73,9 @@ export class User {
   @Column({ type: "enum", enum: UserGender, nullable: true })
   gender?: UserGender | null;
 
+  @Column({ type: "timestamp", nullable: true })
+  usernameChangedAt?: Date | null;
+
   @Column({ type: "boolean", default: false })
   showAdultContent!: boolean;
 

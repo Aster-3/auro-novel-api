@@ -25,8 +25,8 @@ export interface IGlobalNotificationRepository {
 export interface CreateGlobalNotificationDto {
   title: string;
   summary: string;
-  content: string;
-  priority?: number;
+  content?: string | null;
+  targetUrl?: string | null;
   isPublished?: boolean;
   publishedAt?: Date | null;
   expiresAt?: Date | null;

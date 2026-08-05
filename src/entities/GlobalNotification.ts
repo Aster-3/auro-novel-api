@@ -17,11 +17,11 @@ export class GlobalNotification {
   @Column({ type: "varchar", length: 500 })
   summary!: string;
 
-  @Column({ type: "text" })
-  content!: string;
+  @Column({ type: "text", nullable: true })
+  content?: string | null;
 
-  @Column({ type: "int", default: 0 })
-  priority!: number;
+  @Column({ type: "text", nullable: true })
+  targetUrl?: string | null;
 
   @Column({ type: "boolean", default: true })
   isPublished!: boolean;

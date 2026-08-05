@@ -175,9 +175,11 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       .createQueryBuilder("comment")
       .withDeleted()
       .leftJoinAndSelect("comment.user", "user")
+      .innerJoin("comment.novel", "novel")
       .leftJoinAndSelect("comment.parentComment", "parentComment")
       .leftJoinAndSelect("parentComment.user", "parentUser")
-      .where("comment.id = :id", { id });
+      .where("comment.id = :id", { id })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())');
 
     if (userId) {
       applyBlockedUserVisibilityFilter(query, userId, "user");
@@ -204,19 +206,22 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
   }
 
   async getMetaById(id: number) {
-    const comment = await this.commentRepo.findOne({
-      where: { id },
-      withDeleted: true,
-      select: {
-        id: true,
-        userId: true,
-        chapterId: true,
-        novelId: true,
-        rootCommentId: true,
-        parentCommentId: true,
-        deletedAt: true,
-      },
-    });
+    const comment = await this.commentRepo
+      .createQueryBuilder("comment")
+      .withDeleted()
+      .innerJoin("comment.novel", "novel")
+      .where("comment.id = :id", { id })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
+      .select([
+        "comment.id",
+        "comment.userId",
+        "comment.chapterId",
+        "comment.novelId",
+        "comment.rootCommentId",
+        "comment.parentCommentId",
+        "comment.deletedAt",
+      ])
+      .getOne();
 
     if (!comment) return null;
 

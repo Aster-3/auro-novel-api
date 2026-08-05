@@ -13,6 +13,7 @@ export interface ChapterListItem {
   volumeName: string | null;
   volumeId: string;
   publishedAt: Date;
+  wordCount: number;
 }
 
 export interface ChapterPublicationMeta {
@@ -35,7 +36,11 @@ export interface IChapterPublicationRepository {
     userId: string,
     isAdmin: boolean,
   ): Promise<FindAndCountType<ChapterListItem>>;
-  getChapterForReading(id: string): Promise<{
+  getChapterForReading(
+    id: string,
+    userId?: string,
+    isAdmin?: boolean,
+  ): Promise<{
     id: string;
     title: string;
     content: string;

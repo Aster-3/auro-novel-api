@@ -8,6 +8,7 @@ import { GetUserLibraryShowcaseDto } from "../schemas/get.user.showcase.schema.j
 import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 import { presentAuthor } from "../utils/deleted.user.presenter.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
+import { NotFoundError } from "../errors/not.found.error.js";
 
 export class LibraryRepository implements ILibraryRepository {
   constructor(private libraryRepo: Repository<Library>) {}
@@ -29,6 +30,15 @@ export class LibraryRepository implements ILibraryRepository {
           .where("id = :id", { id: novelId })
           .execute();
       } else {
+        const visibleNovel = await manager
+          .createQueryBuilder(Novel, "novel")
+          .where("novel.id = :novelId", { novelId })
+          .andWhere(
+            '(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())',
+          )
+          .getExists();
+        if (!visibleNovel) throw new NotFoundError("Roman bulunamadi.");
+
         await manager.save(Library, { novelId, userId });
         await manager.increment(Novel, { id: novelId }, "totalLibraryCount", 1);
       }
@@ -42,6 +52,15 @@ export class LibraryRepository implements ILibraryRepository {
       });
 
       if (existingEntry) return;
+
+      const visibleNovel = await manager
+        .createQueryBuilder(Novel, "novel")
+        .where("novel.id = :novelId", { novelId })
+        .andWhere(
+          '(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())',
+        )
+        .getExists();
+      if (!visibleNovel) throw new NotFoundError("Roman bulunamadi.");
 
       await manager.save(Library, { novelId, userId });
       await manager.increment(Novel, { id: novelId }, "totalLibraryCount", 1);
@@ -85,6 +104,7 @@ export class LibraryRepository implements ILibraryRepository {
       )
       .where("library.userId = :userId", { userId });
     query.andWhere("library.isHidden = false");
+    query.andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())');
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
 
     if (search) {
@@ -155,6 +175,7 @@ export class LibraryRepository implements ILibraryRepository {
       )
       .where("library.userId = :userId", { userId })
       .andWhere("library.isHidden = false");
+    query.andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())');
     applyAdultContentFilter(query, allowAdultContent);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUser");
 
@@ -241,9 +262,12 @@ export class LibraryRepository implements ILibraryRepository {
   }
 
   async existInLibrary(novelId: string, userId: string): Promise<boolean> {
-    const exists = await this.libraryRepo.exists({
-      where: { novelId, userId },
-    });
-    return exists;
+    return this.libraryRepo
+      .createQueryBuilder("library")
+      .innerJoin("library.novel", "novel")
+      .where("library.novelId = :novelId", { novelId })
+      .andWhere("library.userId = :userId", { userId })
+      .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
+      .getExists();
   }
 }

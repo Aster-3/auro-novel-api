@@ -6,6 +6,7 @@ export class UserLoginResponseDto {
   nickname!: string;
   email!: string;
   profileImageUrl!: string | null;
+  usernameChangedAt!: Date | null;
   role!: string;
   authProvider!: string;
   showAdultContent!: boolean;
@@ -23,6 +24,7 @@ export class UserLoginResponseDto {
       this.nickname = data.nickname || "Anonim";
       this.email! = data.email || "";
       this.profileImageUrl = data.profileImageUrl || null;
+      this.usernameChangedAt = data.usernameChangedAt || null;
       this.role = data.role || "user";
       this.authProvider = data.authProvider || "local";
       this.showAdultContent = data.showAdultContent ?? false;

@@ -1,8 +1,10 @@
-import { DeleteResult, IsNull, Not, Repository, UpdateResult } from "typeorm";
+import { DeleteResult, Repository, UpdateResult } from "typeorm";
 import { Banner } from "../entities/Banner.js";
+import { Novel } from "../entities/Novel.js";
 import { IBannerRepository } from "../interfaces/banner.repo.interface.js";
 import { CreateBannerDto } from "../schemas/create.banner.schema.js";
 import { UpdateBannerDto } from "../schemas/update.banner.schema.js";
+import { BannerTargetType } from "../constants/banner.constants.js";
 
 export class BannerRepository implements IBannerRepository {
   constructor(private bannerRepo: Repository<Banner>) {}
@@ -12,14 +14,28 @@ export class BannerRepository implements IBannerRepository {
   }
 
   async findActiveForHome(limit: number) {
-    return this.bannerRepo.find({
-      where: {
-        isActive: true,
-        imageUrl: Not(IsNull()),
-      },
-      order: { orderIndex: "ASC", createdAt: "DESC" },
-      take: limit,
-    });
+    return this.bannerRepo
+      .createQueryBuilder("banner")
+      .leftJoin(
+        Novel,
+        "target_novel",
+        "banner.targetType = :novelTargetType AND target_novel.id = banner.targetId",
+        { novelTargetType: BannerTargetType.NOVEL },
+      )
+      .where("banner.isActive = true")
+      .andWhere("banner.imageUrl IS NOT NULL")
+      .andWhere(
+        `(
+          banner.targetType != :novelTargetType OR
+          target_novel.id IS NOT NULL AND
+          (target_novel."bannedUntil" IS NULL OR target_novel."bannedUntil" <= NOW())
+        )`,
+        { novelTargetType: BannerTargetType.NOVEL },
+      )
+      .orderBy("banner.orderIndex", "ASC")
+      .addOrderBy("banner.createdAt", "DESC")
+      .take(limit)
+      .getMany();
   }
 
   async findAll() {

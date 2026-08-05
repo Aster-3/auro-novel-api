@@ -11,7 +11,9 @@ export const resetPasswordSchema = z.object({
       .regex(/^\d+$/, "Sifre sifirlama kodu sadece rakamlardan olusmalidir."),
     newPassword: reqString("Yeni sifre")
       .min(8, "Yeni sifre en az 8 karakter olmalidir")
-      .max(255, "Yeni sifre en fazla 255 karakter olmalidir"),
+      .max(255, "Yeni sifre en fazla 255 karakter olmalidir")
+      .regex(/[a-z]/, "Yeni sifre en az bir kucuk harf icermelidir")
+      .regex(/[A-Z]/, "Yeni sifre en az bir buyuk harf icermelidir"),
   }),
 });
 
