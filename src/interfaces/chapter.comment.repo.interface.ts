@@ -8,7 +8,13 @@ import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js
 
 export interface IChapterCommentRepository {
   createRoot(
-    dto: CreateChapterCommentDto & { userId: string; novelId: string },
+    dto: CreateChapterCommentDto & {
+      userId: string;
+      novelId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
+    },
   ): Promise<ChapterComment>;
   createReply(
     dto: CreateChapterCommentReplyDto & {
@@ -17,6 +23,9 @@ export interface IChapterCommentRepository {
       novelId: string;
       rootCommentId: number;
       parentCommentId: number;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
     },
   ): Promise<ChapterComment>;
   delete(id: number): Promise<void>;

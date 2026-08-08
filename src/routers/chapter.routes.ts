@@ -12,6 +12,7 @@ import { createChapterCommentSchema } from "../schemas/create.chapter.comment.sc
 import { getChapterCommentsSchema } from "../schemas/get.chapter.comments.schema.js";
 import { chapterCommentController } from "../container.js";
 import { moveChapterSchema } from "../schemas/move.chapter.schema.js";
+import { chapterCommentImageUpload } from "../middlewares/upload.middleware.js";
 
 const router = Router();
 
@@ -45,6 +46,7 @@ router.get(
 router.post(
   "/:chapterId/comments",
   authMiddleware,
+  chapterCommentImageUpload.single("image"),
   validateSchema(createChapterCommentSchema),
   chapterCommentController.createComment,
 );

@@ -13,13 +13,24 @@ import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility
 export class ChapterCommentRepository implements IChapterCommentRepository {
   constructor(private commentRepo: Repository<ChapterComment>) {}
 
-  async createRoot(dto: CreateChapterCommentDto & { userId: string; novelId: string }) {
+  async createRoot(
+    dto: CreateChapterCommentDto & {
+      userId: string;
+      novelId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
+    },
+  ) {
     return await this.commentRepo.manager.transaction(async (manager) => {
       const comment = manager.create(ChapterComment, {
         content: dto.content,
         userId: dto.userId,
         chapterId: dto.chapterId,
         novelId: dto.novelId,
+        imageUrl: dto.imageUrl ?? null,
+        imageWidth: dto.imageUrl ? (dto.imageWidth ?? null) : null,
+        imageHeight: dto.imageUrl ? (dto.imageHeight ?? null) : null,
         rootCommentId: null,
         parentCommentId: null,
       });
@@ -37,6 +48,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       novelId: string;
       rootCommentId: number;
       parentCommentId: number;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
     },
   ) {
     return await this.commentRepo.manager.transaction(async (manager) => {
@@ -45,6 +59,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
         userId: dto.userId,
         chapterId: dto.chapterId,
         novelId: dto.novelId,
+        imageUrl: dto.imageUrl ?? null,
+        imageWidth: dto.imageUrl ? (dto.imageWidth ?? null) : null,
+        imageHeight: dto.imageUrl ? (dto.imageHeight ?? null) : null,
         rootCommentId: dto.rootCommentId,
         parentCommentId: dto.parentCommentId,
       });
@@ -75,6 +92,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
       await manager.update(ChapterComment, id, {
         deletedAt: new Date(),
         content: "",
+        imageUrl: null,
+        imageWidth: null,
+        imageHeight: null,
       });
 
       if (comment.rootCommentId) {
@@ -252,6 +272,9 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
     return {
       id: comment.id,
       content: comment.deletedAt ? null : comment.content,
+      imageUrl: comment.deletedAt ? null : comment.imageUrl,
+      imageWidth: comment.deletedAt ? null : comment.imageWidth,
+      imageHeight: comment.deletedAt ? null : comment.imageHeight,
       isDeleted: !!comment.deletedAt,
       chapterId: comment.chapterId,
       novelId: comment.novelId,
@@ -269,6 +292,15 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
               content: comment.parentComment.deletedAt
                 ? null
                 : comment.parentComment.content,
+              imageUrl: comment.parentComment.deletedAt
+                ? null
+                : comment.parentComment.imageUrl,
+              imageWidth: comment.parentComment.deletedAt
+                ? null
+                : comment.parentComment.imageWidth,
+              imageHeight: comment.parentComment.deletedAt
+                ? null
+                : comment.parentComment.imageHeight,
               isDeleted: !!comment.parentComment.deletedAt,
               user: presentUser(comment.parentComment.user),
             }

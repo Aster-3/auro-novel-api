@@ -23,6 +23,15 @@ export class ChapterComment {
   @Column({ type: "varchar", length: 1500 })
   content!: string;
 
+  @Column({ type: "text", nullable: true })
+  imageUrl!: string | null;
+
+  @Column({ type: "int", nullable: true })
+  imageWidth!: number | null;
+
+  @Column({ type: "int", nullable: true })
+  imageHeight!: number | null;
+
   @Index()
   @Column({ type: "uuid" })
   userId!: string;

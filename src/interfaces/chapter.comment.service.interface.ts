@@ -8,12 +8,20 @@ import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js
 
 export interface IChapterCommentService {
   createComment(
-    dto: CreateChapterCommentDto & { userId: string },
+    dto: CreateChapterCommentDto & {
+      userId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
+    },
   ): Promise<ChapterComment>;
   createReply(
     dto: CreateChapterCommentReplyDto & {
       rootCommentId: number;
       userId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
     },
   ): Promise<ChapterComment>;
   deleteComment(commentId: number, userId: string): Promise<void>;

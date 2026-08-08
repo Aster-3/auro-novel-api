@@ -12,7 +12,16 @@ import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js
 export class ChapterCommentService implements IChapterCommentService {
   constructor(private uow: IUnitOfWork) {}
 
-  async createComment(dto: CreateChapterCommentDto & { userId: string }) {
+  async createComment(
+    dto: CreateChapterCommentDto & {
+      userId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
+    },
+  ) {
+    this.ensureCommentHasContentOrImage(dto.content, dto.imageUrl);
+
     const chapter = await this.uow.chapterPublicationRepository.getChapterForReading(
       dto.chapterId,
     );
@@ -39,8 +48,13 @@ export class ChapterCommentService implements IChapterCommentService {
     dto: CreateChapterCommentReplyDto & {
       rootCommentId: number;
       userId: string;
+      imageUrl?: string | null;
+      imageWidth?: number | null;
+      imageHeight?: number | null;
     },
   ) {
+    this.ensureCommentHasContentOrImage(dto.content, dto.imageUrl);
+
     const rootComment = await this.uow.chapterCommentRepository.getMetaById(
       dto.rootCommentId,
     );
@@ -160,6 +174,12 @@ export class ChapterCommentService implements IChapterCommentService {
 
     if (blocked) {
       throw new NotFoundError("Yorum bulunamadi.");
+    }
+  }
+
+  private ensureCommentHasContentOrImage(content: string, imageUrl?: string | null) {
+    if (!content.trim() && !imageUrl) {
+      throw new BadRequestError("Yorum veya gorsel zorunludur.");
     }
   }
 }

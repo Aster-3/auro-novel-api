@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { IChapterCommentService } from "../interfaces/chapter.comment.service.interface.js";
+import { uploadToS3 } from "../services/s3.service.js";
 
 export class ChapterCommentController {
   constructor(private chapterCommentService: IChapterCommentService) {}
@@ -15,9 +16,13 @@ export class ChapterCommentController {
 
   createComment = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
+    const imageUrl = req.file
+      ? await uploadToS3(req.file, "chaptercomments")
+      : null;
     const comment = await this.chapterCommentService.createComment({
       ...res.locals.validatedData,
       userId,
+      imageUrl,
     });
     res.status(201).json(comment);
   };
@@ -36,10 +41,14 @@ export class ChapterCommentController {
 
   createReply = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
+    const imageUrl = req.file
+      ? await uploadToS3(req.file, "chaptercomments")
+      : null;
     const reply = await this.chapterCommentService.createReply({
       ...res.locals.validatedData,
       rootCommentId: Number(req.params.commentId),
       userId,
+      imageUrl,
     });
     res.status(201).json(reply);
   };

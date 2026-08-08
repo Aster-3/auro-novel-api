@@ -30,3 +30,4 @@ const createImageUpload = (maxFileSizeMb: number) =>
 
 export const profileImageUpload = createImageUpload(3);
 export const coverImageUpload = createImageUpload(5);
+export const chapterCommentImageUpload = createImageUpload(5);
