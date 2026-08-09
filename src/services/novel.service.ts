@@ -8,7 +8,7 @@ import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { presentAuthor } from "../utils/deleted.user.presenter.js";
-import { uploadToS3 } from "./s3.service.js";
+import { deleteFromS3ByUrl, uploadToS3 } from "./s3.service.js";
 
 export class NovelService implements INovelService {
   constructor(
@@ -108,7 +108,12 @@ export class NovelService implements INovelService {
       novelData.coverImage = await uploadToS3(file, "novel-covers");
     }
 
-    return this.novelRepo.create(novelData);
+    try {
+      return await this.novelRepo.create(novelData);
+    } catch (error) {
+      await deleteFromS3ByUrl(novelData.coverImage);
+      throw error;
+    }
   }
 
   async getNovels(
@@ -302,17 +307,28 @@ export class NovelService implements INovelService {
   async updateNovel(dto: UpdateNovelDTO, userId: string, isAdmin: boolean) {
     const novelExists = await this.novelRepo.existControl({ id: dto.id });
     if (!novelExists) throw new NotFoundError("...");
+    const currentCoverImage = await this.novelRepo.getCoverImageById(dto.id);
     await this.ensureNovelAccess(dto.id, userId, isAdmin);
     await this.ensureNovelCanBeModified(dto.id);
 
+    const newCoverImage = dto.coverImage
+      ? await uploadToS3(dto.coverImage, "novel-covers")
+      : undefined;
     const updateData = {
       ...dto,
-      coverImage: dto.coverImage
-        ? await uploadToS3(dto.coverImage, "novel-covers")
-        : undefined,
+      coverImage: newCoverImage,
     };
 
-    await this.novelRepo.updateNovel(updateData);
+    try {
+      await this.novelRepo.updateNovel(updateData);
+    } catch (error) {
+      await deleteFromS3ByUrl(newCoverImage);
+      throw error;
+    }
+
+    if (newCoverImage && newCoverImage !== currentCoverImage) {
+      await deleteFromS3ByUrl(currentCoverImage);
+    }
   }
 
   async deleteNovel(
@@ -322,9 +338,11 @@ export class NovelService implements INovelService {
   ): Promise<void> {
     const novelExists = await this.novelRepo.existControl({ id: novelId });
     if (!novelExists) throw new NotFoundError("Roman bulunamadi.");
+    const currentCoverImage = await this.novelRepo.getCoverImageById(novelId);
     await this.ensureNovelAccess(novelId, userId, isAdmin);
     await this.ensureNovelCanBeModified(novelId);
     await this.novelRepo.deleteNovel(novelId);
+    await deleteFromS3ByUrl(currentCoverImage);
   }
 
   async isOwnerControl(novelId: string, authorId: string): Promise<boolean> {

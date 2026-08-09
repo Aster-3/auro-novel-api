@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IUserService } from "../interfaces/user.service.interface.js";
-import { uploadToS3 } from "../services/s3.service.js";
+import { deleteManyFromS3ByUrl, uploadToS3 } from "../services/s3.service.js";
 import { ILibraryService } from "../interfaces/library.service.interface.js";
 import { canShowAdultContent } from "../utils/adult.content.visibility.js";
 
@@ -105,8 +105,16 @@ export class UserController {
       updateData.profileBackgroundImageUrl = profileBackgroundImageUrl;
     }
 
-    const updatedUser = await this.userService.updateUser(updateData);
-    res.status(200).json(updatedUser);
+    try {
+      const updatedUser = await this.userService.updateUser(updateData);
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      await deleteManyFromS3ByUrl([
+        updateData.profileImageUrl,
+        updateData.profileBackgroundImageUrl,
+      ]);
+      throw error;
+    }
   };
 
   updateUsername = async (req: Request, res: Response) => {

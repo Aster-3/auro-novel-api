@@ -95,6 +95,7 @@ export interface INovelRepository {
     viewerId?: string,
     options?: { includeBanned?: boolean },
   ): Promise<Novel | null>;
+  getCoverImageById(id: string): Promise<string | null | undefined>;
   getFirstPublishedChapterId(novelId: string): Promise<string | null>;
   existControl(identifier: { id?: string; slug?: string }): Promise<boolean>;
   isActivelyBanned(novelId: string): Promise<boolean>;

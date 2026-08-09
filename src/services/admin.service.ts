@@ -46,7 +46,7 @@ import {
   PushNotificationService,
 } from "./push.notification.service.js";
 import { wordCounter } from "../utils/wordCounter.js";
-import { uploadToS3 } from "./s3.service.js";
+import { deleteFromS3ByUrl, deleteManyFromS3ByUrl, uploadToS3 } from "./s3.service.js";
 import { isPremiumActive, withPremiumStatus } from "../utils/premium.status.js";
 import { createAccountRecoveryHash } from "../utils/account.recovery.hash.js";
 
@@ -378,12 +378,21 @@ export class AdminService implements IAdminService {
   }
 
   async deleteUser(id: string) {
-    const exists = await AppDataSource.getRepository(User).exists({
+    const user = await AppDataSource.getRepository(User).findOne({
       where: { id },
+      select: {
+        id: true,
+        profileImageUrl: true,
+        profileBackgroundImageUrl: true,
+      },
     });
-    if (!exists) throw new NotFoundError("Kullanici bulunamadi.");
+    if (!user) throw new NotFoundError("Kullanici bulunamadi.");
 
     await this.uow.userRepository.softDeleteUser(id);
+    await deleteManyFromS3ByUrl([
+      user.profileImageUrl,
+      user.profileBackgroundImageUrl,
+    ]);
   }
 
   async createNovel(dto: AdminCreateNovelDto, file?: Express.Multer.File) {
@@ -404,11 +413,17 @@ export class AdminService implements IAdminService {
     }
 
     const coverImage = file ? await uploadToS3(file, "novel-covers") : null;
-    const novel = await this.uow.novelRepository.create({
-      ...dto,
-      coverImage: coverImage ?? undefined,
-      authorId: author.id,
-    });
+    let novel: Novel;
+    try {
+      novel = await this.uow.novelRepository.create({
+        ...dto,
+        coverImage: coverImage ?? undefined,
+        authorId: author.id,
+      });
+    } catch (error) {
+      await deleteFromS3ByUrl(coverImage);
+      throw error;
+    }
 
     return this.getNovelById(novel.id);
   }
@@ -484,32 +499,51 @@ export class AdminService implements IAdminService {
     dto: AdminUpdateNovelDto,
     file?: Express.Multer.File,
   ) {
+    const currentNovel = await AppDataSource.getRepository(Novel).findOne({
+      where: { id },
+      select: { id: true, coverImage: true },
+    });
+    if (!currentNovel) throw new NotFoundError("Roman bulunamadi.");
+
     const updateData: AdminUpdateNovelDto & { coverImage?: string } = {
       ...dto,
     };
 
+    let newCoverImage: string | undefined;
     if (file) {
-      updateData.coverImage = await uploadToS3(file, "novel-covers");
+      newCoverImage = await uploadToS3(file, "novel-covers");
+      updateData.coverImage = newCoverImage;
     }
 
     if (Object.keys(updateData).length === 0) {
       throw new BadRequestError("En az bir alan gonderilmelidir.");
     }
 
-    const result = await AppDataSource.getRepository(Novel).update(
-      id,
-      updateData,
-    );
-    if (!result.affected) throw new NotFoundError("Roman bulunamadi.");
+    try {
+      const result = await AppDataSource.getRepository(Novel).update(
+        id,
+        updateData,
+      );
+      if (!result.affected) throw new NotFoundError("Roman bulunamadi.");
+    } catch (error) {
+      await deleteFromS3ByUrl(newCoverImage);
+      throw error;
+    }
+
+    if (newCoverImage && newCoverImage !== currentNovel.coverImage) {
+      await deleteFromS3ByUrl(currentNovel.coverImage);
+    }
     return this.getNovelById(id);
   }
 
   async deleteNovel(id: string) {
-    const exists = await AppDataSource.getRepository(Novel).exists({
+    const novel = await AppDataSource.getRepository(Novel).findOne({
       where: { id },
+      select: { id: true, coverImage: true },
     });
-    if (!exists) throw new NotFoundError("Roman bulunamadi.");
+    if (!novel) throw new NotFoundError("Roman bulunamadi.");
     await this.uow.novelRepository.deleteNovel(id);
+    await deleteFromS3ByUrl(novel.coverImage);
   }
 
   async updateNovelCategories(novelId: string, categoryIds: number[]) {

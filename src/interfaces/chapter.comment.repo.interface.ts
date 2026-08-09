@@ -28,7 +28,7 @@ export interface IChapterCommentRepository {
       imageHeight?: number | null;
     },
   ): Promise<ChapterComment>;
-  delete(id: number): Promise<void>;
+  delete(id: number): Promise<string[]>;
   getRootComments(
     dto: GetChapterCommentsDto,
     userId?: string,

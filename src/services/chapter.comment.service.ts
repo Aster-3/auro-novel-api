@@ -8,6 +8,7 @@ import {
   CreateChapterCommentReplyDto,
 } from "../schemas/create.chapter.comment.schema.js";
 import { GetChapterCommentsDto } from "../schemas/get.chapter.comments.schema.js";
+import { deleteManyFromS3ByUrl } from "./s3.service.js";
 
 export class ChapterCommentService implements IChapterCommentService {
   constructor(private uow: IUnitOfWork) {}
@@ -107,7 +108,10 @@ export class ChapterCommentService implements IChapterCommentService {
       throw new ForbiddenError("Bu yorumu silmeye yetkiniz yok.");
     }
 
-    await this.uow.chapterCommentRepository.delete(commentId);
+    const deletedImageUrls = await this.uow.chapterCommentRepository.delete(
+      commentId,
+    );
+    await deleteManyFromS3ByUrl(deletedImageUrls);
   }
 
   async getCommentsByChapterId(dto: GetChapterCommentsDto, userId?: string) {

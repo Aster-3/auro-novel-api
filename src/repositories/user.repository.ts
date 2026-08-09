@@ -218,6 +218,8 @@ export class UserRepository implements IUserRepository {
       select: {
         id: true,
         email: true,
+        profileImageUrl: true,
+        profileBackgroundImageUrl: true,
         password: true,
         refreshToken: true,
       },

@@ -7,7 +7,7 @@ import { IBannerService } from "../interfaces/banner.service.interface.js";
 import { CreateBannerDto } from "../schemas/create.banner.schema.js";
 import { ReorderBannersDto } from "../schemas/reorder.banners.schema.js";
 import { UpdateBannerDto } from "../schemas/update.banner.schema.js";
-import { uploadToS3 } from "./s3.service.js";
+import { deleteFromS3ByUrl, uploadToS3 } from "./s3.service.js";
 
 export class BannerService implements IBannerService {
   constructor(
@@ -31,12 +31,17 @@ export class BannerService implements IBannerService {
     }
 
     const imageUrl = await uploadToS3(file, "banners");
-    return this.bannerRepository.create({
-      ...dto,
-      targetId:
-        dto.targetType === BannerTargetType.DISPLAY_ONLY ? null : dto.targetId,
-      imageUrl,
-    });
+    try {
+      return await this.bannerRepository.create({
+        ...dto,
+        targetId:
+          dto.targetType === BannerTargetType.DISPLAY_ONLY ? null : dto.targetId,
+        imageUrl,
+      });
+    } catch (error) {
+      await deleteFromS3ByUrl(imageUrl);
+      throw error;
+    }
   }
 
   async updateBanner(
@@ -70,10 +75,19 @@ export class BannerService implements IBannerService {
     }
     if (imageUrl) updateData.imageUrl = imageUrl;
 
-    const result = await this.bannerRepository.update(id, updateData);
+    try {
+      const result = await this.bannerRepository.update(id, updateData);
 
-    if (result.affected === 0) {
-      throw new NotFoundError("Banner bulunamadi.");
+      if (result.affected === 0) {
+        throw new NotFoundError("Banner bulunamadi.");
+      }
+    } catch (error) {
+      await deleteFromS3ByUrl(imageUrl);
+      throw error;
+    }
+
+    if (imageUrl && imageUrl !== banner.imageUrl) {
+      await deleteFromS3ByUrl(banner.imageUrl);
     }
   }
 
@@ -89,10 +103,16 @@ export class BannerService implements IBannerService {
   }
 
   async deleteBanner(id: string) {
+    const banner = await this.bannerRepository.findById(id);
+    if (!banner) {
+      throw new NotFoundError("Banner bulunamadi.");
+    }
+
     const result = await this.bannerRepository.delete(id);
     if (result.affected === 0) {
       throw new NotFoundError("Banner bulunamadi.");
     }
+    await deleteFromS3ByUrl(banner.imageUrl);
   }
 
   private async validateTarget(

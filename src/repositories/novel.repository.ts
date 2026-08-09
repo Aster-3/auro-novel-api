@@ -304,6 +304,14 @@ export class NovelRepository implements INovelRepository {
     return query.getOne();
   }
 
+  async getCoverImageById(id: string) {
+    const novel = await this.novelRepo.findOne({
+      where: { id },
+      select: { id: true, coverImage: true },
+    });
+    return novel?.coverImage;
+  }
+
   async getLastUpdatedNovels(
     limit: number,
     allowAdultContent = false,

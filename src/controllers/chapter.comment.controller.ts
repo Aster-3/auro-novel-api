@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IChapterCommentService } from "../interfaces/chapter.comment.service.interface.js";
-import { uploadToS3 } from "../services/s3.service.js";
+import { deleteFromS3ByUrl, uploadToS3 } from "../services/s3.service.js";
 
 export class ChapterCommentController {
   constructor(private chapterCommentService: IChapterCommentService) {}
@@ -19,12 +19,17 @@ export class ChapterCommentController {
     const imageUrl = req.file
       ? await uploadToS3(req.file, "chaptercomments")
       : null;
-    const comment = await this.chapterCommentService.createComment({
-      ...res.locals.validatedData,
-      userId,
-      imageUrl,
-    });
-    res.status(201).json(comment);
+    try {
+      const comment = await this.chapterCommentService.createComment({
+        ...res.locals.validatedData,
+        userId,
+        imageUrl,
+      });
+      res.status(201).json(comment);
+    } catch (error) {
+      await deleteFromS3ByUrl(imageUrl);
+      throw error;
+    }
   };
 
   getRepliesByCommentId = async (req: Request, res: Response) => {
@@ -44,13 +49,18 @@ export class ChapterCommentController {
     const imageUrl = req.file
       ? await uploadToS3(req.file, "chaptercomments")
       : null;
-    const reply = await this.chapterCommentService.createReply({
-      ...res.locals.validatedData,
-      rootCommentId: Number(req.params.commentId),
-      userId,
-      imageUrl,
-    });
-    res.status(201).json(reply);
+    try {
+      const reply = await this.chapterCommentService.createReply({
+        ...res.locals.validatedData,
+        rootCommentId: Number(req.params.commentId),
+        userId,
+        imageUrl,
+      });
+      res.status(201).json(reply);
+    } catch (error) {
+      await deleteFromS3ByUrl(imageUrl);
+      throw error;
+    }
   };
 
   getOneCommentById = async (req: Request, res: Response) => {

@@ -48,6 +48,7 @@ import { LibrarySortOption } from "../constants/series.constants.js";
 import { AppDataSource } from "../database/data-source.js";
 import { UserVerification } from "../entities/UserVerification.js";
 import { AdultContentConfirmationRequiredError } from "../errors/adult.content.confirmation.required.error.js";
+import { deleteManyFromS3ByUrl } from "./s3.service.js";
 
 const PASSWORD_RESET_CODE_EXPIRY_MS = 10 * 60000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
@@ -138,6 +139,10 @@ export class UserService implements IUserService {
     }
 
     await this.uow.userRepository.softDeleteUser(user.id);
+    await deleteManyFromS3ByUrl([
+      user.profileImageUrl,
+      user.profileBackgroundImageUrl,
+    ]);
 
     return { message: "Hesabiniz basariyla silindi." };
   }
@@ -428,10 +433,25 @@ export class UserService implements IUserService {
   };
 
   async updateUser(dto: UpdateUserDto): Promise<User> {
+    const currentUser = await this.uow.userRepository.findOneById(dto.id);
+    if (!currentUser) {
+      throw new NotFoundError("KullanÄ±cÄ± bulunamadÄ±.");
+    }
+
     const updated = await this.uow.userRepository.updateUser(dto);
     if (!updated) {
       throw new NotFoundError("Kullanıcı bulunamadı.");
     }
+    await deleteManyFromS3ByUrl([
+      dto.profileImageUrl && dto.profileImageUrl !== currentUser.profileImageUrl
+        ? currentUser.profileImageUrl
+        : null,
+      dto.profileBackgroundImageUrl &&
+      dto.profileBackgroundImageUrl !== currentUser.profileBackgroundImageUrl
+        ? currentUser.profileBackgroundImageUrl
+        : null,
+    ]);
+
     return withPremiumStatus(updated);
   }
 

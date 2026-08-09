@@ -80,33 +80,87 @@ export class ChapterCommentRepository implements IChapterCommentRepository {
 
   async delete(id: number) {
     return await this.commentRepo.manager.transaction(async (manager) => {
-      const comment = await manager.findOne(ChapterComment, {
-        where: { id },
-        withDeleted: true,
-      });
+      const rows = await manager.query<
+        {
+          id: number;
+          imageUrl: string | null;
+          rootCommentId: number | null;
+          chapterId: string;
+        }[]
+      >(
+        `
+          WITH RECURSIVE subtree AS (
+            SELECT
+              id,
+              "imageUrl",
+              "rootCommentId",
+              "chapterId",
+              "parentCommentId"
+            FROM "chapter_comment"
+            WHERE id = $1 AND "deletedAt" IS NULL
 
-      if (!comment || comment.deletedAt) {
-        return;
+            UNION ALL
+
+            SELECT
+              child.id,
+              child."imageUrl",
+              child."rootCommentId",
+              child."chapterId",
+              child."parentCommentId"
+            FROM "chapter_comment" child
+            INNER JOIN subtree parent ON child."parentCommentId" = parent.id
+            WHERE child."deletedAt" IS NULL
+          )
+          SELECT
+            id,
+            "imageUrl" AS "imageUrl",
+            "rootCommentId" AS "rootCommentId",
+            "chapterId" AS "chapterId"
+          FROM subtree
+        `,
+        [id],
+      );
+
+      if (!rows.length) {
+        return [];
       }
 
-      await manager.update(ChapterComment, id, {
-        deletedAt: new Date(),
-        content: "",
-        imageUrl: null,
-        imageWidth: null,
-        imageHeight: null,
-      });
+      const rootRow = rows.find((row) => row.id === id) ?? rows[0];
+      const deletedIds = rows.map((row) => row.id);
+      const deletedCount = deletedIds.length;
 
-      if (comment.rootCommentId) {
-        await manager.decrement(
-          ChapterComment,
-          { id: comment.rootCommentId },
-          "replyCount",
-          1,
-        );
+      await manager
+        .createQueryBuilder()
+        .delete()
+        .from(ChapterComment)
+        .where("id IN (:...deletedIds)", { deletedIds })
+        .execute();
+
+      if (rootRow.rootCommentId) {
+        await manager
+          .createQueryBuilder()
+          .update(ChapterComment)
+          .set({
+            replyCount: () => `GREATEST("replyCount" - ${deletedCount}, 0)`,
+          })
+          .where("id = :rootCommentId", {
+            rootCommentId: rootRow.rootCommentId,
+          })
+          .execute();
       }
 
-      await manager.decrement(Chapter, { id: comment.chapterId }, "commentCount", 1);
+      await manager
+        .createQueryBuilder()
+        .update(Chapter)
+        .set({
+          commentCount: () => `GREATEST("commentCount" - ${deletedCount}, 0)`,
+        })
+        .where("id = :chapterId", { chapterId: rootRow.chapterId })
+        .execute();
+
+      return rows
+        .map((row) => row.imageUrl)
+        .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
     });
   }
 
