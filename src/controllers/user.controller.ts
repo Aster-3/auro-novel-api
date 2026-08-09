@@ -99,7 +99,7 @@ export class UserController {
     if (files.profileBackgroundImageUrl) {
       const profileBackgroundImageUrl = await uploadToS3(
         files.profileBackgroundImageUrl[0],
-        "covers",
+        "profile-covers",
       );
 
       updateData.profileBackgroundImageUrl = profileBackgroundImageUrl;
