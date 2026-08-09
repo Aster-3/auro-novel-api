@@ -2,6 +2,7 @@ import { Router } from "express";
 import { adminController } from "../container.js";
 import { feedbackController } from "../container.js";
 import { bannerController } from "../container.js";
+import { editorPickController } from "../container.js";
 import {
   authorController,
   categoryController,
@@ -16,6 +17,9 @@ import { createBannerSchema } from "../schemas/create.banner.schema.js";
 import { updateBannerSchema } from "../schemas/update.banner.schema.js";
 import { updateBannerStatusSchema } from "../schemas/update.banner.status.schema.js";
 import { reorderBannersSchema } from "../schemas/reorder.banners.schema.js";
+import { createEditorPickSchema } from "../schemas/create.editor.pick.schema.js";
+import { reorderEditorPicksSchema } from "../schemas/reorder.editor.picks.schema.js";
+import { updateEditorPickStatusSchema } from "../schemas/update.editor.pick.status.schema.js";
 import { deleteVolumeSchema } from "../schemas/delete.volume.schema.js";
 import { updateVolumeSchema } from "../schemas/update.volume.schema.js";
 import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
@@ -364,6 +368,32 @@ router.delete(
   "/banners/:id",
   validateSchema(uuidControlSchema("params", "id")),
   bannerController.deleteBanner,
+);
+
+router.get("/editor-picks", editorPickController.getAdminEditorPicks);
+
+router.post(
+  "/editor-picks",
+  validateSchema(createEditorPickSchema),
+  editorPickController.createEditorPick,
+);
+
+router.patch(
+  "/editor-picks/reorder",
+  validateSchema(reorderEditorPicksSchema),
+  editorPickController.reorderEditorPicks,
+);
+
+router.patch(
+  "/editor-picks/:id/status",
+  validateSchema(updateEditorPickStatusSchema),
+  editorPickController.updateEditorPickStatus,
+);
+
+router.delete(
+  "/editor-picks/:id",
+  validateSchema(uuidControlSchema("params", "id")),
+  editorPickController.deleteEditorPick,
 );
 
 export default router;

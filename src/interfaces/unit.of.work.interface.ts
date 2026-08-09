@@ -25,6 +25,7 @@ import { IUserReadChapterRepository } from "./user.read.chapter.repo.interface.j
 import { IPasswordResetRepository } from "./password.reset.repo.interface.js";
 import { IFeedbackSubmissionRepository } from "./feedback.submission.repo.interface.js";
 import { IBannerRepository } from "./banner.repo.interface.js";
+import { IEditorPickRepository } from "./editor.pick.repo.interface.js";
 
 export interface IUnitOfWork {
   authorRepository: IAuthorRepository;
@@ -54,6 +55,7 @@ export interface IUnitOfWork {
   passwordResetRepository: IPasswordResetRepository;
   feedbackSubmissionRepository: IFeedbackSubmissionRepository;
   bannerRepository: IBannerRepository;
+  editorPickRepository: IEditorPickRepository;
 
   startTransaction(): Promise<void>;
   commit(): Promise<void>;

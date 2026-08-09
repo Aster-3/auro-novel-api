@@ -1,4 +1,5 @@
 export * from "./Banner.js";
+export * from "./EditorPick.js";
 export * from "./User.js";
 export * from "./Novel.js";
 export * from "./Chapter.js";

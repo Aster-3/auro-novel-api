@@ -34,6 +34,8 @@ import { FeedbackController } from "./controllers/feedback.controller.js";
 import { FeedbackService } from "./services/feedback.service.js";
 import { BannerController } from "./controllers/banner.controller.js";
 import { BannerService } from "./services/banner.service.js";
+import { EditorPickController } from "./controllers/editor.pick.controller.js";
+import { EditorPickService } from "./services/editor.pick.service.js";
 
 const uow = new UnitOfWork();
 
@@ -81,6 +83,10 @@ const bannerService = new BannerService(
   uow.bannerRepository,
   uow.novelRepository,
 );
+const editorPickService = new EditorPickService(
+  uow.editorPickRepository,
+  uow.novelRepository,
+);
 
 export const authController = new AuthController(userService);
 export const authorController = new AuthorController(authorService);
@@ -108,6 +114,7 @@ export const novelController = new NovelController(
 export const adminController = new AdminController(adminService);
 export const feedbackController = new FeedbackController(feedbackService);
 export const bannerController = new BannerController(bannerService);
+export const editorPickController = new EditorPickController(editorPickService);
 
 // Jobs
 

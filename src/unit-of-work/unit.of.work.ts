@@ -45,6 +45,7 @@ import {
   PasswordReset,
   FeedbackSubmission,
   Banner,
+  EditorPick,
 } from "../entities/_index.js";
 
 import { AppDataSource } from "../database/data-source.js";
@@ -86,6 +87,8 @@ import { IFeedbackSubmissionRepository } from "../interfaces/feedback.submission
 import { FeedbackSubmissionRepository } from "../repositories/feedback.submission.repository.js";
 import { IBannerRepository } from "../interfaces/banner.repo.interface.js";
 import { BannerRepository } from "../repositories/banner.repository.js";
+import { IEditorPickRepository } from "../interfaces/editor.pick.repo.interface.js";
+import { EditorPickRepository } from "../repositories/editor.pick.repository.js";
 
 export class UnitOfWork implements IUnitOfWork {
   private queryRunner = AppDataSource.createQueryRunner();
@@ -204,6 +207,14 @@ export class UnitOfWork implements IUnitOfWork {
 
   get bannerRepository() {
     return this.getRepo<IBannerRepository>("banner", BannerRepository, Banner);
+  }
+
+  get editorPickRepository() {
+    return this.getRepo<IEditorPickRepository>(
+      "editorPick",
+      EditorPickRepository,
+      EditorPick,
+    );
   }
 
   get chapterRepository() {

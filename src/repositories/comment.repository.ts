@@ -329,7 +329,6 @@ export class CommentRepository implements ICommentRepository {
       .leftJoin("author.user", "authorUser")
       .where("comment.userId = :userId", { userId })
       .andWhere('(novel."bannedUntil" IS NULL OR novel."bannedUntil" <= NOW())')
-      .andWhere("(author.userId IS NULL OR authorUser.id IS NOT NULL)")
       .orderBy("comment.createdAt", "DESC")
       .skip(skip)
       .take(limit);

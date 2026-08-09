@@ -14,6 +14,7 @@ import { offlineChaptersSchema } from "../schemas/offline.chapters.schema.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { optionalAuthMiddleware } from "../middlewares/optional.auth.middleware.js";
 import { novelController } from "../container.js";
+import { editorPickController } from "../container.js";
 import { coverImageUpload } from "../middlewares/upload.middleware.js";
 import { getSimilarNovelsSchema } from "../schemas/get.similar.novels.schema.js";
 const router = Router();
@@ -56,6 +57,12 @@ router.get(
   optionalAuthMiddleware,
   novelController.getLastCreatedNovels,
 ); ///OKEY
+
+router.get(
+  "/editor-picks",
+  optionalAuthMiddleware,
+  editorPickController.getHomeEditorPicks,
+);
 
 router.get(
   "/with-tag/:id",
