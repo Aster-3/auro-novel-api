@@ -1,8 +1,12 @@
 import { Request, Response } from "express";
 import { IAdminService } from "../interfaces/admin.service.interface.js";
+import { IChapterService } from "../interfaces/chapter.service.interface.js";
 
 export class AdminController {
-  constructor(private adminService: IAdminService) {}
+  constructor(
+    private adminService: IAdminService,
+    private chapterService: IChapterService,
+  ) {}
 
   private getParam(req: Request, key: string) {
     return String(req.params[key]);
@@ -115,6 +119,15 @@ export class AdminController {
     res.json({ items });
   };
 
+  getPublishedChaptersByNovelId = async (req: Request, res: Response) => {
+    const result = await this.chapterService.getChaptersByNovelId(
+      res.locals.validatedData,
+      req.user?.id || "",
+      true,
+    );
+    res.json(result);
+  };
+
   createVolume = async (req: Request, res: Response) => {
     const item = await this.adminService.createVolume(
       this.getParam(req, "id"),
@@ -172,6 +185,15 @@ export class AdminController {
       req.body,
     );
     res.status(201).json({ message: "Bolum yayinlandi.", item });
+  };
+
+  moveChapter = async (req: Request, res: Response) => {
+    await this.chapterService.moveChapter(
+      { ...req.body, id: this.getParam(req, "id") },
+      req.user?.id || "",
+      true,
+    );
+    res.status(204).send();
   };
 
   deleteChapter = async (req: Request, res: Response) => {

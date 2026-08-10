@@ -111,7 +111,7 @@ export const novelController = new NovelController(
   chapterService,
 );
 
-export const adminController = new AdminController(adminService);
+export const adminController = new AdminController(adminService, chapterService);
 export const feedbackController = new FeedbackController(feedbackService);
 export const bannerController = new BannerController(bannerService);
 export const editorPickController = new EditorPickController(editorPickService);

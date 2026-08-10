@@ -20,10 +20,12 @@ import { reorderBannersSchema } from "../schemas/reorder.banners.schema.js";
 import { createEditorPickSchema } from "../schemas/create.editor.pick.schema.js";
 import { reorderEditorPicksSchema } from "../schemas/reorder.editor.picks.schema.js";
 import { updateEditorPickStatusSchema } from "../schemas/update.editor.pick.status.schema.js";
+import { moveChapterSchema } from "../schemas/move.chapter.schema.js";
 import { deleteVolumeSchema } from "../schemas/delete.volume.schema.js";
 import { updateVolumeSchema } from "../schemas/update.volume.schema.js";
 import { updateCategoriesSchema } from "../schemas/update.categories.schema.js";
 import { updateTagsSchema } from "../schemas/update.tags.schema.js";
+import { getChaptersSchema } from "../schemas/get.chapters.schema.js";
 import { getAuthorsSchema } from "../schemas/get.authors.schema.js";
 import { createCategorySchema } from "../schemas/create.category.schema.js";
 import { deleteCategorySchema } from "../schemas/delete.category.schema.js";
@@ -127,6 +129,12 @@ router.get(
   adminController.getVolumesByNovelId,
 );
 
+router.get(
+  "/novels/:id/chapters",
+  validateSchema(getChaptersSchema),
+  adminController.getPublishedChaptersByNovelId,
+);
+
 router.post(
   "/novels/:id/volumes",
   validateSchema(adminCreateVolumeSchema),
@@ -198,6 +206,12 @@ router.post(
   "/chapters/:id/publish",
   validateSchema(adminPublishChapterSchema),
   adminController.publishChapter,
+);
+
+router.patch(
+  "/chapters/:id/move",
+  validateSchema(moveChapterSchema),
+  adminController.moveChapter,
 );
 
 router.patch(
