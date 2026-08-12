@@ -18,7 +18,7 @@ Yazarların eserlerini yayınlayıp okuyucularından gelir elde edebildiği bir 
 - **Framework:** Express 5.x
 - **Veritabanı:** PostgreSQL + TypeORM
 - **Doğrulama:** JWT, Argon2
-- **Email:** Resend
+- **Email:** Plunk
 - **Depolama:** AWS S3
 - **Zamanlanmış İşler:** node-cron
 
@@ -50,7 +50,7 @@ AWS_SECRET_ACCESS_KEY=your-secret
 AWS_S3_BUCKET=bucket-name
 AWS_REGION=your-region
 
-RESEND_API_KEY=your-resend-key
+PLUNK_API_KEY=sk_your-plunk-secret-key
 ```
 
 ## Kullanım

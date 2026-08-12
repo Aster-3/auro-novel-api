@@ -109,7 +109,7 @@ export const getMailTemplate = (code: string) => {
           letter-spacing:1px;
           color:${navySoft};
         ">
-          EST. 2026 — AURO NOVEL LABS
+          AURO NOVEL — 2026
         </div>
 
       </div>

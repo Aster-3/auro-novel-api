@@ -45,6 +45,7 @@ import {
   Volume,
 } from "../entities/_index.js";
 import { mockCategories, mockUsers } from "./mock.data.js";
+import { wordCounter } from "../utils/wordCounter.js";
 
 const image = (seed: string, width = 900, height = 1200) =>
   `https://picsum.photos/seed/${seed}/${width}/${height}`;
@@ -393,16 +394,18 @@ export default class MainSeeder implements Seeder {
       );
       for (let chapterIndex = 1; chapterIndex <= 6; chapterIndex += 1) {
         const chapterTitle = chapterSeed.titles[chapterIndex - 1];
+        const content = createChapterContent(
+          novel.name,
+          chapterTitle,
+          chapterSeed.motif,
+        );
         const chapter = await chapterRepo.save(
           chapterRepo.create({
             novel,
             novelId: novel.id,
             title: chapterTitle,
-            content: createChapterContent(
-              novel.name,
-              chapterTitle,
-              chapterSeed.motif,
-            ),
+            content,
+            wordCount: wordCounter(content),
           }),
         );
         chapters.push(chapter);
@@ -564,9 +567,12 @@ export default class MainSeeder implements Seeder {
 
     const chapterComments: ChapterComment[] = [];
     for (const [index, chapter] of chapters.slice(0, 18).entries()) {
+      const chapterNovel = novels.find((novel) => novel.id === chapter.novelId);
+      if (!chapterNovel) continue;
+
       const root = await chapterCommentRepo.save(
         chapterCommentRepo.create({
-          novel: sample(novels, index),
+          novel: chapterNovel,
           novelId: chapter.novelId,
           chapter,
           chapterId: chapter.id,
@@ -582,7 +588,7 @@ export default class MainSeeder implements Seeder {
       chapterComments.push(
         await chapterCommentRepo.save(
           chapterCommentRepo.create({
-            novel: sample(novels, index),
+            novel: chapterNovel,
             novelId: chapter.novelId,
             chapter,
             chapterId: chapter.id,
@@ -819,6 +825,25 @@ export default class MainSeeder implements Seeder {
         GROUP BY "chapterId"
       ) comments
       WHERE c.id = comments."chapterId"
+    `);
+
+    await dataSource.query(`
+      UPDATE "novel" n
+      SET
+        "chapterCount" = stats.count,
+        "lastChapterDate" = stats."lastDate",
+        "averageChapterWordCount" = stats."averageWordCount"
+      FROM (
+        SELECT
+          ch."novelId",
+          COUNT(pub."chapterId")::int AS count,
+          MAX(pub."publishedAt") AS "lastDate",
+          ROUND(AVG(ch."wordCount"))::int AS "averageWordCount"
+        FROM "chapter_publication" pub
+        INNER JOIN "chapter" ch ON ch.id = pub."chapterId"
+        GROUP BY ch."novelId"
+      ) stats
+      WHERE n.id = stats."novelId"
     `);
   }
 }
