@@ -5,6 +5,7 @@ import {
   CreateNotificationDto,
   AggregatedNotificationResult,
   IPersonalNotificationRepository,
+  PersonalNotificationResponse,
   SyncAggregatedNotificationOptions,
 } from "../interfaces/personal.notification.repo.interface.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
@@ -139,7 +140,7 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
 
   async getUserNotifications(
     dto: GetNotificationsDto,
-  ): Promise<FindAndCountType<PersonalNotification>> {
+  ): Promise<FindAndCountType<PersonalNotificationResponse>> {
     const { userId, page, limit } = dto;
     const skip = (page - 1) * limit;
 
@@ -174,16 +175,40 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      items: notifications.map((notification) => ({
-        ...notification,
-        actorUser: notification.actorUserId
-          ? presentUser(notification.actorUser)
-          : null,
-      })) as any[],
+      items: notifications.map((notification) =>
+        this.mapNotificationResponse(notification),
+      ),
       total: totalCount,
       currentPage: page,
       nextPage: nextPage > totalPages ? null : nextPage,
       lastPage: totalPages,
+    };
+  }
+
+  private mapNotificationResponse(
+    notification: PersonalNotification,
+  ): PersonalNotificationResponse {
+    const actorUser = notification.actorUserId
+      ? presentUser(notification.actorUser)
+      : null;
+
+    return {
+      id: notification.id,
+      type: notification.type,
+      actorCount: notification.actorCount,
+      actorUser: actorUser
+        ? {
+            id: actorUser.id ?? null,
+            nickname: actorUser.nickname ?? "Silinmis Kullanici",
+            profileImageUrl: actorUser.profileImageUrl,
+            isDeletedUser: actorUser.isDeletedUser,
+          }
+        : null,
+      navigation: notification.data ?? null,
+      isRead: notification.isRead,
+      readAt: notification.readAt ?? null,
+      lastActivityAt: notification.lastActivityAt,
+      createdAt: notification.createdAt,
     };
   }
 

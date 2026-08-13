@@ -1,7 +1,6 @@
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { CreateUserDto } from "../dtos/create.user.dto.js";
 import { UserLoginResponseDto } from "../dtos/login.dto.js";
-import { PersonalNotification } from "../entities/PersonalNotification.js";
 import { ReadingStats } from "../entities/ReadingStats.js";
 import { User } from "../entities/User.js";
 import { UserVerification } from "../entities/UserVerification.js";
@@ -33,6 +32,7 @@ import { ForgotPasswordDto } from "../schemas/forgot.password.schema.js";
 import { ResetPasswordDto } from "../schemas/reset.password.schema.js";
 import { ChangePasswordDto } from "../schemas/change.password.schema.js";
 import { GlobalNotificationWithSeenState } from "./global.notification.repo.interface.js";
+import { PersonalNotificationResponse } from "./personal.notification.repo.interface.js";
 import { DeleteMyAccountDto } from "../schemas/delete.my.account.schema.js";
 import { GoogleLoginDto } from "../schemas/google.login.schema.js";
 import { GetBlockedUsersDto } from "./user.block.repo.interface.js";
@@ -147,7 +147,7 @@ export interface IUserService {
   updateReadingStats(dto: UpdateReadingStatsDto): Promise<void>;
   getPersonalNotifications(
     dto: GetNotificationsDto,
-  ): Promise<FindAndCountType<PersonalNotification>>;
+  ): Promise<FindAndCountType<PersonalNotificationResponse>>;
   deletePersonalNotification(
     notificationId: string,
     userId: string,

@@ -27,7 +27,7 @@ export interface IPersonalNotificationRepository {
   ): Promise<void>;
   getUserNotifications(
     dto: GetNotificationsDto,
-  ): Promise<FindAndCountType<PersonalNotification>>;
+  ): Promise<FindAndCountType<PersonalNotificationResponse>>;
   getUnreadCount(userId: string): Promise<number>;
   markAsRead(notificationId: string, userId: string): Promise<number>;
   markAllAsRead(userId: string): Promise<void>;
@@ -58,4 +58,21 @@ export interface AggregatedNotificationResult {
 export interface SyncAggregatedNotificationOptions {
   createIfMissing?: boolean;
   allowPush?: boolean;
+}
+
+export interface PersonalNotificationResponse {
+  id: string;
+  type: PersonalNotificationType;
+  actorCount: number;
+  actorUser: {
+    id: string | null;
+    nickname: string;
+    profileImageUrl: string | null;
+    isDeletedUser: boolean;
+  } | null;
+  navigation: unknown;
+  isRead: boolean;
+  readAt?: Date | null;
+  lastActivityAt: Date;
+  createdAt: Date;
 }
