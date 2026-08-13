@@ -15,6 +15,7 @@ import {
 } from "../constants/notification.constants.js";
 import { PushNotificationService } from "./push.notification.service.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { runDelayedNotification } from "../utils/delayed.notification.js";
 
 const LIKE_NOTIFICATION_PUSH_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -57,8 +58,14 @@ export class ReplyService implements IReplyService {
 
     const liked = await this.replyLikeRepo.toggleLike(userId, replyId);
 
+    if (replyMeta.userId === userId) {
+      return liked;
+    }
+
     if (liked) {
-      await this.notifyReplyOwnerForLike(userId, replyId);
+      this.scheduleReplyLikeNotification(userId, replyId);
+    } else {
+      await this.syncReplyLikeNotification(userId, replyId, false);
     }
 
     return liked;
@@ -198,11 +205,15 @@ export class ReplyService implements IReplyService {
     }
   }
 
-  private async notifyReplyOwnerForLike(userId: string, replyId: number) {
+  private async syncReplyLikeNotification(
+    userId: string,
+    replyId: number,
+    allowPush: boolean,
+  ) {
     try {
       const replyMeta = await this.replyRepo.getNotificationMetaById(replyId);
 
-      if (!replyMeta || replyMeta.userId === userId) {
+      if (!replyMeta) {
         return;
       }
 
@@ -214,21 +225,42 @@ export class ReplyService implements IReplyService {
         return;
       }
 
-      const actor = await this.userRepo.findOneById(userId);
+      const aggregationKey = `${PersonalNotificationType.REPLY_LIKE}:${replyMeta.id}`;
+      const likeSummary = await this.replyLikeRepo.getLikeSummary(
+        replyId,
+        userId,
+        replyMeta.userId,
+      );
+
+      if (!likeSummary.actorCount || !likeSummary.actorUserId) {
+        await this.personalNotificationRepo.softDeleteAggregatedNotification(
+          replyMeta.userId,
+          aggregationKey,
+        );
+        return;
+      }
+
+      const actor = await this.userRepo.findOneById(likeSummary.actorUserId);
       const actorName = actor?.nickname || "Bir kullanici";
       const pushBody = "Yanitin yeni bir begeni aldi.";
       const targetUrl = `https://auronovel.com/novels/${commentMeta.novelId}/comments/${commentMeta.id}/replies/${replyMeta.id}`;
+      const titleSnapshot = this.formatReplyLikeTitle(
+        actorName,
+        likeSummary.actorCount,
+      );
 
       const aggregation =
-        await this.personalNotificationRepo.createOrUpdateAggregatedNotification(
+        await this.personalNotificationRepo.syncAggregatedNotification(
           {
             userId: replyMeta.userId,
-            actorUserId: userId,
+            actorUserId: likeSummary.actorUserId,
             type: PersonalNotificationType.REPLY_LIKE,
             targetType: NotificationTargetType.REPLY,
             targetId: String(replyMeta.id),
             targetUrl,
-            aggregationKey: `${PersonalNotificationType.REPLY_LIKE}:${replyMeta.id}`,
+            aggregationKey,
+            actorCount: likeSummary.actorCount,
+            titleSnapshot,
             data: {
               novelId: commentMeta.novelId,
               commentId: commentMeta.id,
@@ -236,18 +268,10 @@ export class ReplyService implements IReplyService {
             },
           },
           LIKE_NOTIFICATION_PUSH_THROTTLE_MS,
+          { allowPush, createIfMissing: allowPush },
         );
 
-      const titleSnapshot = this.formatReplyLikeTitle(
-        actorName,
-        aggregation.notification.actorCount,
-      );
-      await this.personalNotificationRepo.updateNotificationSnapshots(
-        aggregation.notification.id,
-        titleSnapshot,
-      );
-
-      if (!aggregation.shouldSendPush) {
+      if (!aggregation?.shouldSendPush) {
         return;
       }
 
@@ -266,8 +290,20 @@ export class ReplyService implements IReplyService {
         },
       });
     } catch (error) {
-      console.error("Reply begeni bildirimi gonderilemedi:", error);
+      console.error("Reply begeni bildirimi guncellenemedi:", error);
     }
+  }
+
+  private scheduleReplyLikeNotification(userId: string, replyId: number) {
+    runDelayedNotification(async () => {
+      const stillLiked = await this.replyLikeRepo.isLiked(userId, replyId);
+
+      if (!stillLiked) {
+        return;
+      }
+
+      await this.syncReplyLikeNotification(userId, replyId, true);
+    });
   }
 
   private formatReplyLikeTitle(actorName: string, actorCount: number) {

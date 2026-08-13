@@ -7,6 +7,7 @@ import { Comment } from "../entities/Comment.js";
 import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 import { presentUser } from "../utils/deleted.user.presenter.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 export class ReplyRepository implements IReplyRepository {
   constructor(private replyRepo: Repository<Reply>) {}
@@ -222,7 +223,7 @@ export class ReplyRepository implements IReplyRepository {
           id: reply.comment?.novel?.id,
           name: reply.comment?.novel?.name,
           slug: reply.comment?.novel?.slug,
-          coverImageUrl: reply.comment?.novel?.coverImage,
+          coverImageUrl: getNovelCoverImageUrl(reply.comment?.novel?.coverImage),
         },
         parentReply: reply.parentReply
           ? {

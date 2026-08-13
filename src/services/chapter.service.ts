@@ -8,6 +8,7 @@ import { GetChaptersDto } from "../schemas/get.chapters.schema.js";
 import { MoveChapterDTO } from "../schemas/move.chapter.schema.js";
 import { CreatePublicationDTO } from "../schemas/publish.chapter.schema.js";
 import { UpdateChapterDTO } from "../schemas/update.chapter.schema.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 const SORT_KEY_STEP = 1000;
 const MIN_SORT_GAP = 1;
@@ -481,7 +482,7 @@ export class ChapterService implements IChapterService {
       novel: {
         id: novel.id,
         name: novel.name,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         synopsis: novel.synopsis ?? null,
         status: novel.status,
         chapterCount: novel.chapterCount,
@@ -509,7 +510,7 @@ export class ChapterService implements IChapterService {
         id: novel.id,
         name: novel.name,
         slug: novel.slug,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         synopsis: novel.synopsis ?? null,
         status: novel.status,
         chapterCount: novel.chapterCount,
@@ -555,7 +556,7 @@ export class ChapterService implements IChapterService {
         id: novel.id,
         name: novel.name,
         slug: novel.slug,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         synopsis: novel.synopsis ?? null,
         status: novel.status,
         chapterCount: novel.chapterCount,

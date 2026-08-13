@@ -31,6 +31,7 @@ import {
 } from "../constants/notification.constants.js";
 import { PushNotificationService } from "./push.notification.service.js";
 import { GetUserFollowsDto } from "../interfaces/user.follow.repo.interface.js";
+import { runDelayedNotification } from "../utils/delayed.notification.js";
 import {
   GetUserLibraryShowcaseDto,
   GetUserShowcaseDto,
@@ -914,7 +915,7 @@ export class UserService implements IUserService {
     );
 
     if (created) {
-      await this.notifyUserForFollow(followerId, followingId);
+      this.scheduleFollowNotification(followerId, followingId);
     }
 
     return { isFollowing: true, created };
@@ -1112,6 +1113,21 @@ export class UserService implements IUserService {
     } catch (error) {
       console.error("Takip bildirimi gonderilemedi:", error);
     }
+  }
+
+  private scheduleFollowNotification(followerId: string, followingId: string) {
+    runDelayedNotification(async () => {
+      const stillFollowing = await this.uow.userFollowRepository.isFollowing(
+        followerId,
+        followingId,
+      );
+
+      if (!stillFollowing) {
+        return;
+      }
+
+      await this.notifyUserForFollow(followerId, followingId);
+    });
   }
 
   private isCodeResendOnCooldown(lastSentAt?: Date | null) {

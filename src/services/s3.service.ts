@@ -4,6 +4,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getEnv } from "../utils/getEnv.js";
+import { isDefaultNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -43,6 +44,7 @@ export const uploadToS3 = async (file: Express.Multer.File, folder: string) => {
 
 export const getS3KeyFromPublicUrl = (url?: string | null) => {
   if (!url) return null;
+  if (isDefaultNovelCoverImageUrl(url)) return null;
 
   const rawPublicUrl = getEnv("R2_PUBLIC_URL");
   const normalizedPrefix = `${rawPublicUrl.replace(/\/+$/, "")}/`;

@@ -17,6 +17,10 @@ import { calculateRankingScore } from "../utils/calculateNovelRankingScore.js";
 import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 import { getIstanbulDateString } from "../utils/date.string.js";
+import {
+  applyNovelCoverImageFallback,
+  getNovelCoverImageUrl,
+} from "../utils/novel.cover.image.js";
 
 export class NovelRepository implements INovelRepository {
   constructor(private novelRepo: Repository<Novel>) {}
@@ -32,7 +36,7 @@ export class NovelRepository implements INovelRepository {
     const item: NovelListItem = {
       id: novel.id,
       name: novel.name,
-      coverImage: novel.coverImage ?? null,
+      coverImage: getNovelCoverImageUrl(novel.coverImage),
       synopsis: novel.synopsis ?? null,
       status: novel.status,
       chapterCount: novel.chapterCount,
@@ -411,7 +415,7 @@ export class NovelRepository implements INovelRepository {
       return {
         id: novel.id,
         name: novel.name,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         weeklyRankingScore: Number(novel.weeklyRankingScore),
         rank,
         previousRank,
@@ -460,7 +464,7 @@ export class NovelRepository implements INovelRepository {
       .map((novel) => ({
         id: novel.id,
         name: novel.name,
-        coverImage: novel.coverImage,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
       })) as Novel[];
   }
 
@@ -486,7 +490,7 @@ export class NovelRepository implements INovelRepository {
     applyAdultContentFilter(query, allowAdultContent);
     this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
-    return query.getMany();
+    return (await query.getMany()).map(applyNovelCoverImageFallback) as Novel[];
   }
 
   async getLastCreatedNovels(
@@ -504,7 +508,7 @@ export class NovelRepository implements INovelRepository {
     applyAdultContentFilter(query, allowAdultContent);
     this.applyActiveBanFilter(query);
     applyBlockedUserVisibilityFilter(query, viewerId, "authorUserVisibility");
-    return query.getMany();
+    return (await query.getMany()).map(applyNovelCoverImageFallback) as Novel[];
   }
 
   async getSimilarNovels(
@@ -589,7 +593,7 @@ export class NovelRepository implements INovelRepository {
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
-      coverImage: row.coverImage ?? null,
+      coverImage: getNovelCoverImageUrl(row.coverImage),
     }));
   }
 

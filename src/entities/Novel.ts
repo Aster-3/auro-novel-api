@@ -20,6 +20,10 @@ import { Library } from "./Library.js";
 import { Volume } from "./Volume.js";
 import { Author } from "./Author.js";
 import { NovelDailyStats } from "./NovelDailyStats.js";
+import {
+  getNovelCoverImageUrl,
+  isDefaultNovelCoverImageUrl,
+} from "../utils/novel.cover.image.js";
 
 @Entity()
 export class Novel {
@@ -34,7 +38,15 @@ export class Novel {
   @Column({ type: "varchar", length: 200, unique: true })
   slug!: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({
+    type: "text",
+    nullable: true,
+    transformer: {
+      to: (value?: string | null) =>
+        isDefaultNovelCoverImageUrl(value) ? null : value,
+      from: (value?: string | null) => getNovelCoverImageUrl(value),
+    },
+  })
   coverImage?: string | null;
 
   @Column({ type: "varchar", length: "1500", nullable: true })

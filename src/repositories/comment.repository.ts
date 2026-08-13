@@ -11,6 +11,7 @@ import { GetUserShowcaseDto } from "../schemas/get.user.showcase.schema.js";
 import { CommentSortType } from "../constants/comment.constants.js";
 import { presentUser } from "../utils/deleted.user.presenter.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 export class CommentRepository implements ICommentRepository {
   constructor(private commentRepo: Repository<Comment>) {}
 
@@ -365,7 +366,7 @@ export class CommentRepository implements ICommentRepository {
           id: comment.novel?.id,
           name: comment.novel?.name,
           slug: comment.novel?.slug,
-          coverImageUrl: comment.novel?.coverImage,
+          coverImageUrl: getNovelCoverImageUrl(comment.novel?.coverImage),
         },
         viewerHasLiked: hasLiked,
       };

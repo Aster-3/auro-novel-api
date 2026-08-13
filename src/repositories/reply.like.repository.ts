@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { ReplyLike } from "../entities/ReplyLike.js";
 import { IReplyLikeRepository } from "../interfaces/reply.like.repo.interface.js";
 import { Reply } from "../entities/Reply.js";
@@ -25,5 +25,39 @@ export class ReplyLikeRepository implements IReplyLikeRepository {
         return true;
       }
     });
+  }
+
+  async isLiked(userId: string, replyId: number) {
+    return await this.replyLikeRepo.exists({
+      where: { userId, replyId },
+    });
+  }
+
+  async getLikeSummary(
+    replyId: number,
+    preferredActorUserId?: string,
+    excludedUserId?: string,
+  ) {
+    const where = excludedUserId
+      ? { replyId, userId: Not(excludedUserId) }
+      : { replyId };
+    const [actorCount, preferredLike, fallbackLike] = await Promise.all([
+      this.replyLikeRepo.count({ where }),
+      preferredActorUserId && preferredActorUserId !== excludedUserId
+        ? this.replyLikeRepo.findOne({
+            where: { replyId, userId: preferredActorUserId },
+            select: { userId: true, replyId: true },
+          })
+        : Promise.resolve(null),
+      this.replyLikeRepo.findOne({
+        where,
+        select: { userId: true, replyId: true },
+      }),
+    ]);
+
+    return {
+      actorCount,
+      actorUserId: preferredLike?.userId ?? fallbackLike?.userId ?? null,
+    };
   }
 }

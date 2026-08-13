@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { CommentLike } from "../entities/CommentLike.js";
 import { ICommentLikeRepository } from "../interfaces/comment.like.repo.interface.js";
 import { Comment } from "../entities/Comment.js";
@@ -25,5 +25,39 @@ export class CommentLikeRepository implements ICommentLikeRepository {
         return true;
       }
     });
+  }
+
+  async isLiked(userId: string, commentId: number) {
+    return await this.commentLikeRepo.exists({
+      where: { userId, commentId },
+    });
+  }
+
+  async getLikeSummary(
+    commentId: number,
+    preferredActorUserId?: string,
+    excludedUserId?: string,
+  ) {
+    const where = excludedUserId
+      ? { commentId, userId: Not(excludedUserId) }
+      : { commentId };
+    const [actorCount, preferredLike, fallbackLike] = await Promise.all([
+      this.commentLikeRepo.count({ where }),
+      preferredActorUserId && preferredActorUserId !== excludedUserId
+        ? this.commentLikeRepo.findOne({
+            where: { commentId, userId: preferredActorUserId },
+            select: { userId: true, commentId: true },
+          })
+        : Promise.resolve(null),
+      this.commentLikeRepo.findOne({
+        where,
+        select: { userId: true, commentId: true },
+      }),
+    ]);
+
+    return {
+      actorCount,
+      actorUserId: preferredLike?.userId ?? fallbackLike?.userId ?? null,
+    };
   }
 }

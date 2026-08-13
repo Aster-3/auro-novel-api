@@ -46,7 +46,10 @@ const pushNotificationService = new PushNotificationService(uow);
 const authorService = new AuthorService(uow);
 const categoryService = new CategoryService(uow.categoryRepository);
 const chapterService = new ChapterService(uow);
-const chapterCommentService = new ChapterCommentService(uow);
+const chapterCommentService = new ChapterCommentService(
+  uow,
+  pushNotificationService,
+);
 const commentService = new CommentService(uow, pushNotificationService);
 const libraryService = new LibraryService(uow.libraryRepository);
 const novelDailyStatsService = new NovelDailyStatsService(

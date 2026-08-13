@@ -8,6 +8,7 @@ import { CreateNovelDTo } from "../schemas/create.novel.schema.js";
 import { GetNovelsDTo } from "../schemas/get.novels.schema.js";
 import { UpdateNovelDTO } from "../schemas/update.novel.schema.js";
 import { presentAuthor } from "../utils/deleted.user.presenter.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 import { deleteFromS3ByUrl, uploadToS3 } from "./s3.service.js";
 
 export class NovelService implements INovelService {
@@ -169,7 +170,7 @@ export class NovelService implements INovelService {
       return {
         id: novel.id,
         name: novel.name,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         lastChapterDate: novel.lastChapterDate ?? null,
         recommendRate: novel.totalReviewsCount
           ? Math.round(

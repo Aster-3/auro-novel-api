@@ -9,6 +9,7 @@ import { INovelRepository } from "../interfaces/novel.repo.interface.js";
 import { CreateEditorPickDto } from "../schemas/create.editor.pick.schema.js";
 import { ReorderEditorPicksDto } from "../schemas/reorder.editor.picks.schema.js";
 import { presentAuthor } from "../utils/deleted.user.presenter.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 export class EditorPickService implements IEditorPickService {
   constructor(
@@ -35,7 +36,7 @@ export class EditorPickService implements IEditorPickService {
       return {
         id: novel.id,
         name: novel.name,
-        coverImage: novel.coverImage ?? null,
+        coverImage: getNovelCoverImageUrl(novel.coverImage),
         synopsis: novel.synopsis ?? null,
         chapterCount: novel.chapterCount,
         averageChapterWordCount: novel.averageChapterWordCount,

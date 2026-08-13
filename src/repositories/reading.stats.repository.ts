@@ -7,6 +7,7 @@ import { UpdateReadingStatsDto } from "../schemas/update.reading.stats.schema.js
 import { ReadingStats } from "../entities/ReadingStats.js";
 import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 export class ReadingStatsRepository implements IReadingStatsRepository {
   constructor(private readonly readingRepo: Repository<ReadingStats>) {}
@@ -114,7 +115,7 @@ export class ReadingStatsRepository implements IReadingStatsRepository {
               id: stat.novel.id,
               name: stat.novel.name,
               slug: stat.novel.slug,
-              coverImageUrl: stat.novel.coverImage,
+              coverImageUrl: getNovelCoverImageUrl(stat.novel.coverImage),
               chapterCount: stat.novel.chapterCount,
             }
           : null,

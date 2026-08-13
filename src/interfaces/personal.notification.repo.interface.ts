@@ -12,6 +12,15 @@ export interface IPersonalNotificationRepository {
     dto: CreateAggregatedNotificationDto,
     pushThrottleMs: number,
   ): Promise<AggregatedNotificationResult>;
+  syncAggregatedNotification(
+    dto: CreateAggregatedNotificationDto,
+    pushThrottleMs: number,
+    options?: SyncAggregatedNotificationOptions,
+  ): Promise<AggregatedNotificationResult | null>;
+  softDeleteAggregatedNotification(
+    userId: string,
+    aggregationKey: string,
+  ): Promise<number>;
   updateNotificationSnapshots(
     notificationId: string,
     titleSnapshot: string,
@@ -38,9 +47,15 @@ export interface CreateNotificationDto {
 
 export type CreateAggregatedNotificationDto = CreateNotificationDto & {
   aggregationKey: string;
+  actorCount?: number;
 };
 
 export interface AggregatedNotificationResult {
   notification: PersonalNotification;
   shouldSendPush: boolean;
+}
+
+export interface SyncAggregatedNotificationOptions {
+  createIfMissing?: boolean;
+  allowPush?: boolean;
 }

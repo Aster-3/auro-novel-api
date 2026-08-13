@@ -9,6 +9,7 @@ import { applyAdultContentFilter } from "../utils/adult.content.visibility.js";
 import { presentAuthor } from "../utils/deleted.user.presenter.js";
 import { applyBlockedUserVisibilityFilter } from "../utils/user.block.visibility.js";
 import { NotFoundError } from "../errors/not.found.error.js";
+import { getNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 export class LibraryRepository implements ILibraryRepository {
   constructor(private libraryRepo: Repository<Library>) {}
@@ -133,7 +134,7 @@ export class LibraryRepository implements ILibraryRepository {
         title: entry.novel.name,
         authorName: author.authorName,
         authorIsDeleted: author.isDeletedUser,
-        coverImageUrl: entry.novel.coverImage,
+        coverImageUrl: getNovelCoverImageUrl(entry.novel.coverImage),
         isHidden: entry.isHidden,
         addedAt: entry.createdAt,
       };
@@ -225,7 +226,7 @@ export class LibraryRepository implements ILibraryRepository {
         title: entry.novel.name,
         authorName: author.authorName,
         authorIsDeleted: author.isDeletedUser,
-        coverImageUrl: entry.novel.coverImage,
+        coverImageUrl: getNovelCoverImageUrl(entry.novel.coverImage),
         isHidden: entry.isHidden,
         addedAt: entry.createdAt,
         lastChapterProgress:

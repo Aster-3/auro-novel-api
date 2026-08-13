@@ -14,6 +14,7 @@ import {
   PersonalNotificationType,
 } from "../constants/notification.constants.js";
 import { PushNotificationService } from "./push.notification.service.js";
+import { runDelayedNotification } from "../utils/delayed.notification.js";
 
 const LIKE_NOTIFICATION_PUSH_THROTTLE_MS = 60 * 60 * 1000;
 
@@ -146,8 +147,14 @@ export class CommentService implements ICommentService {
       commentId,
     );
 
+    if (commentMeta.userId === userId) {
+      return liked;
+    }
+
     if (liked) {
-      await this.notifyCommentOwnerForLike(userId, commentId);
+      this.scheduleCommentLikeNotification(userId, commentId);
+    } else {
+      await this.syncCommentLikeNotification(userId, commentId, false);
     }
 
     return liked;
@@ -192,48 +199,67 @@ export class CommentService implements ICommentService {
     }
   }
 
-  private async notifyCommentOwnerForLike(userId: string, commentId: number) {
+  private async syncCommentLikeNotification(
+    userId: string,
+    commentId: number,
+    allowPush: boolean,
+  ) {
     try {
       const commentMeta =
         await this.uow.commentRepository.getNotificationMetaById(commentId);
 
-      if (!commentMeta || commentMeta.userId === userId) {
+      if (!commentMeta) {
         return;
       }
 
-      const actor = await this.uow.userRepository.findOneById(userId);
+      const aggregationKey = `${PersonalNotificationType.COMMENT_LIKE}:${commentMeta.id}`;
+      const likeSummary = await this.uow.commentLikeRepository.getLikeSummary(
+        commentId,
+        userId,
+        commentMeta.userId,
+      );
+
+      if (!likeSummary.actorCount || !likeSummary.actorUserId) {
+        await this.uow.personalNotificationRepository.softDeleteAggregatedNotification(
+          commentMeta.userId,
+          aggregationKey,
+        );
+        return;
+      }
+
+      const actor = await this.uow.userRepository.findOneById(
+        likeSummary.actorUserId,
+      );
       const actorName = actor?.nickname || "Bir kullanici";
       const pushBody = "Yorumun yeni bir begeni aldi.";
       const targetUrl = `https://auronovel.com/novels/${commentMeta.novelId}/comments/${commentMeta.id}`;
+      const titleSnapshot = this.formatCommentLikeTitle(
+        actorName,
+        likeSummary.actorCount,
+      );
 
       const aggregation =
-        await this.uow.personalNotificationRepository.createOrUpdateAggregatedNotification(
+        await this.uow.personalNotificationRepository.syncAggregatedNotification(
           {
             userId: commentMeta.userId,
-            actorUserId: userId,
+            actorUserId: likeSummary.actorUserId,
             type: PersonalNotificationType.COMMENT_LIKE,
             targetType: NotificationTargetType.COMMENT,
             targetId: String(commentMeta.id),
             targetUrl,
-            aggregationKey: `${PersonalNotificationType.COMMENT_LIKE}:${commentMeta.id}`,
+            aggregationKey,
+            actorCount: likeSummary.actorCount,
+            titleSnapshot,
             data: {
               novelId: commentMeta.novelId,
               commentId: commentMeta.id,
             },
           },
           LIKE_NOTIFICATION_PUSH_THROTTLE_MS,
+          { allowPush, createIfMissing: allowPush },
         );
 
-      const titleSnapshot = this.formatCommentLikeTitle(
-        actorName,
-        aggregation.notification.actorCount,
-      );
-      await this.uow.personalNotificationRepository.updateNotificationSnapshots(
-        aggregation.notification.id,
-        titleSnapshot,
-      );
-
-      if (!aggregation.shouldSendPush) {
+      if (!aggregation?.shouldSendPush) {
         return;
       }
 
@@ -251,8 +277,23 @@ export class CommentService implements ICommentService {
         },
       });
     } catch (error) {
-      console.error("Yorum begeni bildirimi gonderilemedi:", error);
+      console.error("Yorum begeni bildirimi guncellenemedi:", error);
     }
+  }
+
+  private scheduleCommentLikeNotification(userId: string, commentId: number) {
+    runDelayedNotification(async () => {
+      const stillLiked = await this.uow.commentLikeRepository.isLiked(
+        userId,
+        commentId,
+      );
+
+      if (!stillLiked) {
+        return;
+      }
+
+      await this.syncCommentLikeNotification(userId, commentId, true);
+    });
   }
 
   private formatCommentLikeTitle(actorName: string, actorCount: number) {

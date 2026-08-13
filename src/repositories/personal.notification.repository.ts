@@ -5,6 +5,7 @@ import {
   CreateNotificationDto,
   AggregatedNotificationResult,
   IPersonalNotificationRepository,
+  SyncAggregatedNotificationOptions,
 } from "../interfaces/personal.notification.repo.interface.js";
 import { FindAndCountType } from "../constants/findAndCountType.js";
 import { GetNotificationsDto } from "../schemas/get.notifications.schema.js";
@@ -35,7 +36,21 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
     dto: CreateAggregatedNotificationDto,
     pushThrottleMs: number,
   ): Promise<AggregatedNotificationResult> {
+    const result = await this.syncAggregatedNotification(dto, pushThrottleMs);
+    if (!result) {
+      throw new Error("Aggregated notification could not be created.");
+    }
+    return result;
+  }
+
+  async syncAggregatedNotification(
+    dto: CreateAggregatedNotificationDto,
+    pushThrottleMs: number,
+    options: SyncAggregatedNotificationOptions = {},
+  ): Promise<AggregatedNotificationResult | null> {
+    const { createIfMissing = true, allowPush = true } = options;
     const now = new Date();
+    const actorCount = Math.max(dto.actorCount ?? 1, 1);
     const existing = await this.notificationRepo
       .createQueryBuilder("notification")
       .addSelect("notification.userId")
@@ -48,6 +63,10 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
       .getOne();
 
     if (!existing) {
+      if (!createIfMissing) {
+        return null;
+      }
+
       const notification = this.notificationRepo.create({
         userId: dto.userId,
         actorUserId: dto.actorUserId ?? null,
@@ -56,33 +75,36 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
         targetId: dto.targetId ?? null,
         targetUrl: dto.targetUrl ?? null,
         aggregationKey: dto.aggregationKey,
-        actorCount: 1,
+        actorCount,
         titleSnapshot: dto.titleSnapshot ?? null,
         data: dto.data ? JSON.stringify(dto.data) : null,
         lastActivityAt: now,
-        lastPushedAt: now,
+        lastPushedAt: allowPush ? now : null,
       });
 
       return {
         notification: await this.notificationRepo.save(notification),
-        shouldSendPush: true,
+        shouldSendPush: allowPush,
       };
     }
 
     const lastPushedAt = existing.lastPushedAt;
     const shouldSendPush =
-      !lastPushedAt || now.getTime() - lastPushedAt.getTime() >= pushThrottleMs;
+      allowPush &&
+      (!lastPushedAt || now.getTime() - lastPushedAt.getTime() >= pushThrottleMs);
 
     existing.actorUserId = dto.actorUserId ?? null;
     existing.targetType = dto.targetType;
     existing.targetId = dto.targetId ?? null;
     existing.targetUrl = dto.targetUrl ?? null;
-    existing.actorCount = (existing.actorCount || 1) + 1;
+    existing.actorCount = actorCount;
     existing.titleSnapshot = dto.titleSnapshot ?? null;
     existing.data = dto.data ? JSON.stringify(dto.data) : null;
-    existing.isRead = false;
-    existing.readAt = null;
-    existing.lastActivityAt = now;
+    if (allowPush) {
+      existing.isRead = false;
+      existing.readAt = null;
+      existing.lastActivityAt = now;
+    }
     if (shouldSendPush) {
       existing.lastPushedAt = now;
     }
@@ -91,6 +113,18 @@ export class PersonalNotificationRepository implements IPersonalNotificationRepo
       notification: await this.notificationRepo.save(existing),
       shouldSendPush,
     };
+  }
+
+  async softDeleteAggregatedNotification(
+    userId: string,
+    aggregationKey: string,
+  ): Promise<number> {
+    const result = await this.notificationRepo.softDelete({
+      userId,
+      aggregationKey,
+    });
+
+    return result.affected || 0;
   }
 
   async updateNotificationSnapshots(
