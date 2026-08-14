@@ -412,7 +412,9 @@ export class AdminService implements IAdminService {
       throw new ConflictError("slug", "Bu slug zaten kullanimda.");
     }
 
-    const coverImage = file ? await uploadToS3(file, "novel-covers") : null;
+    const coverImage = file
+      ? await uploadToS3(file, "novel-covers", "novel-cover")
+      : null;
     let novel: Novel;
     try {
       novel = await this.uow.novelRepository.create({
@@ -511,7 +513,7 @@ export class AdminService implements IAdminService {
 
     let newCoverImage: string | undefined;
     if (file) {
-      newCoverImage = await uploadToS3(file, "novel-covers");
+      newCoverImage = await uploadToS3(file, "novel-covers", "novel-cover");
       updateData.coverImage = newCoverImage;
     }
 

@@ -92,6 +92,7 @@ export class UserController {
       const profileImageUrl = await uploadToS3(
         files.profileImageUrl[0],
         "avatars",
+        "profile",
       );
       updateData.profileImageUrl = profileImageUrl;
     }
@@ -100,6 +101,7 @@ export class UserController {
       const profileBackgroundImageUrl = await uploadToS3(
         files.profileBackgroundImageUrl[0],
         "profile-covers",
+        "profile-background",
       );
 
       updateData.profileBackgroundImageUrl = profileBackgroundImageUrl;

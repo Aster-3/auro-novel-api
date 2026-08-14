@@ -30,7 +30,7 @@ export class BannerService implements IBannerService {
       throw new BadRequestError("Banner gorseli zorunludur.");
     }
 
-    const imageUrl = await uploadToS3(file, "banners");
+    const imageUrl = await uploadToS3(file, "banners", "banner");
     try {
       return await this.bannerRepository.create({
         ...dto,
@@ -63,7 +63,7 @@ export class BannerService implements IBannerService {
 
     await this.validateTarget(targetType, targetId ?? undefined);
 
-    const imageUrl = file ? await uploadToS3(file, "banners") : undefined;
+    const imageUrl = file ? await uploadToS3(file, "banners", "banner") : undefined;
     const updateData: UpdateBannerDto & {
       imageUrl?: string;
       targetId?: string | null;

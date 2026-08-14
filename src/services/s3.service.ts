@@ -3,7 +3,9 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { randomUUID } from "crypto";
 import { getEnv } from "../utils/getEnv.js";
+import { ImagePreset, processImage } from "../utils/image.processing.js";
 import { isDefaultNovelCoverImageUrl } from "../utils/novel.cover.image.js";
 
 const s3Client = new S3Client({
@@ -15,31 +17,53 @@ const s3Client = new S3Client({
   },
 });
 
-/**
- * @param {Buffer} fileBuffer - Dosyanın içeriği
- * @param {string} folder - Hangi klasöre gidecek (covers, avatars vb.)
- * @param {string} originalName - Dosyanın orijinal adı
- * @param {string} mimetype - image/jpeg, image/png vb.
- */
+export type UploadedImage = {
+  url: string;
+  key: string;
+  width: number;
+  height: number;
+  size: number;
+  contentType: "image/webp";
+};
 
-export const uploadToS3 = async (file: Express.Multer.File, folder: string) => {
-  const safeOriginalName = file.originalname
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-");
-  const fileName = `${folder}/${Date.now()}-${safeOriginalName}`;
+export const uploadImageToS3 = async (
+  file: Express.Multer.File,
+  folder: string,
+  preset: ImagePreset,
+): Promise<UploadedImage> => {
+  const image = await processImage(file.buffer, preset);
+  const fileName = `${folder}/${randomUUID()}-${image.width}x${image.height}.${image.extension}`;
   const params = {
     Bucket: getEnv("R2_BUCKET_NAME"),
     Key: fileName,
-    Body: file.buffer,
-    ContentType: file.mimetype,
+    Body: image.buffer,
+    ContentType: image.contentType,
+    CacheControl: "public, max-age=31536000, immutable",
   };
+
   try {
     await s3Client.send(new PutObjectCommand(params));
-    return `${getEnv("R2_PUBLIC_URL").replace(/\/+$/, "")}/${fileName}`;
+    return {
+      url: `${getEnv("R2_PUBLIC_URL").replace(/\/+$/, "")}/${fileName}`,
+      key: fileName,
+      width: image.width,
+      height: image.height,
+      size: image.size,
+      contentType: image.contentType,
+    };
   } catch (error) {
     console.error("R2 upload error:", error);
-    throw new Error("Dosya yüklenirken bir hata oluştu.");
+    throw new Error("Dosya yuklenirken bir hata olustu.");
   }
+};
+
+export const uploadToS3 = async (
+  file: Express.Multer.File,
+  folder: string,
+  preset: ImagePreset,
+) => {
+  const image = await uploadImageToS3(file, folder, preset);
+  return image.url;
 };
 
 export const getS3KeyFromPublicUrl = (url?: string | null) => {

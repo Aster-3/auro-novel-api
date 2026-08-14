@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { IChapterCommentService } from "../interfaces/chapter.comment.service.interface.js";
-import { deleteFromS3ByUrl, uploadToS3 } from "../services/s3.service.js";
+import { deleteFromS3ByUrl, uploadImageToS3 } from "../services/s3.service.js";
 
 export class ChapterCommentController {
   constructor(private chapterCommentService: IChapterCommentService) {}
@@ -16,18 +16,20 @@ export class ChapterCommentController {
 
   createComment = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
-    const imageUrl = req.file
-      ? await uploadToS3(req.file, "chaptercomments")
+    const image = req.file
+      ? await uploadImageToS3(req.file, "chaptercomments", "comment-attachment")
       : null;
     try {
       const comment = await this.chapterCommentService.createComment({
         ...res.locals.validatedData,
         userId,
-        imageUrl,
+        imageUrl: image?.url ?? null,
+        imageWidth: image?.width ?? null,
+        imageHeight: image?.height ?? null,
       });
       res.status(201).json(comment);
     } catch (error) {
-      await deleteFromS3ByUrl(imageUrl);
+      await deleteFromS3ByUrl(image?.url);
       throw error;
     }
   };
@@ -46,19 +48,21 @@ export class ChapterCommentController {
 
   createReply = async (req: Request, res: Response) => {
     const userId = req.user?.id!;
-    const imageUrl = req.file
-      ? await uploadToS3(req.file, "chaptercomments")
+    const image = req.file
+      ? await uploadImageToS3(req.file, "chaptercomments", "comment-attachment")
       : null;
     try {
       const reply = await this.chapterCommentService.createReply({
         ...res.locals.validatedData,
         rootCommentId: Number(req.params.commentId),
         userId,
-        imageUrl,
+        imageUrl: image?.url ?? null,
+        imageWidth: image?.width ?? null,
+        imageHeight: image?.height ?? null,
       });
       res.status(201).json(reply);
     } catch (error) {
-      await deleteFromS3ByUrl(imageUrl);
+      await deleteFromS3ByUrl(image?.url);
       throw error;
     }
   };

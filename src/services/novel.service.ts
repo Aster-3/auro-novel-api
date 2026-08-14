@@ -106,7 +106,11 @@ export class NovelService implements INovelService {
     }
 
     if (file) {
-      novelData.coverImage = await uploadToS3(file, "novel-covers");
+      novelData.coverImage = await uploadToS3(
+        file,
+        "novel-covers",
+        "novel-cover",
+      );
     }
 
     try {
@@ -313,7 +317,7 @@ export class NovelService implements INovelService {
     await this.ensureNovelCanBeModified(dto.id);
 
     const newCoverImage = dto.coverImage
-      ? await uploadToS3(dto.coverImage, "novel-covers")
+      ? await uploadToS3(dto.coverImage, "novel-covers", "novel-cover")
       : undefined;
     const updateData = {
       ...dto,
